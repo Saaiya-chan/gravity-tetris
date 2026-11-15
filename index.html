@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>グラビティ・ポップ</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171b23; --line:#262c38; --text:#e8ecf3; --dim:#8a93a6; --accent:#ffcf5a;
+    --b: clamp(58px, min(19vw, calc(11dvh - 10px), calc(7vmin + 26px + 4vh)), 96px);  /* 操作ボタンの大きさ */
+    --side: clamp(150px, 22vw, 240px);                     /* 横向き時の左右の列幅 */
+    --s: min(94vw, calc(100dvh - 2*var(--b) - 150px));     /* 盤面の一辺（縦向き） */
+  }
+  @media (orientation:landscape){
+    :root{ --b: clamp(54px, calc(7vmin + 26px), 92px); --s: min(92dvh, calc(100vw - 2*var(--side) - 48px)); }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none}
+  body{
+    display:grid; place-content:center; gap:14px 12px;
+    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+    grid-template-columns: calc(var(--s)/2 - 6px) calc(var(--s)/2 - 6px);
+    grid-template-areas: "hudL hudR" "stage stage" "ctrlL ctrlR";
+    background: radial-gradient(120% 80% at 50% 40%, #151a24 0%, var(--bg) 70%);
+  }
+  @media (orientation:landscape){
+    body{
+      grid-template-columns: var(--side) var(--s) var(--side);
+      grid-template-rows: calc(var(--s)/2 - 7px) calc(var(--s)/2 - 7px);
+      grid-template-areas: "hudL stage hudR" "ctrlL stage ctrlR";
+    }
+  }
+  #hudL{grid-area:hudL;justify-self:start;align-self:end}
+  #hudR{grid-area:hudR;justify-self:end;align-self:end;display:flex;gap:10px;align-items:center}
+  #stage{grid-area:stage;width:var(--s);height:var(--s);position:relative}
+  #ctrlL{grid-area:ctrlL;justify-self:start}
+  #ctrlR{grid-area:ctrlR;justify-self:end}
+  @media (orientation:landscape){
+    #hudL,#hudR{align-self:start}
+    #ctrlL,#ctrlR{align-self:end}
+    #hudL{justify-self:start} #hudR{justify-self:end}
+  }
+  #stage,#board{touch-action:none}
+  #board{width:100%;height:100%;display:block;border-radius:14px;box-shadow:0 0 0 1px #232a37,0 18px 40px rgba(0,0,0,.45)}
+
+  /* HUD */
+  .stat{display:flex;align-items:baseline;gap:8px}
+  .stat .label{font-size:11px;letter-spacing:.16em;color:var(--dim)}
+  #score{font-size:clamp(26px,4.2vmin,40px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  #lines{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  #status{font-size:10.5px;color:var(--dim);margin-top:6px}
+  .nextbox{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:12px;padding:6px 8px 4px;text-align:center}
+  .nextbox .label{font-size:10px;letter-spacing:.16em;color:var(--dim)}
+  #next{width:56px;height:56px;display:block}
+  .iconbtn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;padding:0;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--dim)}
+  .iconbtn svg{width:18px;height:18px}
+
+  /* アイテム */
+  #items{display:flex;gap:10px;margin-top:10px}
+  .item{position:relative;width:48px;height:48px;border-radius:14px;padding:0;display:grid;place-items:center;
+    background:linear-gradient(180deg,#24405e,#182a40);border:1px solid #2f5a85;color:#bfe3ff;
+    box-shadow:0 3px 0 #0a121c, inset 0 1px 0 rgba(255,255,255,.12);touch-action:none}
+  .item#itemShuf{background:linear-gradient(180deg,#4a2b5e,#2f1b40);border-color:#7a4a99;color:#f0d6ff}
+  .item svg{width:26px;height:26px}
+  .item.down{transform:translateY(2px);box-shadow:0 1px 0 #0a121c}
+  .item.empty{opacity:.35;filter:grayscale(.6)}
+  .item.active{box-shadow:0 0 0 2px #7fd0ff, 0 0 14px rgba(127,208,255,.7)}
+  .badge{position:absolute;right:-6px;top:-6px;min-width:20px;height:20px;border-radius:10px;padding:0 5px;
+    background:#ffcf5a;color:#2a1f05;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  /* 操作ボタン */
+  .cluster{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .cluster .row2{display:flex;gap:calc(var(--b)*0.22);align-items:flex-end}
+  .bw{display:flex;flex-direction:column;align-items:center;gap:9px}
+  .cap{font-size:10.5px;letter-spacing:.2em;color:#5d6577}
+  button{font:inherit;color:var(--text);cursor:pointer}
+  .pbtn{
+    width:var(--b);height:var(--b);border-radius:50%;padding:0;display:grid;place-items:center;
+    color:#dfe5f1;
+    background:linear-gradient(180deg,#2b3244 0%,#1c212d 100%);
+    border:1px solid #3a4359;
+    box-shadow:0 5px 0 #0a0c11, 0 10px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.09);
+    transition:transform .06s, box-shadow .06s, filter .06s;
+    touch-action:none;
+  }
+  .pbtn.down{transform:translateY(4px);box-shadow:0 1px 0 #0a0c11, 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);filter:brightness(1.15)}
+  .pbtn svg{width:44%;height:44%;overflow:visible}
+  .pbtn .icon{transition:transform .25s cubic-bezier(.3,1.5,.5,1);transform-origin:50% 50%}
+  .pbtn.rot{width:calc(var(--b)*1.16);height:calc(var(--b)*1.16);
+    background:linear-gradient(180deg,#43357a 0%,#2b2252 100%);border-color:#6150a6;color:#eee9ff;
+    box-shadow:0 5px 0 #150f2c, 0 10px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14)}
+  .pbtn.rot.down{box-shadow:0 1px 0 #150f2c, 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1)}
+  .pbtn.drop{background:linear-gradient(180deg,#ffd978 0%,#e8ad33 100%);border-color:#ffe29a;color:#2a1f05;
+    box-shadow:0 5px 0 #6b4c0c, 0 10px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.45)}
+  .pbtn.drop.down{box-shadow:0 1px 0 #6b4c0c, 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.35)}
+  @media (orientation:landscape){ .cluster .row2{flex-wrap:wrap;justify-content:center} }
+
+  #overlay{position:fixed;inset:0;background:rgba(8,10,14,.86);display:flex;z-index:10;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+  #overlay .sheet{margin:auto}
+  @media (max-height:500px){ .sheet{padding:16px} .sheet h1{font-size:22px} ul.help{font-size:12px;line-height:1.6;margin:6px 0} .sheet p{font-size:13px;margin:4px 0} }
+  #overlay.hidden{display:none}
+  .sheet{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;text-align:center}
+  .sheet h1{margin:0 0 4px;font-size:28px}
+  .sheet p{color:var(--dim);font-size:14px;line-height:1.7;margin:8px 0}
+  .sheet button{background:#232937;border:1px solid #333b4d;border-radius:10px;padding:8px 12px}
+  .sheet .big{font-size:18px;padding:12px 28px;background:var(--accent);color:#1a1a1a;border:none;font-weight:700;margin-top:12px}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .row button{font-size:13px}
+  .warn{color:#ff9f7a!important}
+  ul.help{text-align:left;font-size:13px;color:var(--dim);line-height:1.8;padding-left:20px;margin:10px 0}
+</style>
+</head>
+<body>
+
+<div id="hudL">
+  <div class="stat"><span class="label">SCORE</span></div>
+  <div id="score">0</div>
+  <div class="stat" style="margin-top:4px"><span class="label">最大連鎖</span><span id="lines">0</span></div>
+  <div id="items">
+    <button id="itemStop" class="item" aria-label="ストップ"><svg viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nStop">1</span></button>
+    <button id="itemShuf" class="item" aria-label="シャッフル"><svg viewBox="0 0 24 24"><path d="M12 12c0-1.2 1.6-1.6 2.3-.7 1 1.3-.2 3.4-2.3 3.4-2.6 0-4-2.8-3-5 1.3-2.8 5.2-3.4 7.5-1.4 2.7 2.3 2.4 6.9-.6 8.9-3.6 2.4-8.9 1.1-10.6-2.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="badge" id="nShuf">1</span></button>
+  </div>
+  <div id="status">傾きセンサー: なし</div>
+</div>
+
+<div id="hudR">
+  <div class="nextbox"><div class="label">NEXT</div><canvas id="next"></canvas></div>
+  <button id="pauseBtn" class="iconbtn" aria-label="ポーズ"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg></button>
+</div>
+
+<div id="stage"><canvas id="board"></canvas></div>
+
+<div id="ctrlL" class="cluster">
+  <div class="row2">
+    <div class="bw">
+      <button id="mvA" class="pbtn" aria-label="移動"><svg viewBox="0 0 24 24"><g class="icon"><path d="M5 12h13M12.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg></button>
+      <span class="cap">移動</span>
+    </div>
+    <div class="bw">
+      <button id="mvB" class="pbtn" aria-label="移動"><svg viewBox="0 0 24 24"><g class="icon"><path d="M5 12h13M12.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg></button>
+      <span class="cap">移動</span>
+    </div>
+  </div>
+</div>
+
+<div id="ctrlR" class="cluster">
+  <div class="row2">
+    <div class="bw">
+      <button id="dropBtn" class="pbtn drop" aria-label="落とす"><svg viewBox="0 0 24 24"><g class="icon"><path d="M3.5 12h11M9.5 6.5l5.5 5.5-5.5 5.5M20 5v14" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg></button>
+      <span class="cap">落とす</span>
+    </div>
+    <div class="bw">
+      <button id="rotBtn" class="pbtn rot" aria-label="回転"><svg viewBox="0 0 24 24"><path d="M19.2 13.2A7.3 7.3 0 1 1 17 6.9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M18.6 3.2v4.6H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span class="cap">回転</span>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+"use strict";
+// ===== 設定 =====
+const N = 13;                 // 盤面サイズ（奇数で中心が1マスに決まる）
+const SLIDE_MS = 42;          // 粒が1マス流れる間隔
+const LOCK_DELAY = 500;       // 接地してから固定されるまで
+const POP_MS = 420;           // 消える演出の長さ
+const TILT_MIN = 2.2;         // m/s^2 これ未満の傾きは無視（ほぼ水平）
+const TILT_SNAP = 32;         // 新しい方向の軸から何度以内で切替えるか
+const TILT_HOLD = 120;        // 切替えに必要な安定時間 ms
+
+const DIRS = [[0,1],[-1,0],[0,-1],[1,0]];   // 0:下 1:左 2:上 3:右（盤面座標, y下向き）
+const PALETTE = [
+  {base:"#ff4d6d", hi:"#ffc2cf", dark:"#9e1030"},   // 赤
+  {base:"#2fa8ff", hi:"#c2e6ff", dark:"#0a559e"},   // 青
+  {base:"#3ddc84", hi:"#c4f7da", dark:"#0f8444"},   // 緑
+  {base:"#ffc93c", hi:"#fff2c0", dark:"#a87400"},   // 黄
+  {base:"#b06bff", hi:"#e6d1ff", dark:"#5f1fb3"},   // 紫
+];
+const CHAIN_POWER = [0,1,4,8,16,32,64,96,128,160,192,224,256,288,320,352];
+
+// ===== 保存 =====
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem("gp_"+k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem("gp_"+k, JSON.stringify(v)); }catch(e){} }
+};
+let sensorOffset = store.get("sensorOffset",0);   // センサー向き補正（90°単位）
+let soundOn = store.get("sound",true);
+let faceOn = store.get("face",true);
+// ===== 物理: 斜面と摩擦 =====
+// 盤面を「傾いた板」、粒を板の上の物体とみなす。
+//   斜面方向の加速度 a = g・(sinθ − μk・cosθ)   （動き出す条件: sinθ > μs・cosθ ⇔ tanθ > μs）
+//   θ: 盤面（画面）が水平から傾いた角度。sinθ は重力の「画面に沿った成分」、cosθ は「画面に垂直な成分」。
+const G = 9.81;
+const FRICTION = {
+  ice:    {name:"つるつる（氷）", s:0.10, k:0.05},
+  normal: {name:"ふつう",        s:0.30, k:0.20},
+  rough:  {name:"ざらざら",      s:0.55, k:0.40},
+};
+const SCALES = [0.05, 0.10, 0.20];                 // 1マスの大きさ[m]。大きいほど（マス単位では）ゆっくり
+let frictionKey = store.get("friction","normal"); if(!FRICTION[frictionKey]) frictionKey="normal";
+let cellM = store.get("cellM",0.10); if(!SCALES.includes(cellM)) cellM=0.10;
+// 重力の向きの単位ベクトル（画面座標: x右, y下, z画面に垂直）。センサーがないときは「下に35°傾けた」ことにする
+const NO_SENSOR = {x:0, y:Math.sin(35*Math.PI/180), z:Math.cos(35*Math.PI/180)};
+let gN = {...NO_SENSOR};
+let tiltDeg = 35, tiltK = 1, physActive = false;
+function slope(){
+  const f=FRICTION[frictionKey];
+  const sin = Math.hypot(gN.x, gN.y);              // 盤面に沿った重力の成分（= sinθ）。向きは自由
+  const cos = Math.abs(gN.z);                      // 盤面に垂直な成分（= cosθ）→ 摩擦力の元になる垂直抗力
+  const gc = G / cellM;                            // g を「マス/秒²」に換算
+  return { sin, cos, f, gc, canStart: sin > f.s*cos, aK: gc*(sin - f.k*cos), aMS: G*(sin - f.k*cos) };
+}
+// 難易度: 出現してから落ち始めるまでの「ふわっと待つ時間」と、落ちてくる組の最高速度（空気抵抗による終端速度）
+const LEVELS = {
+  easy:   {name:"やさしい",   hover:2600, vmax:4},
+  normal: {name:"ふつう",     hover:1600, vmax:7},
+  hard:   {name:"むずかしい", hover:700,  vmax:Infinity},
+};
+let levelKey = store.get("level","normal"); if(!LEVELS[levelKey]) levelKey="normal";
+let best = store.get("best",0);
+
+// ===== 状態 =====
+let grid, piece, nextPairs, grav, score, maxChain, popped, level, colorsN;
+let fallAcc, lockTimer, slideAcc, dirty, popping, popT, chain, running, paused, over;
+let particles=[], chainFx=null, shake=0;
+let items={stop:1, shuf:1}, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
+const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
+
+function randColor(){ return Math.random()*colorsN|0; }
+function newPair(){ return [randColor(), randColor()]; }
+function emptyGrid(){ return Array.from({length:N},()=>Array(N).fill(null)); }
+function reset(){
+  grid = emptyGrid(); grav = grav ?? 0;
+  score=0; maxChain=0; popped=0; level=1; colorsN=4;
+  nextPairs=[newPair(), newPair()];
+  piece=null; fallAcc=0; lockTimer=0; slideAcc=0; dirty=false; popping=null; chain=0;
+  particles=[]; chainFx=null; shake=0; paused=false; over=false;
+  items={stop:1, shuf:1}; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
+  spawn(); updateHud();
+}
+// 2個1組。軸の粒が真ん中に出て、相方は重力と反対側につく
+function spawn(){
+  const cols = nextPairs.shift(); nextPairs.push(newPair());
+  const c=(N-1)/2, [gx,gy]=DIRS[grav];
+  piece = {x:c, y:c, cells:[[0,0],[-gx,-gy]], colors:cols, vx:0, vy:0, fx:0, fy:0, hover:LEVELS[levelKey].hover, hover0:LEVELS[levelKey].hover};
+  fallAcc=0; lockTimer=0;
+  if(collides(piece.cells,piece.x,piece.y)){ gameOver(); }
+  drawNext();
+}
+function collides(cells,px,py){
+  for(const [cx,cy] of cells){
+    const x=px+cx, y=py+cy;
+    if(x<0||y<0||x>=N||y>=N) return true;
+    if(grid[y][x]) return true;
+  }
+  return false;
+}
+function tryMove(dx,dy){
+  if(!piece||shuffle) return false;
+  if(collides(piece.cells,piece.x+dx,piece.y+dy)) return false;
+  piece.x+=dx; piece.y+=dy; piece.ox=(piece.ox||0)-dx; piece.oy=(piece.oy||0)-dy; dirty=true; return true;
+}
+function rotate(dir){ // 1:時計回り -1:反時計回り。相方の粒が軸のまわりを回る
+  if(!piece||shuffle) return;
+  const [ox,oy]=piece.cells[1];
+  const n = dir>0 ? [-oy, ox] : [oy, -ox];
+  const tries = [[n,[0,0]], [n,[-n[0],-n[1]]], [[-ox,-oy],[0,0]], [[-ox,-oy],[ox,oy]]];
+  for(const [off,[kx,ky]] of tries){
+    const cells=[[0,0],off];
+    if(!collides(cells,piece.x+kx,piece.y+ky)){ piece.cells=cells; piece.x+=kx; piece.y+=ky; piece.wv=(piece.wv||0)-0.006; lockTimer=0; dirty=true; sfx("rot"); return; }
+  }
+}
+function hardDrop(){
+  if(!piece||shuffle) return;
+  if(piece.hover>0){ piece.hover=0; }
+  const [x,y,d]=castPath(piece.cells,piece.x,piece.y);
+  piece.x=x; piece.y=y; piece.fx=piece.fy=0; dirty=true;
+  score += d; lock(Math.min(1.2,0.5+d*0.08));
+}
+// 重力の向き（盤面に沿った単位ベクトル）。ほぼ水平なら null
+function gDir(){ const m=Math.hypot(gN.x,gN.y); return m<1e-3?null:[gN.x/m, gN.y/m]; }
+// 重力の向きにまっすぐ進めたときの行き先（斜めは x と y を割合どおりに1マスずつ）。ふさがった軸は止め、もう一方へは滑り続ける
+function castPath(cells,x,y,extra){
+  const u=gDir(); if(!u) return [x,y,0];
+  let ux=Math.abs(u[0])<0.08?0:u[0], uy=Math.abs(u[1])<0.08?0:u[1], fx=0, fy=0, d=0;
+  const hit=(cx,cy)=>collides(cells,cx,cy)||(extra&&cells.length===1&&extra.has((cy+cells[0][1])*N+(cx+cells[0][0])));
+  for(let i=0;i<600 && (ux||uy);i++){
+    fx+=ux*0.2; fy+=uy*0.2;
+    if(Math.abs(fx)>=1){ const sx=Math.sign(fx); if(hit(x+sx,y)){ ux=0; fx=0; } else { x+=sx; fx-=sx; d++; } }
+    if(Math.abs(fy)>=1){ const sy=Math.sign(fy); if(hit(x,y+sy)){ uy=0; fy=0; } else { y+=sy; fy-=sy; d++; } }
+  }
+  return [x,y,d];
+}
+function lock(str=0.6){
+  piece.cells.forEach(([cx,cy],i)=>{ const o={c:piece.colors[i], vx:0, vy:0, fx:0, fy:0, w:piece.w||0, wv:0}; land(o,str); grid[piece.y+cy][piece.x+cx]=o; });
+  piece=null; dirty=true; chain=0;
+  sfx("lock"); updateHud();
+}
+
+// 粒を物理で動かす（重力は盤面に沿ったどんな向きでもよい）。
+// 各粒は速度ベクトル (vx,vy)[マス/秒] と、マスの中心からのずれ (fx,fy) を持つ。
+// 斜めに進むときは x と y を別々に1マスずつ進める。片方の軸がふさがっていれば、その軸の速度は0になり、もう一方の軸へ滑り続ける。
+//   加速度 = g・(ふさがっていない向きの重力成分) − μk・g・cosθ（速度と逆向き）。止まっている粒は「押す力 > μs・g・cosθ」で動き出す
+function moveBody(b, h, isBlocked, vmax, impact){
+  const gc=G/cellM, cos=Math.abs(gN.z), f=FRICTION[frictionKey];
+  let gx=gN.x, gy=gN.y;
+  b.vx=b.vx||0; b.vy=b.vy||0; b.fx=b.fx||0; b.fy=b.fy||0;
+  const bx = v=>v!==0 && isBlocked(Math.sign(v),0), by = v=>v!==0 && isBlocked(0,Math.sign(v));
+  // ぶつかっている軸の速度・ずれを消す
+  if(bx(b.vx)){ impact(Math.abs(b.vx)); b.vx=0; } if(bx(b.fx)) b.fx=0;
+  if(by(b.vy)){ impact(Math.abs(b.vy)); b.vy=0; } if(by(b.fy)) b.fy=0;
+  if(bx(gx)) gx=0; if(by(gy)) gy=0;                 // 壁や粒に押さえられている向きの重力は効かない
+  const drive=Math.hypot(gx,gy);
+  let sp=Math.hypot(b.vx,b.vy);
+  if(sp===0 && drive<=f.s*cos) return false;        // 静止摩擦で止まったまま
+  b.vx+=gc*gx*h; b.vy+=gc*gy*h;
+  sp=Math.hypot(b.vx,b.vy);
+  const fr=gc*f.k*cos*h;                            // 動摩擦による減速（向きは速度の逆）
+  if(sp<=fr){ b.vx=b.vy=0; return false; }
+  let k=(sp-fr)/sp; if((sp-fr)>vmax) k=vmax/sp;
+  b.vx*=k; b.vy*=k;
+  b.fx+=b.vx*h; b.fy+=b.vy*h;
+  return true;
+}
+function physicsStep(dt){
+  const act=new Set();
+  if(piece) for(const [cx,cy] of piece.cells) act.add((piece.y+cy)*N+(piece.x+cx));
+  const full=(x,y)=>x<0||y<0||x>=N||y>=N||!!grid[y][x]||act.has(y*N+x);
+  let active=false;
+  const steps=Math.max(1,Math.ceil(dt/6)), h=dt/1000/steps;
+  for(let k=0;k<steps;k++){
+    const cells=[];
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(grid[y][x]) cells.push([x,y]);
+    cells.sort((a,b)=>(b[0]*gN.x+b[1]*gN.y)-(a[0]*gN.x+a[1]*gN.y));   // 重力の先頭から
+    for(const [x0,y0] of cells){
+      let x=x0, y=y0; const o=grid[y][x];
+      if(o.pop) continue;
+      o.vx=o.vx||0; o.vy=o.vy||0; o.fx=o.fx||0; o.fy=o.fy||0;
+      const moved=moveBody(o,h,(dx,dy)=>full(x+dx,y+dy),Infinity,v=>{ if(v>1) land(o,Math.min(1.3,0.25+v/22)); });
+      if(!moved) continue;
+      active=true;
+      while(Math.abs(o.fx)>=1){ const sx=Math.sign(o.fx); if(full(x+sx,y)){ land(o,Math.min(1.3,0.25+Math.abs(o.vx)/22)); o.vx=0; o.fx=0; break; } grid[y][x+sx]=o; grid[y][x]=null; x+=sx; o.fx-=sx; }
+      while(Math.abs(o.fy)>=1){ const sy=Math.sign(o.fy); if(full(x,y+sy)){ land(o,Math.min(1.3,0.25+Math.abs(o.vy)/22)); o.vy=0; o.fy=0; break; } grid[y+sy][x]=o; grid[y][x]=null; y+=sy; o.fy-=sy; }
+    }
+  }
+  // 見た目: マスの途中まで進んだ分だけずらす。速いほど少し伸びる
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const o=grid[y][x]; if(!o||o.pop) continue;
+    o.ox=o.fx||0; o.oy=o.fy||0;
+    const sp=Math.hypot(o.vx||0,o.vy||0);
+    if(sp>0) o.w=Math.min(o.w||0, -Math.min(0.14, sp/180));
+  }
+  return active;
+}
+// 落ちてくる組も同じ物理で動く（最高速度だけ空気抵抗で頭打ち）
+function pieceStep(dt){
+  if(piece.hover>0){ piece.hover=Math.max(0,piece.hover-dt); piece.vx=piece.vy=piece.fx=piece.fy=0; lockTimer=0; return; }   // 出現直後はふわっと浮いて待つ
+  const steps=Math.max(1,Math.ceil(dt/6)), h=dt/1000/steps;
+  const hitAt=(dx,dy)=>collides(piece.cells,piece.x+dx,piece.y+dy);
+  let moved=false;
+  for(let k=0;k<steps && piece;k++){
+    const m=moveBody(piece,h,hitAt,LEVELS[levelKey].vmax,v=>{ piece.lastV=v; if(v>1) piece.wv=(piece.wv||0)+0.0095*Math.min(1.2,0.25+v/22); });
+    if(m) moved=true;
+    while(Math.abs(piece.fx)>=1){ const sx=Math.sign(piece.fx); if(hitAt(sx,0)){ piece.vx=0; piece.fx=0; break; } piece.x+=sx; piece.fx-=sx; dirty=true; }
+    while(Math.abs(piece.fy)>=1){ const sy=Math.sign(piece.fy); if(hitAt(0,sy)){ piece.vy=0; piece.fy=0; break; } piece.y+=sy; piece.fy-=sy; dirty=true; }
+  }
+  // 何かに押さえられていて、もう動けないなら固定までのカウント
+  const sgx=Math.sign(gN.x), sgy=Math.sign(gN.y);
+  const touching=(sgx&&hitAt(sgx,0))||(sgy&&hitAt(0,sgy));
+  if(!moved && touching){ lockTimer+=dt; if(lockTimer>=LOCK_DELAY) lock(Math.min(1.2,0.4+(piece.lastV||0)/22)); }
+  else lockTimer=0;
+}
+// 同じ色が4つ以上つながったら消す
+function land(o,str){ o.wv=(o.wv||0)+0.0095*str; }
+function jiggleAll(v){ for(const row of grid) for(const o of row) if(o) o.wv=(o.wv||0)+v*(0.7+Math.random()*0.6); }
+function findPops(now){
+  const seen=emptyGrid(), pops=[]; let groups=0, bonus=0, colorSet=new Set();
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    if(!grid[y][x]||seen[y][x]) continue;
+    const c=grid[y][x].c, g=[], st=[[x,y]]; seen[y][x]=1;
+    while(st.length){
+      const [cx,cy]=st.pop(); g.push([cx,cy]);
+      for(const [ox,oy] of DIRS){
+        const nx=cx+ox, ny=cy+oy;
+        if(nx<0||ny<0||nx>=N||ny>=N||seen[ny][nx]||!grid[ny][nx]||grid[ny][nx].c!==c) continue;
+        seen[ny][nx]=1; st.push([nx,ny]);
+      }
+    }
+    if(g.length>=4){ pops.push(...g); groups++; bonus+=Math.min(10,g.length-4)*2; colorSet.add(c); }
+  }
+  if(!pops.length) return false;
+  chain++; maxChain=Math.max(maxChain,chain);
+  const power = CHAIN_POWER[Math.min(chain,CHAIN_POWER.length-1)];
+  const colorBonus=[0,0,3,6,12,24][colorSet.size]||0;
+  score += pops.length*10*Math.max(1, power + bonus + colorBonus);
+  popped += pops.length; level = 1+Math.floor(popped/40); colorsN = level>=5 ? 5 : 4;
+  popping=pops; popT=now;
+  for(const [x,y] of pops){ grid[y][x].pop=true; burst(x,y,grid[y][x].c); }
+  for(const [x,y] of pops) for(const [ox,oy] of DIRS){
+    const n=(grid[y+oy]||[])[x+ox]; if(n && !n.pop) n.wv=(n.wv||0)+0.006;
+  }
+  if(chain>=2) chainFx={n:chain, t:now};
+  if(chain===3) grantItem(now);
+  while(popped>=nextItemAt){ nextItemAt+=50; grantItem(now); }
+  shake = Math.min(14, 2 + chain*2.5);
+  sfx("pop", chain);
+  updateHud();
+  return true;
+}
+function burst(x,y,c){
+  for(let i=0;i<7;i++){
+    const a=Math.random()*Math.PI*2, v=0.004+Math.random()*0.006;
+    particles.push({x:x+0.5, y:y+0.5, vx:Math.cos(a)*v, vy:Math.sin(a)*v, life:1, c, r:0.12+Math.random()*0.12});
+  }
+}
+
+// ===== アイテム =====
+function grantItem(now){
+  const k = Math.random()<0.5 ? "stop" : "shuf";
+  items[k]=Math.min(9,items[k]+1);
+  itemFx={text: k==="stop"?"ストップ GET!":"シャッフル GET!", t:now};
+  sfx("get"); updateHud();
+}
+function useStop(){
+  if(!running||paused||over||items.stop<=0||stopLeft>0) return;
+  items.stop--; stopLeft=STOP_MS;
+  itemFx={text:"ストップ!", t:performance.now()};
+  sfx("stop"); updateHud();
+}
+function useShuffle(){
+  if(!running||paused||over||items.shuf<=0||shuffle||popping) return;
+  const from=[];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(grid[y][x]) from.push({x,y,c:grid[y][x].c});
+  if(!from.length) return;
+  // 行き先: 真ん中3×3と、落下中の組の場所を避けて、ランダムに散らす
+  const c=(N-1)/2, act=new Set();
+  if(piece) for(const [cx,cy] of piece.cells) act.add((piece.y+cy)*N+(piece.x+cx));
+  const spots=[];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    if(Math.abs(x-c)<=1 && Math.abs(y-c)<=1) continue;
+    if(act.has(y*N+x)) continue;
+    spots.push([x,y]);
+  }
+  for(let i=spots.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [spots[i],spots[j]]=[spots[j],spots[i]]; }
+  if(spots.length<from.length) return;
+  items.shuf--;
+  const colors=from.map(b=>b.c);
+  for(let i=colors.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [colors[i],colors[j]]=[colors[j],colors[i]]; }
+  const to=from.map((b,i)=>({x:spots[i][0], y:spots[i][1], c:colors[i]}));
+  // 吸い込まれるときは元の色、吐き出すときは新しい色（中央で混ざる）
+  shuffle={t:performance.now(), from, to, spin: Math.random()<0.5?1:-1};
+  grid=emptyGrid(); dirty=false;
+  sfx("shuf"); updateHud();
+}
+function easeInCubic(t){ return t*t*t; }
+function easeOutBack(t){ const c1=1.4, c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+// シャッフル中の粒の位置（盤面のマス単位、中心座標）
+function shuffleFrame(now){
+  const t=now-shuffle.t, c=(N-1)/2+0.5, out=[];
+  const sp=shuffle.spin;
+  if(t<SHUF_IN){                               // ぐるぐる回りながら中央へ
+    const e=easeInCubic(t/SHUF_IN);
+    for(const b of shuffle.from){
+      const dx=b.x+0.5-c, dy=b.y+0.5-c, r0=Math.hypot(dx,dy), a0=Math.atan2(dy,dx);
+      const r=r0*(1-e), a=a0+sp*e*Math.PI*3;
+      out.push({x:c+Math.cos(a)*r, y:c+Math.sin(a)*r, c:b.c, sc:1-0.45*e});
+    }
+  }else if(t<SHUF_IN+SHUF_HOLD){               // 中央で渦を巻く
+    const k=(t-SHUF_IN)/SHUF_HOLD;
+    shuffle.from.forEach((b,i)=>{
+      const a=i*2.399+sp*(k*Math.PI*2+t*0.01), r=0.35+0.25*Math.sin(i*1.7+t*0.02);
+      out.push({x:c+Math.cos(a)*r, y:c+Math.sin(a)*r, c:shuffle.to[i].c, sc:0.55});
+    });
+  }else{                                       // 四方へ吐き出す
+    const k=Math.min(1,(t-SHUF_IN-SHUF_HOLD)/SHUF_OUT), e=easeOutBack(k);
+    for(const b of shuffle.to){
+      const dx=b.x+0.5-c, dy=b.y+0.5-c, rr=Math.hypot(dx,dy), a1=Math.atan2(dy,dx);
+      const a=a1 - sp*(1-k)*Math.PI*1.2, r=rr*e;
+      out.push({x:c+Math.cos(a)*r, y:c+Math.sin(a)*r, c:b.c, sc:0.55+0.45*Math.min(1,k*1.5)});
+    }
+  }
+  return out;
+}
+
+function setGravity(d){
+  d = ((d%4)+4)%4;
+  if(d===grav) return;
+  grav=d; dirty=true;
+  updateCtrl();
+}
+
+
+// ===== 効果音（WebAudio で合成） =====
+let actx=null;
+function initAudio(){ try{ actx = actx || new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume(); }catch(e){ actx=null; } }
+function tone(f0,f1,dur,type,vol,delay=0){
+  if(!actx||!soundOn) return;
+  const t=actx.currentTime+delay, o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t+dur+0.02);
+}
+function sfx(kind, n=1){
+  if(kind==="pop"){ const f=520*Math.pow(2,(Math.min(n,12)-1)*2/12); tone(f,f*0.5,0.16,"sine",0.25); tone(f*1.5,f*0.75,0.12,"triangle",0.12,0.03); }
+  else if(kind==="lock"){ tone(180,90,0.08,"sine",0.18); }
+  else if(kind==="rot"){ tone(700,900,0.04,"triangle",0.06); }
+  else if(kind==="get"){ tone(880,1320,0.09,"triangle",0.15); tone(1320,1760,0.12,"triangle",0.12,0.08); }
+  else if(kind==="stop"){ tone(1200,600,0.35,"sine",0.18); tone(900,450,0.35,"sine",0.1,0.05); }
+  else if(kind==="shuf"){ tone(200,900,0.75,"sawtooth",0.05); tone(900,180,0.6,"triangle",0.12,0.95); }
+}
+
+// ===== ループ =====
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(100, now-last); last=now;
+  if(paused && shuffle) shuffle.t+=dt;
+  if(running && !paused && !over) update(dt, now);
+  stepFx(dt);
+  draw(now);
+  requestAnimationFrame(frame);
+}
+function update(dt, now){
+  if(shuffle){                                  // シャッフル演出中は時間を止める
+    if(now-shuffle.t >= SHUF_IN+SHUF_HOLD+SHUF_OUT){
+      for(const b of shuffle.to) grid[b.y][b.x]={c:b.c, wv:0.008, vx:0, vy:0, fx:0, fy:0};
+      shuffle=null; dirty=true; chain=0;
+    }
+    return;
+  }
+  if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
+  if(popping){
+    physActive=false;
+    if(now-popT>=POP_MS){ for(const [x,y] of popping) grid[y][x]=null; popping=null; dirty=true; }
+  }else{
+    physActive = physicsStep(dt);
+    if(physActive) dirty=true;
+    else if(dirty){ dirty=false; if(!findPops(now)) chain=0; }   // 全部止まったら、つながりを調べる
+  }
+  if(!piece){
+    if(!dirty && !popping && !physActive && !over && stopLeft<=0) spawn();   // 連鎖が終わり、ストップ中でなければ次の組を出す
+    return;
+  }
+  pieceStep(dt);
+}
+let statusAcc=0;
+function stepFx(dt){
+  statusAcc+=dt; if(statusAcc>200){ statusAcc=0; if(sensorSeen) setStatus(); }
+  const gx=gN.x*1.6, gy=gN.y*1.6;
+  for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx+=gx*0.00002*dt; p.vy+=gy*0.00002*dt; p.life-=dt/650; }
+  particles=particles.filter(p=>p.life>0);
+  shake=Math.max(0, shake - dt*0.04);
+  { const u=gDir(); if(u){ const d=dirDeg(u); const el=document.querySelector("#dropBtn .icon"); if(el && Math.abs(((d-(el._r||0))%360+540)%360-180)>3) setRot(el,d); } }   // 「落とす」ボタンの矢印は本当の重力の向き
+  const S=slope(); const eff = S.canStart||physActive ? Math.max(0, S.sin - S.f.k*S.cos) : 0;
+  tiltK += (eff*2 - tiltK) * Math.min(1, dt/180);   // 見た目用（床の光・矢印の強さ）
+  // ばね: つぶれ具合 w が 0 に戻ろうとして、ぷるんと揺れる
+  const K=0.0007, C=0.011;
+  const spring=o=>{
+    let t=dt; while(t>0){ const h=Math.min(16,t); t-=h;
+      o.wv=(o.wv||0)+(-K*(o.w||0)-C*(o.wv||0))*h; o.w=(o.w||0)+o.wv*h; }
+    if(Math.abs(o.w)<0.001 && Math.abs(o.wv)<0.00005){ o.w=0; o.wv=0; }
+  };
+  const decay=(o,rate)=>{
+    const st=dt/rate;
+    if(o.ox){ o.ox = Math.abs(o.ox)<=st ? 0 : o.ox-Math.sign(o.ox)*st; }
+    if(o.oy){ o.oy = Math.abs(o.oy)<=st ? 0 : o.oy-Math.sign(o.oy)*st; }
+  };
+  if(grid) for(const row of grid) for(const o of row) if(o){ spring(o); }
+  if(piece){ decay(piece,70); spring(piece); }
+}
+
+// ===== 描画 =====
+const cv = document.getElementById("board"), ctx = cv.getContext("2d");
+const nv = document.getElementById("next"), nctx = nv.getContext("2d");
+function fitCanvas(c){
+  const dpr=window.devicePixelRatio||1;
+  const w=Math.round(c.offsetWidth*dpr), h=Math.round(c.offsetHeight*dpr);
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
+}
+// つやのある丸い粒（顔なし）
+// ぷるぷるの粒。o.w = つぶれ具合（+でつぶれる / -で伸びる）、o.g = 重力の向き
+function blob(g,cx,cy,r,ci,alpha=1,o={}){
+  const p=PALETTE[ci], w=Math.max(-0.35,Math.min(0.45,o.w||0)), [gx,gy]=o.g||[0,1];
+  const along=1-w, across=1+w*0.8;
+  g.save(); g.globalAlpha=alpha;
+  g.translate(cx+gx*r*w*0.85, cy+gy*r*w*0.85);
+  const ga=Math.atan2(gy,gx)-Math.PI/2;              // 重力の向きにつぶれる（斜めでも）
+  g.rotate(ga); g.scale(across, along); g.rotate(-ga);
+  const grd=g.createRadialGradient(-r*0.3,-r*0.38,r*0.1,0,0,r*1.02);
+  grd.addColorStop(0,p.hi); grd.addColorStop(0.5,p.base); grd.addColorStop(1,p.dark);
+  g.fillStyle=grd; g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.fill();
+  // 底のほうの照り返し
+  g.fillStyle="rgba(255,255,255,.12)";
+  g.beginPath(); g.ellipse(r*0.1,r*0.55,r*0.5,r*0.18,0,0,Math.PI*2); g.fill();
+  // つやの光
+  g.fillStyle="rgba(255,255,255,.7)";
+  g.beginPath(); g.ellipse(-r*0.36,-r*0.46,r*0.24,r*0.13,-0.6,0,Math.PI*2); g.fill();
+  g.beginPath(); g.arc(-r*0.08,-r*0.62,r*0.06,0,Math.PI*2); g.fill();
+  if(o.face && faceOn && r>5) face(g,r,o,gx,gy);
+  g.restore();
+}
+// 顔: 小さな点の目・ほっぺ・小さな口（つぶらな目で、本家とは違う顔）
+function face(g,r,o,gx,gy){
+  const lx=gx*r*0.08, ly=gy*r*0.06+r*0.05;            // 少し重力のほうを見る
+  g.fillStyle="rgba(255,120,150,.35)";
+  g.beginPath(); g.ellipse(-r*0.52+lx,r*0.2+ly,r*0.17,r*0.1,0,0,Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse( r*0.52+lx,r*0.2+ly,r*0.17,r*0.1,0,0,Math.PI*2); g.fill();
+  g.strokeStyle="#2b1830"; g.fillStyle="#2b1830"; g.lineCap="round"; g.lineWidth=Math.max(1,r*0.09);
+  const ex=r*0.27, ey=-r*0.04+ly;
+  if(o.happy){                                         // 消えるときはにっこり ^ ^
+    for(const sx of [-1,1]){ g.beginPath(); g.arc(sx*ex+lx,ey+r*0.06,r*0.11,Math.PI*1.1,Math.PI*1.9); g.stroke(); }
+  }else if(o.blink){
+    for(const sx of [-1,1]){ g.beginPath(); g.moveTo(sx*ex+lx-r*0.09,ey); g.lineTo(sx*ex+lx+r*0.09,ey); g.stroke(); }
+  }else{
+    for(const sx of [-1,1]){
+      g.beginPath(); g.ellipse(sx*ex+lx,ey,r*0.085,r*0.11,0,0,Math.PI*2); g.fill();
+      g.fillStyle="#fff"; g.beginPath(); g.arc(sx*ex+lx-r*0.025,ey-r*0.04,r*0.03,0,Math.PI*2); g.fill(); g.fillStyle="#2b1830";
+    }
+  }
+  g.lineWidth=Math.max(1,r*0.07);
+  g.beginPath();
+  if(o.happy){ g.arc(lx,r*0.18+ly,r*0.12,0.1*Math.PI,0.9*Math.PI); }
+  else { g.moveTo(lx-r*0.08,r*0.17+ly); g.quadraticCurveTo(lx-r*0.04,r*0.23+ly,lx,r*0.18+ly); g.quadraticCurveTo(lx+r*0.04,r*0.23+ly,lx+r*0.08,r*0.17+ly); }
+  g.stroke();
+}
+function bridge(g,x1,y1,x2,y2,w,ci){
+  const p=PALETTE[ci];
+  g.strokeStyle=p.base; g.lineWidth=w; g.lineCap="round";
+  g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+}
+function landing(){ // ゴースト: 組ごと落とし、そのあと粒ごとに落とす（重力の向きは自由）
+  const [px,py]=castPath(piece.cells,piece.x,piece.y);
+  let pos=piece.cells.map(([cx,cy],i)=>[px+cx,py+cy,i]);
+  pos.sort((a,b)=>(b[0]*gN.x+b[1]*gN.y)-(a[0]*gN.x+a[1]*gN.y));
+  const occ=new Set(); const out=[];
+  for(const [x0,y0,i] of pos){
+    const [x,y]=castPath([[0,0]],x0,y0,occ);
+    occ.add(y*N+x); out.push([x,y,i]);
+  }
+  return out;
+}
+function draw(now){
+  fitCanvas(cv);
+  const W=cv.width, s=W/N, r=s*0.44;
+  ctx.save();
+  ctx.clearRect(0,0,W,W);
+  if(shake>0) ctx.translate((Math.random()-0.5)*shake*s*0.06,(Math.random()-0.5)*shake*s*0.06);
+  ctx.fillStyle="#131722"; ctx.fillRect(-20,-20,W+40,W+40);
+  // 床（重力方向の壁）を光らせる
+  const gu=gDir()||[0,1], dx=gu[0], dy=gu[1], gw=s*1.6;
+  const ext=W/2*(Math.abs(dx)+Math.abs(dy));             // 重力の向きで一番遠い角までの距離
+  const ex=W/2+dx*ext, ey=W/2+dy*ext;
+  const grd=ctx.createLinearGradient(ex,ey,ex-dx*gw*1.4,ey-dy*gw*1.4);
+  grd.addColorStop(0,`rgba(255,207,90,${(0.12+0.32*Math.min(1,tiltK/2)).toFixed(3)})`); grd.addColorStop(1,"rgba(255,207,90,0)");
+  ctx.fillStyle=grd; ctx.fillRect(0,0,W,W);
+  // 点のグリッド
+  ctx.fillStyle="rgba(255,255,255,.07)";
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ ctx.beginPath(); ctx.arc((x+.5)*s,(y+.5)*s,s*0.04,0,Math.PI*2); ctx.fill(); }
+  // 出現地点
+  const c=(N-1)/2;
+  ctx.strokeStyle="rgba(255,255,255,.18)"; ctx.lineWidth=Math.max(1,s*0.04); ctx.setLineDash([s*0.12,s*0.12]);
+  ctx.beginPath(); ctx.arc((c+.5)*s,(c+.5)*s,s*0.5,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  // 重力の矢印
+  ctx.save(); ctx.translate(W/2,W/2); ctx.rotate(Math.atan2(dy,dx)-Math.PI/2);
+  ctx.fillStyle=`rgba(255,207,90,${(0.2+0.3*Math.min(1,tiltK/2)).toFixed(3)})`; const a=s*(0.35+0.25*Math.min(1.4,tiltK)/1.4);
+  ctx.beginPath(); ctx.moveTo(0,W/2-s*0.25); ctx.lineTo(-a,W/2-s*0.25-a); ctx.lineTo(a,W/2-s*0.25-a); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 同じ色どうしの「つながり」
+  const vx=(a,x)=>(x+.5+(a.ox||0))*s, vy=(a,y)=>(y+.5+(a.oy||0))*s;
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const a=grid[y][x]; if(!a||a.pop) continue;
+    const b1=x+1<N?grid[y][x+1]:null, b2=y+1<N?grid[y+1][x]:null;
+    if(b1 && !b1.pop && b1.c===a.c) bridge(ctx,vx(a,x),vy(a,y),vx(b1,x+1),vy(b1,y),r*1.3,a.c);
+    if(b2 && !b2.pop && b2.c===a.c) bridge(ctx,vx(a,x),vy(a,y),vx(b2,x),vy(b2,y+1),r*1.3,a.c);
+  }
+  // 粒
+  const k = popping ? Math.min(1,(now-popT)/POP_MS) : 0;
+  const G=gDir()||[0,1];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const a=grid[y][x]; if(!a) continue;
+    const px=vx(a,x), py=vy(a,y), seed=(x*977+y*613+a.c*311);
+    if(a.pop){
+      // 消える直前: ぷるぷる震えてから、にっこり膨らんで消える
+      const jig = k<0.45 ? Math.sin(now*0.09+seed)*0.12*(1-k) : -k*0.25;
+      const blinkW = (Math.floor((now-popT)/60)%2===0);
+      blob(ctx,px,py,r*(1+Math.max(0,k-0.4)*0.6),a.c,k<0.6?1:1-(k-0.6)/0.4,{w:jig,g:G,face:true,happy:true});
+      if(blinkW && k<0.6){ ctx.globalAlpha=0.35; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+    }else{
+      const breathe = 1+0.022*Math.sin(now/650+seed);
+      const blink = ((now+seed*7)%4600)<120;
+      blob(ctx,px,py,r*breathe,a.c,1,{w:a.w||0,g:G,face:true,blink});
+    }
+  }
+  if(shuffle){
+    const t=now-shuffle.t;
+    // 中央の渦
+    const glow = t<SHUF_IN ? t/SHUF_IN : t<SHUF_IN+SHUF_HOLD ? 1 : Math.max(0,1-(t-SHUF_IN-SHUF_HOLD)/SHUF_OUT*1.5);
+    const cc=((N-1)/2+0.5)*s, gr=ctx.createRadialGradient(cc,cc,0,cc,cc,s*3*glow+1);
+    gr.addColorStop(0,`rgba(220,170,255,${0.55*glow})`); gr.addColorStop(1,"rgba(220,170,255,0)");
+    ctx.fillStyle=gr; ctx.fillRect(0,0,W,W);
+    for(const b of shuffleFrame(now)) blob(ctx,b.x*s,b.y*s,r*b.sc,b.c,1,{face:true,happy:true});
+    if(t>=SHUF_IN+SHUF_HOLD && !shuffle.burst){ shuffle.burst=true; for(let i=0;i<5;i++) burst((N-1)/2,(N-1)/2,i%colorsN); shake=8; }
+  }
+  if(piece){
+    // ゴースト（着地予測）
+    for(const [x,y,i] of landing()){
+      ctx.strokeStyle=PALETTE[piece.colors[i]].base; ctx.globalAlpha=.55; ctx.lineWidth=Math.max(1.5,s*0.07);
+      ctx.beginPath(); ctx.arc((x+.5)*s,(y+.5)*s,r*0.62,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=1;
+    }
+    piece.cells.forEach(([cx,cy],i)=>{
+      const x=piece.x+cx+.5+(piece.ox||0)+(piece.fx||0), y=piece.y+cy+.5+(piece.oy||0)+(piece.fy||0);
+      if(i===0){ ctx.fillStyle="rgba(255,255,255,.22)"; ctx.beginPath(); ctx.arc(x*s,y*s,r*1.18,0,Math.PI*2); ctx.fill();
+        if(piece.hover>0){                                   // 落ち始めるまでの残り時間（白い輪が減っていく）
+          const f=piece.hover/piece.hover0;
+          ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.lineWidth=Math.max(2,s*0.09); ctx.lineCap="round";
+          ctx.beginPath(); ctx.arc(x*s,y*s,r*1.32,-Math.PI/2,-Math.PI/2+Math.PI*2*f); ctx.stroke(); ctx.lineCap="butt";
+        } }
+      blob(ctx,x*s,y*s,r,piece.colors[i],1,{w:piece.w||0,g:G,face:true,blink:((now+i*900)%3800)<120});
+    });
+  }
+  // はじける粒子
+  for(const p of particles){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=PALETTE[p.c].hi; ctx.beginPath(); ctx.arc(p.x*s,p.y*s,p.r*s*p.life+1,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
+  // 連鎖表示
+  if(chainFx){
+    const t=(now-chainFx.t)/1100;
+    if(t>=1) chainFx=null;
+    else{
+      const sc = t<0.15 ? 0.6+t/0.15*0.6 : 1.2-Math.min(0.2,(t-0.15)*0.6);
+      ctx.save(); ctx.translate(W/2,W*0.32); ctx.scale(sc,sc); ctx.globalAlpha = t>0.7 ? 1-(t-0.7)/0.3 : 1;
+      ctx.font=`900 ${s*1.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=s*0.22; ctx.strokeStyle="rgba(0,0,0,.55)"; ctx.strokeText(`${chainFx.n}連鎖!`,0,0);
+      const tg=ctx.createLinearGradient(0,-s*0.8,0,s*0.8); tg.addColorStop(0,"#fff6c8"); tg.addColorStop(1,"#ffb02e");
+      ctx.fillStyle=tg; ctx.fillText(`${chainFx.n}連鎖!`,0,0);
+      ctx.restore();
+    }
+  }
+  // ストップ中: 青い縁取りと残り時間
+  if(stopLeft>0){
+    const k=stopLeft/STOP_MS;
+    ctx.strokeStyle="rgba(127,208,255,.75)"; ctx.lineWidth=s*0.14;
+    ctx.strokeRect(s*0.07,s*0.07,W-s*0.14,W-s*0.14);
+    const cx=W/2, cy=s*1.0, rr=s*0.55;
+    ctx.fillStyle="rgba(10,30,50,.75)"; ctx.beginPath(); ctx.arc(cx,cy,rr*1.15,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="#7fd0ff"; ctx.lineWidth=s*0.1; ctx.beginPath(); ctx.arc(cx,cy,rr,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.fillStyle="#dff3ff"; ctx.font=`800 ${s*0.5}px -apple-system,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(Math.ceil(stopLeft/1000),cx,cy+1);
+  }
+  if(itemFx){
+    const t=(now-itemFx.t)/1200;
+    if(t>=1) itemFx=null;
+    else{
+      ctx.save(); ctx.globalAlpha = t>0.7 ? 1-(t-0.7)/0.3 : 1;
+      ctx.translate(W/2, W*0.72 - t*s*0.8);
+      ctx.font=`900 ${s*0.75}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=s*0.16; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(itemFx.text,0,0);
+      ctx.fillStyle="#bfe9ff"; ctx.fillText(itemFx.text,0,0);
+      ctx.restore();
+    }
+  }
+  if(paused && running && !over){
+    ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(0,0,W,W);
+    ctx.fillStyle="#fff"; ctx.font=`700 ${s*1.2}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("PAUSE",W/2,W/2);
+  }
+  ctx.restore();
+}
+function drawNext(){
+  fitCanvas(nv);
+  const W=nv.width; nctx.clearRect(0,0,W,W);
+  const [a,b]=nextPairs[0], [c,d]=nextPairs[1];
+  const r=W*0.17;
+  blob(nctx,W*0.36,W*0.30,r,b,1,{face:true}); blob(nctx,W*0.36,W*0.68,r,a,1,{face:true});           // 次の組（相方が上）
+  blob(nctx,W*0.78,W*0.40,r*0.6,d,0.7); blob(nctx,W*0.78,W*0.64,r*0.6,c,0.7);   // その次
+}
+function updateHud(){
+  document.getElementById("score").textContent=score;
+  document.getElementById("lines").textContent=maxChain;
+  const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
+  if(st){
+    document.getElementById("nStop").textContent=items.stop; document.getElementById("nShuf").textContent=items.shuf;
+    st.classList.toggle("empty", items.stop<=0); sh.classList.toggle("empty", items.shuf<=0);
+    st.classList.toggle("active", stopLeft>0);
+  }
+}
+function updatePad(){}
+
+// ===== 画面の向き =====
+// 盤面は常に「画面に見えている向き」のまま（CSSで回さない）。
+// 端末の回転は、センサーの値を画面座標へ変換するときにだけ使う。
+// iOS は screen.orientation.angle の向きが仕様と逆なので、window.orientation を優先する
+// （window.orientation: 正 = 端末を反時計回りに回した）。
+function screenAngleCCW(){
+  if(typeof window.orientation==="number") return window.orientation;
+  if(screen.orientation && typeof screen.orientation.angle==="number") return screen.orientation.angle;
+  return 0;
+}
+const angle=0;   // 盤面の回転（常に0）。タッチ座標変換用
+function applyOrientation(){ updatePad(); updateCtrl(); }
+window.addEventListener("orientationchange",()=>setTimeout(applyOrientation,50));
+if(screen.orientation) screen.orientation.addEventListener("change",applyOrientation);
+window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); });
+
+// ===== 傾きセンサー =====
+// iOS（iPadOS はデスクトップ版 Mac の UA を名乗るので、タッチ対応の Mac も iOS 扱い）
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent)
+  || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
+let sensorSeen=false, sx=0, sy=0, pendDir=-1, pendSince=0;
+function onMotion(e){
+  const a=e.accelerationIncludingGravity;
+  if(!a || a.x==null || a.y==null) return;
+  if(!sensorSeen){ sensorSeen=true; setStatus(); }
+  // 1) 端末座標系（x右, y上）での「重力が引く向き」
+  //    仕様（Android）: 値は重力の反作用 → 向きは -a
+  //    iOS: 全軸が仕様と逆 → 向きは +a
+  const sgn = IS_IOS ? 1 : -1;
+  // 2) y を下向きに直す
+  let dx0 = sgn*a.x, dy0 = -sgn*a.y;
+  // 3) 画面の回転ぶん戻して「画面上の向き」にする（反時計回りに w 度回した端末 → -w 度回転）
+  const w = (screenAngleCCW() + sensorOffset*90) * Math.PI/180;
+  const c=Math.cos(-w), s=Math.sin(-w);
+  let gx = dx0*c - dy0*s, gy = dx0*s + dy0*c;
+  sx = sx*0.6 + gx*0.4; sy = sy*0.6 + gy*0.4;
+  const mag=Math.hypot(sx,sy);
+  // 重力の単位ベクトル（画面に沿った成分 x,y と、画面に垂直な成分 z）
+  const az = Math.abs(a.z||0), tot = Math.hypot(gx,gy,az) || 1;
+  gN.x = gN.x*0.7 + (gx/tot)*0.3; gN.y = gN.y*0.7 + (gy/tot)*0.3; gN.z = gN.z*0.7 + (az/tot)*0.3;
+  tiltDeg = Math.asin(Math.min(1, Math.hypot(gN.x,gN.y)))*180/Math.PI;   // 盤面が水平から何度傾いているか
+  if(mag<TILT_MIN) { pendDir=-1; return; }
+  const ang=Math.atan2(sy,sx)*180/Math.PI;            // 0=右, 90=下
+  const axes=[90,180,-90,0];                          // DIRS の順
+  let bestD=0, bestDiff=999;
+  axes.forEach((ax,i)=>{ let d=Math.abs(((ang-ax)%360+540)%360-180); if(d<bestDiff){bestDiff=d;bestD=i;} });
+  if(bestD!==grav && bestDiff<40 && running&&!paused&&!over) setGravity(bestD);   // 操作ボタンの向きだけ一番近い方向に合わせる
+  if(Math.hypot(gN.x,gN.y)>0.05) dirty=true;
+}
+async function enableSensor(){
+  try{
+    if(typeof DeviceMotionEvent!=="undefined" && typeof DeviceMotionEvent.requestPermission==="function"){
+      const res = await DeviceMotionEvent.requestPermission();
+      if(res!=="granted"){ setStatus("センサーが許可されませんでした"); return; }
+    }
+    window.addEventListener("devicemotion",onMotion);
+  }catch(err){ setStatus("センサーを使えません（"+(err&&err.name||"error")+"）"); }
+}
+function setStatus(msg){
+  const el=document.getElementById("status");
+  if(msg){ el.textContent=msg; return; }
+  const S=slope();
+  const acc = (S.canStart||physActive) ? Math.max(0,S.aMS) : 0;
+  el.textContent = sensorSeen ? `傾き ${Math.round(tiltDeg)}° ・ μ ${S.f.k.toFixed(2)} ・ ${acc>0?acc.toFixed(1)+" m/s²":"静止摩擦で停止"}` : (window.isSecureContext ? "傾きセンサー: なし" : "傾きセンサー: HTTPSが必要");
+}
+
+// ===== タッチ操作 =====
+// 横ドラッグ（重力と直交方向）= 移動 / 重力方向へドラッグ = ソフトドロップ / 重力方向へフリック = ハードドロップ / タップ = 回転
+let tp=null;
+function toBoard(dx,dy){ // 画面上の移動量 → 盤面座標
+  const r=angle*Math.PI/180, c=Math.cos(r), s=Math.sin(r);
+  return [dx*c - dy*s, dx*s + dy*c];
+}
+const stage=document.getElementById("stage");
+stage.addEventListener("pointerdown",e=>{
+  if(!running||paused||over) return;
+  stage.setPointerCapture(e.pointerId);
+  tp={id:e.pointerId, x0:e.clientX, y0:e.clientY, ax:e.clientX, ay:e.clientY, t0:performance.now(), maxd:0};
+});
+stage.addEventListener("pointermove",e=>{
+  if(!tp||e.pointerId!==tp.id||!piece) return;
+  const cell = stage.offsetWidth/N;
+  tp.maxd=Math.max(tp.maxd, Math.hypot(e.clientX-tp.x0, e.clientY-tp.y0));
+  const [bx,by]=toBoard(e.clientX-tp.ax, e.clientY-tp.ay);
+  const [gx,gy]=DIRS[grav];
+  const along = bx*gx + by*gy;                 // 重力方向成分
+  const perp  = gx!==0 ? by : bx;              // 直交成分
+  const px = gx!==0 ? 0 : 1, py = gx!==0 ? 1 : 0;
+  const step = cell*0.85;
+  if(Math.abs(perp)>=step){
+    const k=Math.sign(perp);
+    tryMove(px*k,py*k); lockTimer=0;
+    const [sx2,sy2]=toBoardInv(px*k*step, py*k*step);
+    tp.ax+=sx2; tp.ay+=sy2;
+  }else if(along>=step*1.2){
+    if(tryMove(gx,gy)) score+=1;
+    const [sx2,sy2]=toBoardInv(gx*step*1.2, gy*step*1.2);
+    tp.ax+=sx2; tp.ay+=sy2;
+  }
+});
+function toBoardInv(bx,by){ const r=-angle*Math.PI/180, c=Math.cos(r), s=Math.sin(r); return [bx*c-by*s, bx*s+by*c]; }
+stage.addEventListener("pointerup",e=>{
+  if(!tp||e.pointerId!==tp.id) return;
+  const dt=performance.now()-tp.t0;
+  const [bx,by]=toBoard(e.clientX-tp.x0, e.clientY-tp.y0);
+  const [gx,gy]=DIRS[grav];
+  const along=bx*gx+by*gy, perp=gx!==0?by:bx;
+  if(tp.maxd<12 && dt<300) rotate(1);
+  else if(dt<280 && along>stage.offsetWidth*0.12 && along>Math.abs(perp)*2) hardDrop();
+  tp=null;
+});
+stage.addEventListener("pointercancel",()=>{tp=null;});
+
+// ===== キーボード（PC確認用） =====
+window.addEventListener("keydown",e=>{
+  const k=e.key;
+  if(k==="p"||k==="P"||k==="Escape"){ togglePause(); return; }
+  if(!running||paused||over) return;
+  const [gx,gy]=DIRS[grav];
+  const map={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  if(map[k]){
+    const [dx,dy]=map[k];
+    if(dx===gx&&dy===gy){ if(tryMove(dx,dy)) score+=1; }
+    else if(dx!==-gx||dy!==-gy){ tryMove(dx,dy); lockTimer=0; }
+    e.preventDefault(); return;
+  }
+  if(k===" "){ hardDrop(); e.preventDefault(); return; }
+  if(k==="1") useStop();
+  if(k==="2") useShuffle();
+  if(k==="x"||k==="X") rotate(1);
+  if(k==="z"||k==="Z") rotate(-1);
+  const gk={s:0,a:1,w:2,d:3,S:0,A:1,W:2,D:3};
+  if(k in gk){ const [x,y]=DIRS[gk[k]], t=35*Math.PI/180; gN={x:x*Math.sin(t), y:y*Math.sin(t), z:Math.cos(t)}; setGravity(gk[k]); dirty=true; }
+});
+
+// ===== ボタン =====
+// 重力パッドは画面上の向き → 盤面の向きに変換
+function screenToBoardDir(i){ const [x,y]=DIRS[i]; const [bx,by]=toBoard(x,y); return nearestDir(bx,by); }
+function boardToScreenDir(i){ const [x,y]=DIRS[i]; const [sx2,sy2]=toBoardInv(x,y); return nearestDir(sx2,sy2); }
+function nearestDir(x,y){ let bi=0,bv=-9; DIRS.forEach(([dx,dy],i)=>{ const v=dx*x+dy*y; if(v>bv){bv=v;bi=i;} }); return bi; }
+document.querySelectorAll(".pad [data-g]").forEach(b=>b.addEventListener("click",()=>{ if(running&&!paused&&!over) setGravity(screenToBoardDir(+b.dataset.g)); }));
+
+// 操作ボタン（押しっぱなしでリピート）
+let ctrlDirs=[[-1,0],[1,0]];
+function dirDeg([x,y]){ return Math.atan2(y,x)*180/Math.PI; }
+function setRot(el,deg){                    // 最短の回り方でアイコンを回す
+  if(!el) return;
+  const prev = (el._r==null) ? deg : el._r;
+  let d=deg; while(d-prev>180) d-=360; while(d-prev<-180) d+=360;
+  el._r=d; el.style.transform=`rotate(${d}deg)`;
+}
+function updateCtrl(){
+  const p = DIRS[grav][0]!==0 ? [0,1] : [1,0];          // 重力と直交する盤面方向
+  let a=[-p[0],-p[1]], b=[p[0],p[1]];
+  if(a[0]>0||a[1]>0) [a,b]=[b,a];                       // 左/上を指す方を左のボタンに
+  ctrlDirs=[a,b];
+  const q=id=>document.querySelector(`#${id} .icon`);
+  setRot(q("mvA"), dirDeg(a)); setRot(q("mvB"), dirDeg(b));
+  setRot(q("dropBtn"), dirDeg(gDir()||DIRS[grav]));
+}
+function holdButton(id, fn, repeat){
+  const el=document.getElementById(id); let t1=null, t2=null;
+  const stop=()=>{ clearTimeout(t1); clearInterval(t2); t1=t2=null; el.classList.remove("down"); };
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault(); e.stopPropagation();
+    el.classList.add("down");
+    if(!running||paused||over) return;
+    fn();
+    if(repeat){ t1=setTimeout(()=>{ t2=setInterval(()=>{ if(running&&!paused&&!over) fn(); else stop(); },70); },220); }
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(ev=>el.addEventListener(ev,stop));
+  el.addEventListener("click",e=>e.preventDefault());
+}
+holdButton("mvA",()=>{ if(tryMove(...ctrlDirs[0])) lockTimer=0; },true);
+holdButton("mvB",()=>{ if(tryMove(...ctrlDirs[1])) lockTimer=0; },true);
+holdButton("rotBtn",()=>rotate(1),false);
+holdButton("dropBtn",()=>hardDrop(),false);
+holdButton("itemStop",()=>useStop(),false);
+holdButton("itemShuf",()=>useShuffle(),false);
+document.getElementById("pauseBtn").addEventListener("click",togglePause);
+function togglePause(){ if(!running||over) return; paused=!paused; if(paused) showMenu("pause"); else hideOverlay(); }
+
+// ===== メニュー =====
+const overlay=document.getElementById("overlay"), sheet=document.getElementById("sheet");
+function settingsRow(){
+  return `<div class="row">
+    <button id="sndBtn">音: ${soundOn?"ON":"OFF"}</button>
+    <button id="faceBtn">顔: ${faceOn?"ON":"OFF"}</button>
+    <button id="lvBtn">難易度: ${LEVELS[levelKey].name}</button>
+    <button id="fricBtn">摩擦: ${FRICTION[frictionKey].name}</button>
+    <button id="scaleBtn">1マス: ${Math.round(cellM*100)}cm</button>
+    <button id="offBtn">センサー補正: ${sensorOffset*90}°</button>
+  </div>`;
+}
+function bindSettings(){
+  document.getElementById("offBtn").onclick=()=>{ sensorOffset=(sensorOffset+1)%4; store.set("sensorOffset",sensorOffset); refreshMenu(); };
+  document.getElementById("lvBtn").onclick=()=>{ const ks=Object.keys(LEVELS); levelKey=ks[(ks.indexOf(levelKey)+1)%ks.length]; store.set("level",levelKey); refreshMenu(); };
+  document.getElementById("fricBtn").onclick=()=>{ const ks=Object.keys(FRICTION); frictionKey=ks[(ks.indexOf(frictionKey)+1)%ks.length]; store.set("friction",frictionKey); refreshMenu(); };
+  document.getElementById("scaleBtn").onclick=()=>{ cellM=SCALES[(SCALES.indexOf(cellM)+1)%SCALES.length]; store.set("cellM",cellM); refreshMenu(); };
+  document.getElementById("faceBtn").onclick=()=>{ faceOn=!faceOn; store.set("face",faceOn); drawNext(); refreshMenu(); };
+  document.getElementById("sndBtn").onclick=()=>{ soundOn=!soundOn; store.set("sound",soundOn); initAudio(); refreshMenu(); };
+}
+let menuKind="title";
+function refreshMenu(){ showMenu(menuKind); }
+function showMenu(kind){
+  menuKind=kind; overlay.classList.remove("hidden");
+  const secure = window.isSecureContext;
+  if(kind==="title"){
+    sheet.innerHTML=`<h1>グラビティ・ポップ</h1>
+      <p>端末を傾けると重力の向きが変わり、<br>盤面の粒がぜんぶその方向へ流れます。</p>
+      <ul class="help">
+        <li>2個1組の粒が盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
+        <li><b>同じ色が4つ以上つながると消える</b></li>
+        <li>消えたあと流れた粒がまたつながると<b>連鎖</b>。点数が大きく増える</li>
+        <li>傾けて流れの向きを変え、連鎖を起こそう</li>
+        <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
+        <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
+        <li>アイテム（スコアの下）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく。3連鎖や50個消すごとに増える</li>
+        <li>画面の回転ロックをONにすると遊びやすい</li>
+      </ul>
+      ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
+      ${settingsRow()}
+      <button class="big" id="startBtn">スタート</button>
+      <p style="margin-top:14px"><a href="free.html" style="color:#9fd3ff">マス目なし版（フリー）で遊ぶ →</a></p>`;
+    bindSettings();
+    document.getElementById("startBtn").onclick=start;
+  }else if(kind==="pause"){
+    sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
+      <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
+      <div class="row"><button id="restartBtn">最初から</button></div>`;
+    bindSettings();
+    document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
+    document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
+  }else if(kind==="over"){
+    sheet.innerHTML=`<h1>ゲームオーバー</h1>
+      <p style="font-size:20px;color:var(--text)">SCORE ${score}　/　最大 ${maxChain} 連鎖</p>
+      <p>ベスト: ${best}</p>${settingsRow()}
+      <button class="big" id="againBtn">もう一度</button>`;
+    bindSettings();
+    document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
+  }
+}
+function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
+async function start(){
+  initAudio();
+  await enableSensor();
+  setStatus();
+  running=true; reset(); updatePad(); updateCtrl(); hideOverlay();
+  try{ window.focus(); }catch(e){}
+}
+function gameOver(){
+  over=true; piece=null;
+  if(score>best){ best=score; store.set("best",best); }
+  setTimeout(()=>showMenu("over"),400);
+}
+
+// ===== 起動 =====
+grav=0;
+colorsN=4; grid = emptyGrid(); nextPairs=[newPair(),newPair()]; particles=[];
+running=false; paused=false; over=false;
+applyOrientation(); updatePad(); setStatus(); drawNext(); showMenu("title");
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
