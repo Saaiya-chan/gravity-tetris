@@ -119,6 +119,7 @@
   .row button{font-size:13px}
   .warn{color:#ff9f7a!important}
   .sheet.wide{max-width:min(760px,96vw)}
+  #shareScrim{position:fixed;inset:0;z-index:50;background:rgba(6,8,12,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
   .zk.shop{align-items:center}
   .shop-ic#shopIc_mag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
   .shop-ic#shopIc_shuf{background:linear-gradient(180deg,#4a2b5e,#2f1b40);border-color:#7a4a99;color:#f0d6ff}
@@ -1954,6 +1955,12 @@ function showMenu(kind){
     document.getElementById("shopBtn").onclick=()=>showShop("over");
   }
 }
+function shareScrim(on){
+  let el=document.getElementById("shareScrim");
+  if(on && !el){ el=document.createElement("div"); el.id="shareScrim"; document.body.appendChild(el); el.onclick=()=>shareScrim(false); }
+  if(el) el.style.display = on ? "block" : "none";
+}
+window.__shareDone=()=>shareScrim(false);
 // X に記録を投稿する（投稿画面を開くだけ。送信は本人が X で押す）
 function shareX(){
   const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
@@ -1966,6 +1973,7 @@ function shareX(){
   let card=null; try{ card=makeShareCard(); }catch(e){}
   try{
     if(mh && mh.shareImage && card){                                                 // iOS アプリ: 画像つきで共有メニューを開く（そこで X を選ぶ）
+      shareScrim(true);                                                              // 共有メニューの後ろを暗くぼかす（半透明のメニューが見やすいように）
       mh.shareImage.postMessage({text, url, image:card.toDataURL("image/png")});
       say("共有メニューから X を選んでください（画像つき）"); return;
     }

@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import LinkPresentation
 
 /// ゲーム本体（free.html）を全画面の WebView で表示する。
 ///
@@ -163,10 +164,17 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
     private func shareImage(_ body: Any) {
         guard let d = body as? [String: Any] else { report("共有データが正しくありません"); return }
         var items: [Any] = []
-        if let dataURL = d["image"] as? String, let comma = dataURL.firstIndex(of: ","),
-           let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
-           let img = UIImage(data: data) { items.append(img) }
         let text = (d["text"] as? String ?? "") + "\n" + (d["url"] as? String ?? "")
+        // 結果カードの画像を PNG ファイルにして渡す（X などのアプリに画像として確実に渡すため）
+        if let dataURL = d["image"] as? String, let comma = dataURL.firstIndex(of: ","),
+           let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...]), options: .ignoreUnknownCharacters),
+           let img = UIImage(data: data) {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("gravity-pop.png")
+            try? data.write(to: url)
+            items.append(ShareImageSource(image: img, fileURL: url, title: "グラビティ・ポップの記録"))
+        } else {
+            report("画像を作れませんでした（文だけ共有します）")
+        }
         items.append(text)
         DispatchQueue.main.async {
             guard let vc = self.controller, let wv = self.webView else { return }
@@ -178,6 +186,7 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
             }
             av.completionWithItemsHandler = { [weak self] _, done, _, _ in
                 self?.report(done ? "シェアしました" : "")
+                DispatchQueue.main.async { self?.webView?.evaluateJavaScript("window.__shareDone && __shareDone()") }
             }
             vc.present(av, animated: true)
         }
@@ -187,5 +196,24 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
     private func report(_ text: String) {
         let js = "var m=document.getElementById('xMsg'); if(m) m.textContent=\(String(reflecting: text));"
         DispatchQueue.main.async { self.webView?.evaluateJavaScript(js) }
+    }
+}
+
+/// 共有メニューに渡す画像。メニューの一番上に画像のサムネイルとタイトルを出す。
+private final class ShareImageSource: NSObject, UIActivityItemSource {
+    let image: UIImage, fileURL: URL, title: String
+    init(image: UIImage, fileURL: URL, title: String) { self.image = image; self.fileURL = fileURL; self.title = title }
+
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any { image }
+
+    func activityViewController(_ activityViewController: UIActivityViewController,
+                                itemForActivityType activityType: UIActivity.ActivityType?) -> Any? { fileURL }
+
+    func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
+        let m = LPLinkMetadata()
+        m.title = title
+        m.imageProvider = NSItemProvider(object: image)
+        m.iconProvider = NSItemProvider(object: image)
+        return m
     }
 }
