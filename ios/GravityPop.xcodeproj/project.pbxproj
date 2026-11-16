@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* AppDelegate.swift */; };
 		A10000000000000000000002 /* GameViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* GameViewController.swift */; };
+		A10000000000000000000004 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* SceneDelegate.swift */; };
 		A10000000000000000000003 /* free.html in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* free.html */; };
 /* End PBXBuildFile section */
 
@@ -16,6 +17,8 @@
 		A20000000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* GameViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewController.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* free.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = free.html; path = ../free.html; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000004 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000009 /* GravityPop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GravityPop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -42,8 +45,10 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000001 /* AppDelegate.swift */,
+				A20000000000000000000004 /* SceneDelegate.swift */,
 				A20000000000000000000002 /* GameViewController.swift */,
 				A20000000000000000000003 /* free.html */,
+				A20000000000000000000005 /* Info.plist */,
 			);
 			path = GravityPop;
 			sourceTree = "<group>";
@@ -128,6 +133,7 @@
 			files = (
 				A10000000000000000000001 /* AppDelegate.swift in Sources */,
 				A10000000000000000000002 /* GameViewController.swift in Sources */,
+				A10000000000000000000004 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -184,6 +190,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
@@ -210,6 +217,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
