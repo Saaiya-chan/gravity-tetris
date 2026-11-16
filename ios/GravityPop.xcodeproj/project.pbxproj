@@ -193,6 +193,7 @@
 				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "記録の画像を写真に保存するために使います";
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -220,6 +221,7 @@
 				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "記録の画像を写真に保存するために使います";
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

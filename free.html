@@ -1945,13 +1945,15 @@ function showMenu(kind){
       <p style="font-size:22px;color:var(--text);margin:4px 0">SCORE ${score}${lastNew.includes("score")?' <i class="new">ベスト更新!</i>':''}</p>
       <p style="margin:2px 0">ベスト: ${best}　／　<b style="color:#ffcf5a">🪙 +${lastCoins}</b>（${coins}）</p>
       <div class="rec-list">${rows}</div>
-      <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="xBtn">𝕏 でシェア</button></div>
+      <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="xBtn">𝕏 で投稿</button></div>
+      <div class="row"><button id="imgBtn">🖼 画像を保存・共有</button></div>
       <div class="row"><button id="shopBtn">🛒 ショップ（🪙${coins}）</button></div>
       <p id="xMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>
       ${settingsRow()}`;
     bindSettings();
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
-    document.getElementById("xBtn").onclick=shareX;
+    document.getElementById("xBtn").onclick=()=>shareX(false);
+    document.getElementById("imgBtn").onclick=()=>shareX(true);
     document.getElementById("shopBtn").onclick=()=>showShop("over");
   }
 }
@@ -1962,7 +1964,7 @@ function shareScrim(on){
 }
 window.__shareDone=()=>shareScrim(false);
 // X に記録を投稿する（投稿画面を開くだけ。送信は本人が X で押す）
-function shareX(){
+function shareX(withImage){
   const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
   const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}\n#グラビティポップ`;
   const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
@@ -1970,21 +1972,21 @@ function shareX(){
   const msg=document.getElementById("xMsg");
   const say=t=>{ if(msg) msg.textContent=t; };
   const mh=window.webkit && window.webkit.messageHandlers;
-  let card=null; try{ card=makeShareCard(); }catch(e){}
+  let card=null; if(withImage) try{ card=makeShareCard(); }catch(e){}
   try{
     if(mh && mh.shareImage && card){                                                 // iOS アプリ: 画像つきで共有メニューを開く（そこで X を選ぶ）
       shareScrim(true);                                                              // 共有メニューの後ろを暗くぼかす（半透明のメニューが見やすいように）
       mh.shareImage.postMessage({text, url, image:card.toDataURL("image/png")});
-      say("共有メニューから X を選んでください（画像つき）"); return;
+      say("「画像を保存」で写真に保存して、X で添付できます"); return;
     }
     if(!mh && card && navigator.canShare){                                           // ブラウザ（iPad の Safari など）: 画像つきで共有
       card.toBlob(b=>{ const f=new File([b],"gravity-pop.png",{type:"image/png"});
         if(navigator.canShare({files:[f]})) navigator.share({files:[f], text:text+"\n"+url}).catch(()=>{});
         else window.open(intent,"_blank"); },"image/png");
-      say("共有メニューから X を選んでください（画像つき）"); return;
+      say("「画像を保存」で写真に保存して、X で添付できます"); return;
     }
     const h=mh && mh.openExternal;
-    if(h){ h.postMessage(intent); say("X を開いています…（アプリ経由・画像なし）"); }       // 古いアプリ: X の投稿画面を開く
+    if(h){ h.postMessage(intent); say("X を開いています…"); }       // 古いアプリ: X の投稿画面を開く
     else{
       const w=window.open(intent,"_blank");                                          // ブラウザ: 新しいタブで
       say(w ? "X を開いています…" : "X を開けませんでした（アプリの入れ直しが必要かも）");

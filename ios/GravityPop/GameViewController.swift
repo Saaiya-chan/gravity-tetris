@@ -207,7 +207,9 @@ private final class ShareImageSource: NSObject, UIActivityItemSource {
     func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any { image }
 
     func activityViewController(_ activityViewController: UIActivityViewController,
-                                itemForActivityType activityType: UIActivity.ActivityType?) -> Any? { fileURL }
+                                itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        activityType == .saveToCameraRoll ? image : fileURL      // 「画像を保存」は写真に、ほかはファイルとして渡す
+    }
 
     func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
         let m = LPLinkMetadata()
