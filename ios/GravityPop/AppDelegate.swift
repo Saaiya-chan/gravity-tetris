@@ -2,16 +2,17 @@ import UIKit
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
-
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = GameViewController()
-        window.makeKeyAndVisible()
-        self.window = window
-        // 傾けて遊ぶゲームなので、遊んでいる間は画面を暗くしない
-        application.isIdleTimerDisabled = true
-        return true
+        true
+    }
+
+    // 画面（ウィンドウ）の用意は SceneDelegate が行う
+    func application(_ application: UIApplication,
+                     configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: "Default", sessionRole: connectingSceneSession.role)
+        config.delegateClass = SceneDelegate.self
+        return config
     }
 }
