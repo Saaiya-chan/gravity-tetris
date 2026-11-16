@@ -55,6 +55,37 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }   // 画面端のスワイプで誤って閉じにくくする
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
 
+    // MARK: - 画面の向きをページに教える
+    // 縦持ちのまま起動すると、画面は横なのに window.orientation が 0（縦）のままになり、
+    // 傾きの向きが90度ずれる。本当の画面の向きをページに渡して、それを使ってもらう。
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        pushOrientation()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in self?.pushOrientation() }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        pushOrientation()
+    }
+
+    private func pushOrientation() {
+        guard let o = view.window?.windowScene?.interfaceOrientation else { return }
+        // window.orientation と同じ決まり: 端末を反時計回りに回すと正
+        let angle: Int
+        switch o {
+        case .landscapeRight: angle = 90      // ホームボタン（または USB-C 端子）が右
+        case .landscapeLeft: angle = -90
+        case .portraitUpsideDown: angle = 180
+        default: angle = 0
+        }
+        webView.evaluateJavaScript("window.__nativeAngle=\(angle); if(window.applyOrientation) applyOrientation();")
+    }
+
     // MARK: - 読み込み失敗したら同梱版へ
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

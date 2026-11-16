@@ -1248,6 +1248,8 @@ function updatePad(){}
 // iOS は screen.orientation.angle の向きが仕様と逆なので、window.orientation を優先する
 // （window.orientation: 正 = 端末を反時計回りに回した）。
 function screenAngleCCW(){
+  // iOS アプリ版: アプリが本当の画面の向きを教えてくれる（縦持ちで起動したときに window.orientation が 0 のままになるため）
+  if(typeof window.__nativeAngle==="number") return window.__nativeAngle;
   if(typeof window.orientation==="number") return window.orientation;
   if(screen.orientation && typeof screen.orientation.angle==="number") return screen.orientation.angle;
   return 0;
