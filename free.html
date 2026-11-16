@@ -59,9 +59,12 @@
     box-shadow:0 3px 0 #0a121c, inset 0 1px 0 rgba(255,255,255,.12);touch-action:none}
   .item#itemJump{background:linear-gradient(180deg,#1f4a33,#143022);border-color:#3f9a6a;color:#d4ffe6}
   .item#itemShuf{background:linear-gradient(180deg,#4a2b5e,#2f1b40);border-color:#7a4a99;color:#f0d6ff}
+  .item#itemMag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
+  .item.active{box-shadow:0 0 0 3px #ffcf5a, 0 3px 0 #0a121c}
   .item svg{width:26px;height:26px}
   .item.down{transform:translateY(2px);box-shadow:0 1px 0 #0a121c}
   .item.empty{opacity:.35;filter:grayscale(.6)}
+  .item.empty.active{opacity:1;filter:none}
   .item.active{box-shadow:0 0 0 2px #7fd0ff, 0 0 14px rgba(127,208,255,.7)}
   .badge{position:absolute;right:-6px;top:-6px;min-width:20px;height:20px;border-radius:10px;padding:0 5px;
     background:#ffcf5a;color:#2a1f05;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
@@ -69,14 +72,16 @@
   .pad3{display:flex;gap:calc(var(--b)*0.12);align-items:flex-end}
   .pad3 .bw:nth-child(2){margin-bottom:calc(var(--b)*0.42)}          /* 真ん中の「落とす」は少し上 */
   /* 右: 回転ボタンのまわりにアイテム（右手の親指から届く左上側に並べる） */
-  .rotring{position:relative;width:calc(var(--b)*2.55);height:calc(var(--b)*2.55)}
+  .rotring{--ib:max(calc(var(--b)*0.7),40px);--rr:calc(var(--ib)*2.4);position:relative;
+    width:calc(var(--b)*0.7 + var(--ib)*0.5 + var(--rr));height:calc(var(--b)*0.7 + var(--ib)*0.5 + var(--rr))}
   .rotring #rotBtn{position:absolute;right:calc(var(--b)*0.12);bottom:calc(var(--b)*0.12)}
-  .rotring .item{position:absolute;width:calc(var(--b)*0.78);height:calc(var(--b)*0.78);border-radius:32%}
+  .rotring .item{position:absolute;width:var(--ib);height:var(--ib);border-radius:32%}
   .rotring .item svg{width:52%;height:52%}
-  /* 回転ボタンの中心から同じ距離の円弧（左・左上・上） */
-  .rotring #itemStop{right:calc(var(--b)*1.69);bottom:calc(var(--b)*0.31)}
-  .rotring #itemShuf{right:calc(var(--b)*1.29);bottom:calc(var(--b)*1.29)}
-  .rotring #itemJump{right:calc(var(--b)*0.31);bottom:calc(var(--b)*1.69)}
+  /* 回転ボタンの中心から同じ距離の円弧（左・左上・上寄り・上） */
+  .rotring #itemStop{right:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr));bottom:calc(var(--b)*0.7 - var(--ib)*0.5)}
+  .rotring #itemMag{right:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr)*0.866);bottom:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr)*0.5)}
+  .rotring #itemShuf{right:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr)*0.5);bottom:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr)*0.866)}
+  .rotring #itemJump{right:calc(var(--b)*0.7 - var(--ib)*0.5);bottom:calc(var(--b)*0.7 - var(--ib)*0.5 + var(--rr))}
   .pad3 .cap{display:none}
   .bw{display:flex;flex-direction:column;align-items:center;gap:9px}
   .cap{font-size:10.5px;letter-spacing:.2em;color:#5d6577}
@@ -156,6 +161,7 @@
 <div id="ctrlR" class="rotring">
   <button id="rotBtn" class="pbtn rot" aria-label="回転"><svg viewBox="0 0 24 24"><path d="M19.2 13.2A7.3 7.3 0 1 1 17 6.9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M18.6 3.2v4.6H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <button id="itemStop" class="item" aria-label="ストップ"><svg viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nStop">1</span></button>
+  <button id="itemMag" class="item" aria-label="マグネット"><svg viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0 0 12 0V4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 4h4M16 4h4M4 8h4M16 8h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="badge" id="nMag">1</span></button>
   <button id="itemShuf" class="item" aria-label="シャッフル"><svg viewBox="0 0 24 24"><path d="M12 12c0-1.2 1.6-1.6 2.3-.7 1 1.3-.2 3.4-2.3 3.4-2.6 0-4-2.8-3-5 1.3-2.8 5.2-3.4 7.5-1.4 2.7 2.3 2.4 6.9-.6 8.9-3.6 2.4-8.9 1.1-10.6-2.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="badge" id="nShuf">1</span></button>
   <button id="itemJump" class="item" aria-label="ジャンプ"><svg viewBox="0 0 24 24"><path d="M4 21h16M8 15l4-4 4 4M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nJump">1</span></button>
 </div>
@@ -258,7 +264,9 @@ let balls, piece, nextPairs, grav, score, maxChain, popped, level, colorsN;
 let lockTimer, dirty, popping, popT, chain, running, paused, over;
 let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
 let particles=[], chainFx=null, shake=0;
-let items={stop:1, shuf:1, jump:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
+const MAG_MS = 6000;          // マグネットの効いている時間
+let magLeft=0;
+let items={stop:1, shuf:1, jump:1, mag:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
 const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
 let grid=null;                  // マス目版との互換用（使わない）
 
@@ -362,7 +370,7 @@ function reset(){
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec();
-  items={stop:1, shuf:1, jump:1}; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
+  items={stop:1, shuf:1, jump:1, mag:1}; magLeft=0; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
   spawn(); updateHud();
 }
 // 重力の向き（盤面に沿った単位ベクトル）。ほぼ水平なら null
@@ -505,6 +513,16 @@ function physicsStep(dt){
   const vmax=LEVELS[levelKey].vmax, vmin=LEVELS[levelKey].vmin, gu=gDir();
   const hovering = piece && (piece.hover>0 || piece.drop);      // 浮いている間と「落とす」中の組は物理で動かさない
   const mags = balls.filter(m=>m.magnet && !m.live && !m.pop);
+  // マグネットのアイテム: 同じ色どうし（4個ぶんの距離まで）が引き合う
+  if(magLeft>0){
+    const st=balls.filter(o=>!o.live && !o.pop && o.c!==GARBAGE && o.c!==RAINBOW && !o.frozen), RG=4*2*R;
+    for(const o of st){ o.mx=0; o.my=0; }
+    for(let i=0;i<st.length;i++){ const a=st[i];
+      for(let j=i+1;j<st.length;j++){ const b=st[j]; if(a.c!==b.c) continue;
+        const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
+        if(d>2*R+0.03 && d<RG){ const k=120*(1-d/RG)/d; a.mx+=dx*k; a.my+=dy*k; b.mx-=dx*k; b.my-=dy*k; }
+      } }
+  }
   let maxSp=0;
   for(let s=0;s<steps;s++){
     // 1) 重力（静止摩擦で止まっている粒にはかけない）
@@ -518,6 +536,7 @@ function physicsStep(dt){
         const dx=m.x-o.x, dy=m.y-o.y, d=Math.hypot(dx,dy);
         if(d>2*R+0.05 && d<5*2*R){ const a=90*(1-d/(5*2*R)); ex+=dx/d*a; ey+=dy/d*a; }
       }
+      if(magLeft>0 && o.mx){ ex+=o.mx; ey+=o.my; }
       const L=!o.live;                                          // 特殊な動きは着地してから（落ちてくる組はふつうに落ちる）
       let fs = (L&&o.frozen) ? 0 : ((L&&o.heavy) ? f.s*3 : f.s);       // 氷はつるつる、重りは動きにくい
       if(o.slip>0) fs*=0.15;                                     // 消えた場所のまわりは少しの間すべりやすい
@@ -711,9 +730,9 @@ function burst(x,y,c){
 
 // ===== アイテム =====
 function grantItem(now){
-  const ks=["stop","shuf","jump"], k=ks[Math.random()*3|0];
+  const ks=["stop","shuf","jump","mag"], k=ks[Math.random()*ks.length|0];
   items[k]=Math.min(9,items[k]+1);
-  itemFx={text:{stop:"ストップ GET!",shuf:"シャッフル GET!",jump:"ジャンプ GET!"}[k], t:now};
+  itemFx={text:{stop:"ストップ GET!",shuf:"シャッフル GET!",jump:"ジャンプ GET!",mag:"マグネット GET!"}[k], t:now};
   sfx("get"); updateHud();
 }
 // ジャンプ: 床（重力の向きの辺）から突き上げて、全部の粒を跳ね上げる。落ちてくるときに少し混ざる
@@ -735,6 +754,13 @@ function useJump(){
   jumpFx={t:performance.now()}; shake=10;
   itemFx={text:"ジャンプ!", t:performance.now()};
   sfx("jump"); updateHud();
+}
+// マグネット: しばらくのあいだ、同じ色どうしが引き合う
+function useMag(){
+  if(!running||paused||over||items.mag<=0||magLeft>0) return;
+  items.mag--; magLeft=MAG_MS;
+  itemFx={text:"マグネット!", t:performance.now()};
+  sfx("mag"); updateHud();
 }
 function useStop(){
   if(!running||paused||over||items.stop<=0||stopLeft>0) return;
@@ -822,6 +848,7 @@ function sfx(kind, n=1){
   else if(kind==="bomb"){ tone(120,40,0.5,"sawtooth",0.25); tone(60,30,0.6,"sine",0.4,0.02); }
   else if(kind==="virus"){ tone(500,350,0.12,"square",0.05); tone(700,450,0.12,"square",0.04,0.08); }
   else if(kind==="jump"){ tone(90,60,0.18,"sine",0.35); tone(300,1200,0.35,"triangle",0.12,0.05); }
+  else if(kind==="mag"){ tone(220,660,0.4,"sine",0.15); tone(330,990,0.4,"triangle",0.08,0.1); }
   else if(kind==="praise"){ [784,988,1175,1568].forEach((f,i)=>tone(f,f,0.14,"triangle",0.11,i*0.07)); }
   else if(kind==="shuf"){ tone(200,900,0.75,"sawtooth",0.05); tone(900,180,0.6,"triangle",0.12,0.95); }
 }
@@ -849,6 +876,7 @@ function update(dt, now){
     return;
   }
   if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
+  if(magLeft>0){ magLeft=Math.max(0,magLeft-dt); if(magLeft===0){ for(const o of balls){ o.mx=o.my=0; } updateHud(); } }
   if(popping && now-popT>=POP_MS){
     const gone=popping;
     balls=balls.filter(o=>!o.pop); dropBonds(o=>!o.pop); popping=null; quietT=0;
@@ -1248,6 +1276,14 @@ function draw(now){
       ctx.restore();
     }
   }
+  if(magLeft>0){                                               // マグネット中: 盤面のふちが赤く脈打ち、残り秒数を出す
+    const a=(0.28+0.12*Math.sin(now/140))*Math.min(1,magLeft/400);
+    const vg=ctx.createRadialGradient(W/2,W/2,W*0.36,W/2,W/2,W*0.72);
+    vg.addColorStop(0,"rgba(255,90,120,0)"); vg.addColorStop(1,`rgba(255,90,120,${a})`);
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
+    ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
+    ctx.fillStyle="rgba(255,214,220,.95)"; ctx.fillText(`マグネット ${(magLeft/1000).toFixed(1)}秒`, W/2, W-s*0.3);
+  }
   if(praiseQ.length){                                           // 記録をほめる表示（1つずつ順番に）
     const pq=praiseQ[0]; if(pq.t==null) pq.t=now;
     const t=(now-pq.t)/1500;
@@ -1328,6 +1364,8 @@ function updateHud(){
     st.classList.toggle("active", stopLeft>0);
     const jp=document.getElementById("itemJump");
     if(jp){ document.getElementById("nJump").textContent=items.jump; jp.classList.toggle("empty", items.jump<=0); }
+    const mg=document.getElementById("itemMag");
+    if(mg){ document.getElementById("nMag").textContent=items.mag; mg.classList.toggle("empty", items.mag<=0); mg.classList.toggle("active", magLeft>0); }
   }
 }
 function updatePad(){}
@@ -1515,6 +1553,7 @@ holdButton("dropBtn",()=>hardDrop(),false);
 holdButton("itemStop",()=>useStop(),false);
 holdButton("itemShuf",()=>useShuffle(),false);
 holdButton("itemJump",()=>useJump(),false);
+holdButton("itemMag",()=>useMag(),false);
 document.getElementById("pauseBtn").addEventListener("click",togglePause);
 function togglePause(){ if(!running||over) return; paused=!paused; if(paused) showMenu("pause"); else hideOverlay(); }
 
@@ -1602,7 +1641,7 @@ function showMenu(kind){
         <li>傾けて流れの向きを変え、連鎖を起こそう</li>
         <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
-        <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる。3連鎖や50個消すごとに増える</li>
+        <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う。3連鎖や50個消すごとに増える</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
       ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
