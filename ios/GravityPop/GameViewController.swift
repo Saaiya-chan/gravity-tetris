@@ -15,6 +15,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []   // 効果音をすぐ鳴らせるように
+        // ページから「この URL を外のアプリで開いて」と頼めるようにする（X への投稿など）
+        config.userContentController.add(ExternalOpener(), name: "openExternal")
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
@@ -130,5 +132,15 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
                  initiatedByFrame frame: WKFrameInfo,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         decisionHandler(.grant)
+    }
+}
+
+/// ページの window.webkit.messageHandlers.openExternal.postMessage(url) を受けて、
+/// その URL を外のアプリ（X アプリが入っていれば X、なければ Safari）で開く。
+private final class ExternalOpener: NSObject, WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let s = message.body as? String, let url = URL(string: s),
+              url.scheme == "https" || url.scheme == "http" else { return }
+        DispatchQueue.main.async { UIApplication.shared.open(url) }
     }
 }

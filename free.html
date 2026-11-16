@@ -265,7 +265,9 @@ let lockTimer, dirty, popping, popT, chain, running, paused, over;
 let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
 let particles=[], chainFx=null, shake=0;
 const MAG_MS = 6000;          // マグネットの効いている時間
-let magLeft=0;
+const MAG_RANGE = 7*2*0.48;   // 引き合う距離（粒7個ぶん）
+const MAG_POWER = 320;        // 引き合う強さ [マス/秒²]（摩擦よりずっと強い）
+let magLeft=0, magPairs=[];
 let items={stop:1, shuf:1, jump:1, mag:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
 const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
 let grid=null;                  // マス目版との互換用（使わない）
@@ -514,13 +516,14 @@ function physicsStep(dt){
   const hovering = piece && (piece.hover>0 || piece.drop);      // 浮いている間と「落とす」中の組は物理で動かさない
   const mags = balls.filter(m=>m.magnet && !m.live && !m.pop);
   // マグネットのアイテム: 同じ色どうし（4個ぶんの距離まで）が引き合う
+  magPairs=[];
   if(magLeft>0){
-    const st=balls.filter(o=>!o.live && !o.pop && o.c!==GARBAGE && o.c!==RAINBOW && !o.frozen), RG=4*2*R;
+    const st=balls.filter(o=>!o.live && !o.pop && o.c!==GARBAGE && o.c!==RAINBOW && !o.frozen), RG=MAG_RANGE;
     for(const o of st){ o.mx=0; o.my=0; }
     for(let i=0;i<st.length;i++){ const a=st[i];
       for(let j=i+1;j<st.length;j++){ const b=st[j]; if(a.c!==b.c) continue;
         const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
-        if(d>2*R+0.03 && d<RG){ const k=120*(1-d/RG)/d; a.mx+=dx*k; a.my+=dy*k; b.mx-=dx*k; b.my-=dy*k; }
+        if(d>2*R+0.03 && d<RG){ const k=MAG_POWER*(0.25+0.75*(1-d/RG))/d; a.mx+=dx*k; a.my+=dy*k; b.mx-=dx*k; b.my-=dy*k; magPairs.push([a,b,d]); }
       } }
   }
   let maxSp=0;
@@ -539,7 +542,7 @@ function physicsStep(dt){
       if(magLeft>0 && o.mx){ ex+=o.mx; ey+=o.my; }
       const L=!o.live;                                          // 特殊な動きは着地してから（落ちてくる組はふつうに落ちる）
       let fs = (L&&o.frozen) ? 0 : ((L&&o.heavy) ? f.s*3 : f.s);       // 氷はつるつる、重りは動きにくい
-      if(o.slip>0) fs*=0.15;                                     // 消えた場所のまわりは少しの間すべりやすい
+      if(o.slip>0 || (magLeft>0 && !o.live)) fs*=0.15;           // 消えた場所のまわりと、マグネット中はすべりやすい
       if(sp<0.03 && !ex && !ey && sin<=fs*cos && !o.live) { o.vx=o.vy=0; continue; }
       const sg = (L&&o.balloon) ? -1 : 1;                           // 風船は重力と逆に浮く
       o.vx+=(ax*sg+ex)*h; o.vy+=(ay*sg+ey)*h;
@@ -605,7 +608,7 @@ function physicsStep(dt){
     const fr=gc*f.k*cos*h;
     for(const o of balls){
       const sp=Math.hypot(o.vx,o.vy); if(sp===0) continue;
-      const fo = o.live ? fr : fr*(o.frozen ? 0 : (o.heavy ? 3 : 1))*(o.slip>0 ? 0.15 : 1);
+      const fo = o.live ? fr : fr*(o.frozen ? 0 : (o.heavy ? 3 : 1))*((o.slip>0 || magLeft>0) ? 0.15 : 1);
       let k = sp<=fo ? 0 : (sp-fo)/sp;
       if(o.live && sp*k>vmax) k=vmax/sp;
       o.vx*=k; o.vy*=k;
@@ -758,7 +761,7 @@ function useJump(){
 // マグネット: しばらくのあいだ、同じ色どうしが引き合う
 function useMag(){
   if(!running||paused||over||items.mag<=0||magLeft>0) return;
-  items.mag--; magLeft=MAG_MS;
+  items.mag--; magLeft=MAG_MS; jiggleAll(0.008); shake=6;
   itemFx={text:"マグネット!", t:performance.now()};
   sfx("mag"); updateHud();
 }
@@ -876,7 +879,7 @@ function update(dt, now){
     return;
   }
   if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
-  if(magLeft>0){ magLeft=Math.max(0,magLeft-dt); if(magLeft===0){ for(const o of balls){ o.mx=o.my=0; } updateHud(); } }
+  if(magLeft>0){ magLeft=Math.max(0,magLeft-dt); if(magLeft===0){ for(const o of balls){ o.mx=o.my=0; } magPairs=[]; updateHud(); } }
   if(popping && now-popT>=POP_MS){
     const gone=popping;
     balls=balls.filter(o=>!o.pop); dropBonds(o=>!o.pop); popping=null; quietT=0;
@@ -1275,6 +1278,17 @@ function draw(now){
       }
       ctx.restore();
     }
+  }
+  if(magLeft>0 && magPairs.length){                            // マグネット中: 引き合っている粒どうしを光る糸で結ぶ
+    ctx.save(); ctx.lineCap="round";
+    const ph=now/90;
+    for(const [a,b,d] of magPairs){
+      const al=(1-d/MAG_RANGE)*0.85;
+      ctx.strokeStyle=PALETTE[a.c].hi; ctx.globalAlpha=al; ctx.lineWidth=Math.max(1.5,s*0.07);
+      ctx.setLineDash([s*0.18,s*0.16]); ctx.lineDashOffset=-ph*s*0.05;
+      ctx.beginPath(); ctx.moveTo(a.x*s,a.y*s); ctx.lineTo(b.x*s,b.y*s); ctx.stroke();
+    }
+    ctx.restore();
   }
   if(magLeft>0){                                               // マグネット中: 盤面のふちが赤く脈打ち、残り秒数を出す
     const a=(0.28+0.12*Math.sin(now/140))*Math.min(1,magLeft/400);
@@ -1679,7 +1693,10 @@ function shareX(){
   const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
   const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}\n#グラビティポップ`;
   const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
-  window.open("https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url),"_blank");
+  const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url);
+  const h=window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openExternal;
+  if(h) h.postMessage(intent);                                  // iOS アプリ: アプリに X（なければ Safari）で開いてもらう
+  else if(!window.open(intent,"_blank")) location.href=intent;   // ブラウザ: 新しいタブ（開けなければこのタブ）で
 }
 function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
 async function start(){
