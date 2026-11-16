@@ -114,6 +114,11 @@
   .row button{font-size:13px}
   .warn{color:#ff9f7a!important}
   .sheet.wide{max-width:min(760px,96vw)}
+  .rec-list{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;margin:10px auto;max-width:440px;text-align:left;font-size:14px}
+  .rec-row{display:flex;justify-content:space-between;border-bottom:1px solid #2c3446;padding:3px 0;color:var(--dim)}
+  .rec-row b{color:var(--text)}
+  i.new{font-style:normal;color:#ff6b9a;font-weight:900;font-size:12px}
+  .xbtn{background:#000!important;color:#fff!important;border:1px solid #555!important}
   .zk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0;text-align:left}
   .zk{display:flex;gap:10px;align-items:flex-start;background:#1a1f2b;border:1px solid #2c3446;border-radius:12px;padding:10px}
   .zk canvas{flex:none;width:76px;height:76px;border-radius:10px;background:radial-gradient(circle at 50% 40%,#232a3a,#141822)}
@@ -231,6 +236,19 @@ const LEVELS = {
 };
 let levelKey = store.get("level","normal"); if(!LEVELS[levelKey]) levelKey="normal";
 let best = store.get("bestFree",0);
+// ===== 記録（その場でほめる＋ゲームオーバーでまとめる） =====
+const REC_DEFS = [   // key, 表示名, 単位
+  ["maxChain","最大連鎖","連鎖"], ["stage","到達ステージ",""], ["maxPop","一度に消した数","個"],
+  ["allClear","全消し","回"], ["comeback","大逆転","回"], ["niceTilt","ナイス傾き連鎖","回"],
+  ["lastSec","ギリギリセーフ","回"], ["multi","3色以上の同時消し","回"], ["bigBomb","大爆発","回"],
+  ["garbage","お邪魔一掃","回"], ["upside","さかさま消し","回"],
+];
+let rec={}, bestRec=store.get("bestRecFree",{}), danger=false, praiseQ=[];
+function resetRec(){ rec={}; for(const [k] of REC_DEFS) rec[k]=0; danger=false; praiseQ=[]; }
+function praise(title, sub="", col="#ffcf5a"){
+  if(praiseQ.length>4) return;
+  praiseQ.push({title, sub, col, t:null}); sfx("praise");
+}
 
 // ===== 状態 =====
 // マス目なし版: 粒は半径 R の円。盤面は N×N（1 = 粒1個ぶんの大きさ）の箱。
@@ -343,7 +361,7 @@ function reset(){
   score=0; maxChain=0; popped=0; level=1; colorsN=4;
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
-  particles=[]; chainFx=null; shake=0; paused=false; over=false;
+  particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec();
   items={stop:1, shuf:1, jump:1}; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
   spawn(); updateHud();
 }
@@ -657,6 +675,18 @@ function findPops(now){
   pops.push(...gb); score += gb.length*20;
   // 氷: となりで消えた粒があると溶けて、ふつうの粒になる
   for(const o of list) if(o.frozen && !pops.includes(o) && pops.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<=2*R*1.3)){ o.frozen=false; o.wv=(o.wv||0)+0.01; burst(o.x-0.5,o.y-0.5,1); }
+  // ---- 記録 ----
+  const total=pops.length;
+  rec.maxPop=Math.max(rec.maxPop,total);
+  if(total>=20) praise("超大量消し！", `${total}個いっぺんに`, "#ff9df0");
+  else if(total>=10) praise("大量消し！", `${total}個いっぺんに`);
+  if(colorSet.size>=3){ rec.multi++; praise(`${colorSet.size}色同時消し！`, "", "#9dffb0"); }
+  if(bombs.length && total>=12){ rec.bigBomb++; praise("大爆発！", `${total}個を巻き込んだ`, "#ff8a5a"); }
+  if(gb.length>=5){ rec.garbage++; praise("お邪魔一掃！", `${gb.length}個まとめて`, "#cfd6e4"); }
+  if(pops.some(o=>o.timer!=null && o.timer<=3000)){ rec.lastSec++; praise("ギリギリセーフ！", "時限ぷにを残り3秒で", "#ffe066"); }
+  if(gu && gu[1]<-0.7){ rec.upside++; praise("さかさま消し！", "重力が上向きのまま", "#8fe3ff"); }
+  if(tiltNice) rec.niceTilt++;
+  rec.maxChain=Math.max(rec.maxChain,chain);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
     stageFx={n:level, t:now, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
@@ -792,6 +822,7 @@ function sfx(kind, n=1){
   else if(kind==="bomb"){ tone(120,40,0.5,"sawtooth",0.25); tone(60,30,0.6,"sine",0.4,0.02); }
   else if(kind==="virus"){ tone(500,350,0.12,"square",0.05); tone(700,450,0.12,"square",0.04,0.08); }
   else if(kind==="jump"){ tone(90,60,0.18,"sine",0.35); tone(300,1200,0.35,"triangle",0.12,0.05); }
+  else if(kind==="praise"){ [784,988,1175,1568].forEach((f,i)=>tone(f,f,0.14,"triangle",0.11,i*0.07)); }
   else if(kind==="shuf"){ tone(200,900,0.75,"sawtooth",0.05); tone(900,180,0.6,"triangle",0.12,0.95); }
 }
 
@@ -826,6 +857,7 @@ function update(dt, now){
     for(const o of balls){ if(o.live) continue;
       if(gone.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<3*2*R)){ o.slip=SLIP_MS; if(u){ o.vx+=u[0]*1.2; o.vy+=u[1]*1.2; } } }
     chainWinLen=chainWin(chain); chainUntil=now+chainWinLen;
+    if(!balls.some(o=>!o.live)){ rec.allClear++; score+=3000; updateHud(); praise("全消し！", "+3000点", "#ff9df0"); shake=16; }
   }
   for(const o of balls) if(o.slip>0) o.slip-=dt;
   const maxSp=physicsStep(dt);
@@ -840,7 +872,7 @@ function update(dt, now){
   if(!popping){
     quietT = lastMove<0.02 ? quietT+dt : 0;
     popCheckT+=dt;
-    if(popCheckT>=80){ spreadVirus(popCheckT); tickTimers(popCheckT); popCheckT=0; makeBonds(); findPops(now); }
+    if(popCheckT>=80){ spreadVirus(popCheckT); tickTimers(popCheckT); popCheckT=0; makeBonds(); findPops(now); checkDanger(); }
     if(!popping && now>chainUntil) cascade=false;   // 消え終わってしばらく次が消えなければ連鎖はおしまい
   }
   if(!piece){
@@ -849,6 +881,13 @@ function update(dt, now){
     return;
   }
   pieceStep(dt);
+}
+// 大逆転: 出口（真ん中）のすぐそばまで積もったピンチから、まわりをすっきり空けたら
+function checkDanger(){
+  const c=N/2; let near=Infinity;
+  for(const o of balls){ if(o.live||o.pop) continue; near=Math.min(near,Math.hypot(o.x-c,o.y-c)); }
+  if(near<2.2*2*R) danger=true;
+  else if(danger && near>4.5*2*R){ danger=false; rec.comeback++; praise("大逆転！", "ピンチを切り抜けた", "#9dffb0"); }
 }
 let statusAcc=0;
 function stepFx(dt){
@@ -1206,6 +1245,21 @@ function draw(now){
         ctx.lineWidth=s*0.14; ctx.strokeText("ナイス傾き！ ×1.5",0,s*1.15);
         ctx.fillStyle="#8fe3ff"; ctx.fillText("ナイス傾き！ ×1.5",0,s*1.15);
       }
+      ctx.restore();
+    }
+  }
+  if(praiseQ.length){                                           // 記録をほめる表示（1つずつ順番に）
+    const pq=praiseQ[0]; if(pq.t==null) pq.t=now;
+    const t=(now-pq.t)/1500;
+    if(t>=1) praiseQ.shift();
+    else{
+      const sc = t<0.12 ? 0.5+t/0.12*0.6 : 1.1-Math.min(0.1,(t-0.12)*0.4);
+      ctx.save(); ctx.translate(W/2,W*0.58); ctx.scale(sc,sc); ctx.globalAlpha = t>0.75 ? 1-(t-0.75)/0.25 : 1;
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.font=`900 ${s*1.05}px -apple-system,"Hiragino Sans",sans-serif`;
+      ctx.lineWidth=s*0.18; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(pq.title,0,0);
+      ctx.fillStyle=pq.col; ctx.fillText(pq.title,0,0);
+      if(pq.sub){ ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=s*0.12; ctx.strokeText(pq.sub,0,s*0.9); ctx.fillStyle="#fff"; ctx.fillText(pq.sub,0,s*0.9); }
       ctx.restore();
     }
   }
@@ -1568,13 +1622,25 @@ function showMenu(kind){
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");
   }else if(kind==="over"){
+    const rows=REC_DEFS.filter(([k])=>rec[k]>0).map(([k,label,unit])=>
+      `<div class="rec-row"><span>${label}</span><b>${rec[k]}${unit}${lastNew.includes(k)?' <i class="new">NEW!</i>':''}</b></div>`).join("");
     sheet.innerHTML=`<h1>ゲームオーバー</h1>
-      <p style="font-size:20px;color:var(--text)">SCORE ${score}　/　最大 ${maxChain} 連鎖</p>
-      <p>ベスト: ${best}</p>${settingsRow()}
-      <button class="big" id="againBtn">もう一度</button>`;
+      <p style="font-size:22px;color:var(--text);margin:4px 0">SCORE ${score}${lastNew.includes("score")?' <i class="new">ベスト更新!</i>':''}</p>
+      <p style="margin:2px 0">ベスト: ${best}</p>
+      <div class="rec-list">${rows}</div>
+      <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="xBtn">𝕏 でシェア</button></div>
+      ${settingsRow()}`;
     bindSettings();
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
+    document.getElementById("xBtn").onclick=shareX;
   }
+}
+// X に記録を投稿する（投稿画面を開くだけ。送信は本人が X で押す）
+function shareX(){
+  const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
+  const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}\n#グラビティポップ`;
+  const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
+  window.open("https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url),"_blank");
 }
 function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
 async function start(){
@@ -1584,9 +1650,14 @@ async function start(){
   running=true; reset(); updatePad(); updateCtrl(); hideOverlay();
   try{ window.focus(); }catch(e){}
 }
+let lastNew=[];
 function gameOver(){
   over=true; piece=null;
-  if(score>best){ best=score; store.set("bestFree",best); }
+  rec.stage=level; rec.maxChain=Math.max(rec.maxChain,maxChain);
+  lastNew=[];
+  if(score>best){ if(best>0) lastNew.push("score"); best=score; store.set("bestFree",best); }
+  for(const [k] of REC_DEFS) if(rec[k]>(bestRec[k]||0)){ if(bestRec[k]) lastNew.push(k); bestRec[k]=rec[k]; }
+  store.set("bestRecFree",bestRec);
   setTimeout(()=>showMenu("over"),400);
 }
 

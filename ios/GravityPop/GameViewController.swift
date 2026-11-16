@@ -96,6 +96,32 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         loadBundled()
     }
 
+    // MARK: - ゲーム以外のリンク（X への投稿など）は外のアプリで開く
+
+    private func isGameURL(_ url: URL) -> Bool {
+        url.isFileURL || url.host == Self.remoteURL.host || url.scheme == "about"
+    }
+
+    func webView(_ webView: WKWebView,
+                 decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if let url = navigationAction.request.url, !isGameURL(url) {
+            UIApplication.shared.open(url)          // X アプリが入っていれば X、なければ Safari で開く
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    // window.open(..., "_blank") で開こうとしたとき
+    func webView(_ webView: WKWebView,
+                 createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction,
+                 windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url { UIApplication.shared.open(url) }
+        return nil
+    }
+
     // MARK: - 傾きセンサーの許可（ページの DeviceMotionEvent.requestPermission() に答える）
 
     @available(iOS 15.0, *)
