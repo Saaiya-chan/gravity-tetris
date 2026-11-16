@@ -247,7 +247,7 @@ const REC_DEFS = [   // key, 表示名, 単位
   ["maxChain","最大連鎖","連鎖"], ["stage","到達ステージ",""], ["maxPop","一度に消した数","個"],
   ["allClear","全消し","回"], ["comeback","大逆転","回"], ["niceTilt","ナイス傾き連鎖","回"],
   ["lastSec","ギリギリセーフ","回"], ["multi","3色以上の同時消し","回"], ["bigBomb","大爆発","回"],
-  ["garbage","お邪魔一掃","回"], ["upside","さかさま消し","回"],
+  ["garbage","お邪魔一掃","回"], ["upside","さかさま消し","回"], ["boss","ボス撃破","回"],
 ];
 let rec={}, bestRec=store.get("bestRecFree",{}), danger=false, praiseQ=[];
 function resetRec(){ rec={}; for(const [k] of REC_DEFS) rec[k]=0; danger=false; praiseQ=[]; }
@@ -268,6 +268,47 @@ const MAG_MS = 6000;          // マグネットの効いている時間
 const MAG_RANGE = 7*2*0.48;   // 引き合う距離（粒7個ぶん）
 const MAG_POWER = 320;        // 引き合う強さ [マス/秒²]（摩擦よりずっと強い）
 let magLeft=0, magPairs=[];
+// ===== ボス戦 =====
+// ステージ3・6・9…でボスが出る。ボス戦の間は組の出口が3か所になり、ボスはときどき左右の出口からお邪魔ぷにを降らせる。
+// 粒を消すとボスにダメージ（連鎖するほど大きい）。HPを0にすると撃破ボーナス。
+const BOSS_EVERY = 3;
+let boss=null, bossFx=null, spawnIdx=0;
+function bossName(n){ return ["ぷにキング","ぷにクイーン","ぷにエンペラー","ぷにゴッド"][Math.min(3,n-1)]; }
+function startBoss(now, n=Math.max(1,Math.floor(level/BOSS_EVERY))){
+  const maxHp=50+n*30;
+  boss={n, hp:maxHp, maxHp, nextAtk:now+6000, warn:0, name:bossName(n)};
+  bossFx={t:now, text:`${boss.name} あらわる！`};
+  sfx("boss"); shake=10;
+}
+// 出口: 真ん中と、重力に直角な向きに左右4マス
+function spawnBases(){
+  const c=N/2, u=gDir()||[0,1], p=[u[1],-u[0]];
+  return boss ? [[c,c],[c+p[0]*4,c+p[1]*4],[c-p[0]*4,c-p[1]*4]] : [[c,c]];
+}
+function bossStep(now){
+  if(!boss) return;
+  if(!boss.warn && now>=boss.nextAtk-1100) boss.warn=now;     // 攻撃の1.1秒前に出口が赤く光る
+  if(now>=boss.nextAtk){
+    const [, a, b] = spawnBases(), u=gDir()||[0,1], k=1+Math.min(3,boss.n);
+    for(const [bx,by] of [a,b]) for(let i=0;i<k;i++){
+      const x=bx+(Math.random()-0.5)*1.2, y=by+(Math.random()-0.5)*1.2;
+      if(overlaps([[x,y]],0.1)) continue;
+      const o=newBall(x,y,GARBAGE); o.vx=u[0]*3; o.vy=u[1]*3; balls.push(o); burst(x-0.5,y-0.5,GARBAGE);
+    }
+    sfx("bomb"); shake=8; boss.warn=0;
+    boss.nextAtk=now+Math.max(4500, 8000-boss.n*700);
+  }
+}
+function hitBoss(n, now){
+  if(!boss) return;
+  const dmg=Math.round(n*(1+(chain-1)*0.6));
+  boss.hp=Math.max(0,boss.hp-dmg); boss.hitT=now; boss.lastDmg=dmg;
+  if(boss.hp<=0){
+    rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
+    praise("ボス撃破！", `${boss.name}をたおした  +${5000*boss.n}点`, "#ffcf5a");
+    bossFx={t:now, text:"", win:true}; boss=null; shake=18; sfx("bosswin"); updateHud();
+  }
+}
 let items={stop:1, shuf:1, jump:1, mag:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
 const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
 let grid=null;                  // マス目版との互換用（使わない）
@@ -372,7 +413,7 @@ function reset(){
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec();
-  items={stop:1, shuf:1, jump:1, mag:1}; magLeft=0; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
+  items={stop:1, shuf:1, jump:1, mag:1}; magLeft=0; boss=null; bossFx=null; overFx=null; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
   spawn(); updateHud();
 }
 // 重力の向き（盤面に沿った単位ベクトル）。ほぼ水平なら null
@@ -402,14 +443,21 @@ function zkMark(k){ if(k && !zkSeen.has(k)){ zkSeen.add(k); store.set("zkSeen",[
 let spawnT=-1e9, releaseT=-1e9;
 function spawn(now=performance.now()){
   const nx = nextPairs[0];
-  const c=N/2, u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
-  const pts=nx.o.map(([x,y])=>[c+(p[0]*x+u[0]*y)*D, c+(p[1]*x+u[1]*y)*D]);
-  if(overlaps(pts)){                                           // 出口がふさがっている: 山が動いている間は待つ。止まっても空かなければおしまい
+  const u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
+  // 出口（ボス戦中は3か所）を順番に使う。ふさがっていたら次の出口へ
+  const bases=spawnBases(); let base=null;
+  for(let k=0;k<bases.length;k++){
+    const [cx,cy]=bases[(spawnIdx+k)%bases.length];
+    const pts=nx.o.map(([x,y])=>[cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D]);
+    if(!overlaps(pts)){ base=[cx,cy]; spawnIdx=(spawnIdx+k+1)%bases.length; break; }
+  }
+  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まっても空かなければおしまい
     if(quietT<400) return;
     piece=null; gameOver(); return;
   }
+  const [cx,cy]=base;
   nextPairs.shift(); nextPairs.push(newPair()); spawnT=now;
-  const bs=nx.o.map(([x,y],i)=>{ const b=newBall(c+(p[0]*x+u[0]*y)*D, c+(p[1]*x+u[1]*y)*D, nx.c[i]); b.live=true;
+  const bs=nx.o.map(([x,y],i)=>{ const b=newBall(cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D, nx.c[i]); b.live=true;
     applyFlag(b, nx.f[i]); return b; });
   const links=[];
   for(let i=0;i<bs.length;i++) for(let j=i+1;j<bs.length;j++) links.push([bs[i],bs[j],Math.hypot(bs[i].x-bs[j].x,bs[i].y-bs[j].y)]);
@@ -709,9 +757,11 @@ function findPops(now){
   if(gu && gu[1]<-0.7){ rec.upside++; praise("さかさま消し！", "重力が上向きのまま", "#8fe3ff"); }
   if(tiltNice) rec.niceTilt++;
   rec.maxChain=Math.max(rec.maxChain,chain);
+  hitBoss(total, now);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
     stageFx={n:level, t:now, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
+    if(level%BOSS_EVERY===0 && !boss) setTimeout(()=>{ if(running&&!over) startBoss(performance.now()); }, 1900);
   }
   popping=pops; popT=now;
   for(const o of pops){ o.pop=true; o.vx=o.vy=0; burst(o.x-0.5,o.y-0.5,o.c); }
@@ -851,6 +901,9 @@ function sfx(kind, n=1){
   else if(kind==="bomb"){ tone(120,40,0.5,"sawtooth",0.25); tone(60,30,0.6,"sine",0.4,0.02); }
   else if(kind==="virus"){ tone(500,350,0.12,"square",0.05); tone(700,450,0.12,"square",0.04,0.08); }
   else if(kind==="jump"){ tone(90,60,0.18,"sine",0.35); tone(300,1200,0.35,"triangle",0.12,0.05); }
+  else if(kind==="boss"){ tone(110,82,0.6,"sawtooth",0.18); tone(165,123,0.6,"square",0.06,0.15); tone(82,55,0.8,"sawtooth",0.18,0.45); }
+  else if(kind==="bosswin"){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,f,0.22,"triangle",0.14,i*0.09)); }
+  else if(kind==="over"){ [392,330,262,196].forEach((f,i)=>tone(f,f*0.97,0.35,"triangle",0.13,i*0.22)); }
   else if(kind==="mag"){ tone(220,660,0.4,"sine",0.15); tone(330,990,0.4,"triangle",0.08,0.1); }
   else if(kind==="praise"){ [784,988,1175,1568].forEach((f,i)=>tone(f,f,0.14,"triangle",0.11,i*0.07)); }
   else if(kind==="shuf"){ tone(200,900,0.75,"sawtooth",0.05); tone(900,180,0.6,"triangle",0.12,0.95); }
@@ -879,6 +932,7 @@ function update(dt, now){
     return;
   }
   if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
+  if(stopLeft<=0) bossStep(now);                                 // ストップ中はボスも止まる
   if(magLeft>0){ magLeft=Math.max(0,magLeft-dt); if(magLeft===0){ for(const o of balls){ o.mx=o.my=0; } magPairs=[]; updateHud(); } }
   if(popping && now-popT>=POP_MS){
     const gone=popping;
@@ -927,6 +981,17 @@ function stepFx(dt){
   for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx+=gx*0.00002*dt; p.vy+=gy*0.00002*dt; p.life-=dt/650; }
   particles=particles.filter(p=>p.life>0);
   shake=Math.max(0, shake - dt*0.04);
+  if(overFx){                                                   // ゲームオーバー演出
+    const el=performance.now()-overFx.t;
+    for(const o of balls){
+      const e=el-o.ovDelay;
+      if(e>0 && !o.ovGrey){ o.ovGrey=true; o.c=GARBAGE; o.virus=o.bomb=o.magnet=o.balloon=o.frozen=o.heavy=false; o.timer=null; o.wv=(o.wv||0)-0.012; }
+      if(e>900){                                                // 画面の下へこぼれ落ちる
+        if(o.fvy==null){ o.fvy=-(1.5+Math.random()*3); o.fvx=(Math.random()-0.5)*3; }
+        o.fvy+=30*dt/1000; o.y+=o.fvy*dt/1000; o.x+=o.fvx*dt/1000;
+      }
+    }
+  }
   { const u=gDir(); if(u){ const d=dirDeg(u); const el=document.querySelector("#dropBtn .icon"); if(el && Math.abs(((d-(el._r||0))%360+540)%360-180)>3) setRot(el,d); } }   // 「落とす」ボタンの矢印は本当の重力の向き
   const S=slope(); const eff = S.canStart||physActive ? Math.max(0, S.sin - S.f.k*S.cos) : 0;
   tiltK += (eff*2 - tiltK) * Math.min(1, dt/180);   // 見た目用（床の光・矢印の強さ）
@@ -1252,7 +1317,7 @@ function draw(now){
   ctx.globalAlpha=1;
   // 連鎖表示
   if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間（残りを盤面の上のバーで見せる）
-    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=s*0.35;
+    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=boss ? s*2.15 : s*0.35;   // ボス戦中はHPバーの下に
     ctx.save();
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
@@ -1279,6 +1344,39 @@ function draw(now){
       ctx.restore();
     }
   }
+  if(boss){                                                     // ボス: 出口の印と、上のHPバー
+    const bases=spawnBases(), wk = boss.warn ? Math.min(1,(now-boss.warn)/1100) : 0;
+    bases.forEach(([bx,by],i)=>{
+      const red = i>0 && wk>0;
+      ctx.save(); ctx.globalAlpha = red ? 0.5+0.5*Math.sin(now/60) : 0.35;
+      ctx.strokeStyle = red ? "#ff5a5a" : "#ffcf5a"; ctx.lineWidth=Math.max(2,s*0.08); ctx.setLineDash([s*0.2,s*0.15]);
+      ctx.beginPath(); ctx.arc(bx*s,by*s,s*(red?0.9+0.3*wk:0.75),0,Math.PI*2); ctx.stroke(); ctx.restore();
+    });
+    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2+s*0.55, by=s*1.05, k=boss.hp/boss.maxHp;
+    const hit = boss.hitT && now-boss.hitT<300;
+    blob(ctx, bx-s*0.75, by+bh/2, s*0.62*(hit?0.9:1), 4, 1, {face:faceOn, g:[0,1], t:now});
+    ctx.save(); ctx.translate(bx-s*0.75, by+bh/2-s*0.62);              // 王冠
+    ctx.fillStyle="#ffcf5a"; ctx.beginPath(); ctx.moveTo(-s*0.4,0); ctx.lineTo(-s*0.4,-s*0.38); ctx.lineTo(-s*0.18,-s*0.16); ctx.lineTo(0,-s*0.45); ctx.lineTo(s*0.18,-s*0.16); ctx.lineTo(s*0.4,-s*0.38); ctx.lineTo(s*0.4,0); ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.fillStyle="rgba(0,0,0,.55)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
+    ctx.fillStyle = hit ? "#ffffff" : (k>0.3 ? "#ff5a7a" : "#ff2a4a"); ctx.beginPath(); ctx.roundRect(bx,by,Math.max(0,bw*k),bh,bh/2); ctx.fill();
+    ctx.font=`800 ${s*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillStyle="#fff"; ctx.fillText(`${boss.name}  ${boss.hp}/${boss.maxHp}`, bx+4, by+bh+4);
+    if(hit){ ctx.textAlign="right"; ctx.fillStyle="#ffcf5a"; ctx.fillText(`-${boss.lastDmg}`, bx+bw, by+bh+4); }
+  }
+  if(bossFx && bossFx.text){                                   // 「ぷにキング あらわる！」
+    const t=(now-bossFx.t)/1800;
+    if(t>=1) bossFx=null;
+    else{
+      ctx.save(); ctx.translate(W/2,W*0.45); const sc=t<0.15?0.4+t/0.15*0.8:1.2-Math.min(0.2,(t-0.15)*0.4); ctx.scale(sc,sc);
+      ctx.globalAlpha = t>0.75 ? 1-(t-0.75)/0.25 : 1;
+      ctx.font=`900 ${s*1.1}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=s*0.2; ctx.strokeStyle="rgba(0,0,0,.65)"; ctx.strokeText(bossFx.text,0,0);
+      ctx.fillStyle="#ff6a8a"; ctx.fillText(bossFx.text,0,0);
+      ctx.font=`800 ${s*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=s*0.12;
+      ctx.strokeText("出口が3つに！ 消してダメージを与えよう",0,s*1.0); ctx.fillStyle="#fff"; ctx.fillText("出口が3つに！ 消してダメージを与えよう",0,s*1.0);
+      ctx.restore();
+    }
+  } else if(bossFx && bossFx.win && now-bossFx.t>1500) bossFx=null;
   if(magLeft>0 && magPairs.length){                            // マグネット中: 引き合っている粒どうしを光る糸で結ぶ
     ctx.save(); ctx.lineCap="round";
     const ph=now/90;
@@ -1297,6 +1395,19 @@ function draw(now){
     ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
     ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
     ctx.fillStyle="rgba(255,214,220,.95)"; ctx.fillText(`マグネット ${(magLeft/1000).toFixed(1)}秒`, W/2, W-s*0.3);
+  }
+  if(overFx){
+    const t=(now-overFx.t-700)/600;
+    if(t>0){
+      ctx.save(); ctx.fillStyle=`rgba(5,8,14,${Math.min(0.5,t*0.5)})`; ctx.fillRect(0,0,W,W);
+      const sc = t<1 ? 2.2-1.2*Math.min(1,t)*(2-Math.min(1,t)) : 1;
+      ctx.translate(W/2,W*0.42); ctx.scale(sc,sc); ctx.globalAlpha=Math.min(1,t*1.5);
+      ctx.font=`900 ${s*1.6}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=s*0.25; ctx.strokeStyle="rgba(0,0,0,.7)"; ctx.strokeText("GAME OVER",0,0);
+      const tg=ctx.createLinearGradient(0,-s,0,s); tg.addColorStop(0,"#ffd6e0"); tg.addColorStop(1,"#ff5a7a");
+      ctx.fillStyle=tg; ctx.fillText("GAME OVER",0,0);
+      ctx.restore();
+    }
   }
   if(praiseQ.length){                                           // 記録をほめる表示（1つずつ順番に）
     const pq=praiseQ[0]; if(pq.t==null) pq.t=now;
@@ -1656,6 +1767,7 @@ function showMenu(kind){
         <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
         <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う。3連鎖や50個消すごとに増える</li>
+        <li>ステージ3・6・9…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
       ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
@@ -1669,11 +1781,12 @@ function showMenu(kind){
   }else if(kind==="pause"){
     sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
       <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
-      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button></div>`;
+      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button><button id="bossBtn">👑 ボス戦（開発）</button></div>`;
     bindSettings();
     document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");
+    document.getElementById("bossBtn").onclick=()=>{ paused=false; hideOverlay(); if(!boss) startBoss(performance.now(), Math.max(1,Math.floor(level/BOSS_EVERY))); };
   }else if(kind==="over"){
     const rows=REC_DEFS.filter(([k])=>rec[k]>0).map(([k,label,unit])=>
       `<div class="rec-row"><span>${label}</span><b>${rec[k]}${unit}${lastNew.includes(k)?' <i class="new">NEW!</i>':''}</b></div>`).join("");
@@ -1682,6 +1795,7 @@ function showMenu(kind){
       <p style="margin:2px 0">ベスト: ${best}</p>
       <div class="rec-list">${rows}</div>
       <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="xBtn">𝕏 でシェア</button></div>
+      <p id="xMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>
       ${settingsRow()}`;
     bindSettings();
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
@@ -1694,9 +1808,18 @@ function shareX(){
   const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}\n#グラビティポップ`;
   const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
   const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url);
-  const h=window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openExternal;
-  if(h) h.postMessage(intent);                                  // iOS アプリ: アプリに X（なければ Safari）で開いてもらう
-  else if(!window.open(intent,"_blank")) location.href=intent;   // ブラウザ: 新しいタブ（開けなければこのタブ）で
+  const msg=document.getElementById("xMsg");
+  const say=t=>{ if(msg) msg.textContent=t; };
+  try{
+    const h=window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openExternal;
+    if(h){ h.postMessage(intent); say("X を開いています…（アプリ経由）"); }       // iOS アプリ: アプリに X（なければ Safari）で開いてもらう
+    else{
+      const w=window.open(intent,"_blank");                                          // ブラウザ: 新しいタブで
+      say(w ? "X を開いています…" : "X を開けませんでした（アプリの入れ直しが必要かも）");
+    }
+  }catch(e){ say("X を開けませんでした: "+e.message); }
+  // 開けなかったときのために、投稿する文をコピーしておく（X に貼り付けられる）
+  try{ navigator.clipboard && navigator.clipboard.writeText(text+"\n"+url).then(()=>{ if(msg) msg.textContent+=" ／ 投稿文をコピーしました"; }).catch(()=>{}); }catch(e){}
 }
 function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
 async function start(){
@@ -1706,15 +1829,19 @@ async function start(){
   running=true; reset(); updatePad(); updateCtrl(); hideOverlay();
   try{ window.focus(); }catch(e){}
 }
-let lastNew=[];
+let lastNew=[], overFx=null;
 function gameOver(){
   over=true; piece=null;
+  // ゲームオーバーの演出: 出口から近い順に灰色になって、そのあと下へこぼれ落ちる
+  const now=performance.now(), c=N/2;
+  for(const o of balls){ o.ovDelay=Math.hypot(o.x-c,o.y-c)*70+Math.random()*60; o.ovGrey=false; o.fvy=null; }
+  overFx={t:now}; shake=10; sfx("over");
   rec.stage=level; rec.maxChain=Math.max(rec.maxChain,maxChain);
   lastNew=[];
   if(score>best){ if(best>0) lastNew.push("score"); best=score; store.set("bestFree",best); }
   for(const [k] of REC_DEFS) if(rec[k]>(bestRec[k]||0)){ if(bestRec[k]) lastNew.push(k); bestRec[k]=rec[k]; }
   store.set("bestRecFree",bestRec);
-  setTimeout(()=>showMenu("over"),400);
+  setTimeout(()=>{ if(over) showMenu("over"); },2600);
 }
 
 // ===== 起動 =====

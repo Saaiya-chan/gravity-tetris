@@ -16,9 +16,11 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []   // 効果音をすぐ鳴らせるように
         // ページから「この URL を外のアプリで開いて」と頼めるようにする（X への投稿など）
-        config.userContentController.add(ExternalOpener(), name: "openExternal")
+        let opener = ExternalOpener()
+        config.userContentController.add(opener, name: "openExternal")
 
         webView = WKWebView(frame: .zero, configuration: config)
+        opener.webView = webView
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.isOpaque = false
@@ -138,9 +140,24 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
 /// ページの window.webkit.messageHandlers.openExternal.postMessage(url) を受けて、
 /// その URL を外のアプリ（X アプリが入っていれば X、なければ Safari）で開く。
 private final class ExternalOpener: NSObject, WKScriptMessageHandler {
+    weak var webView: WKWebView?
+
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let s = message.body as? String, let url = URL(string: s),
-              url.scheme == "https" || url.scheme == "http" else { return }
-        DispatchQueue.main.async { UIApplication.shared.open(url) }
+              url.scheme == "https" || url.scheme == "http" else {
+            report("URL が正しくありません")
+            return
+        }
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:]) { [weak self] ok in
+                self?.report(ok ? "X を開きました" : "X を開けませんでした（iOS が拒否）")
+            }
+        }
+    }
+
+    /// 結果をページの「𝕏 でシェア」の下に表示する
+    private func report(_ text: String) {
+        let js = "var m=document.getElementById('xMsg'); if(m) m.textContent=\(String(reflecting: text));"
+        DispatchQueue.main.async { self.webView?.evaluateJavaScript(js) }
     }
 }
