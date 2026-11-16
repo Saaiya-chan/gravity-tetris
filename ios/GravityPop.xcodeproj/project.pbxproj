@@ -188,7 +188,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A94V5QW852;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
@@ -215,7 +215,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A94V5QW852;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GravityPop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "グラビティ・ポップ";
