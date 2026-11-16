@@ -168,11 +168,11 @@ const N = 13;                 // 盤面サイズ（奇数で中心が1マスに�
 const SLIDE_MS = 42;          // 粒が1マス流れる間隔
 const LOCK_DELAY = 150;       // 接地してから固定されるまで
 const POP_MS = 420;           // 消える演出の長さ
+if(!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){ this.rect(x,y,w,h); };   // 古い iOS 用
 // 連鎖を起こしやすくする仕組み
-const SLOW_MS = 900;          // 消えたあと、時間がゆっくりになる長さ（この間に傾けて流れを狙える）
-const SLOW_SCALE = 0.38;      // ゆっくりのときの速さ
 const SLIP_MS = 1100;         // 消えた場所のまわりの粒が滑りやすくなる長さ
-const CHAIN_WIN = 1500;       // 消え終わってからこの時間内に次が消えたら連鎖（この間は次の組も出さない）
+// 連鎖の受付時間: 消え終わってからこの時間内に次が消えたら連鎖。連鎖が続くほど長くなる
+function chainWin(n){ return Math.min(4500, 2000 + (n-1)*500); }
 const TILT_MIN = 2.2;         // m/s^2 これ未満の傾きは無視（ほぼ水平）
 const TILT_SNAP = 32;         // 新しい方向の軸から何度以内で切替えるか
 const TILT_HOLD = 120;        // 切替えに必要な安定時間 ms
@@ -238,7 +238,7 @@ const R = 0.48;                 // 粒の半径（盤面の単位）
 const TOUCH = 2*R*1.07;         // この距離以内なら「くっついている」
 let balls, piece, nextPairs, grav, score, maxChain, popped, level, colorsN;
 let lockTimer, dirty, popping, popT, chain, running, paused, over;
-let quietT=0, cascade=false, slowT=0, chainUntil=0, lastPopG=null;
+let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
 let particles=[], chainFx=null, shake=0;
 let items={stop:1, shuf:1, jump:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
 const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
@@ -342,7 +342,7 @@ function reset(){
   balls=[]; bonds=[]; bondKeys=new Set(); grav = grav ?? 0;
   score=0; maxChain=0; popped=0; level=1; colorsN=4;
   nextPairs=[newPair(), newPair()];
-  piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; slowT=0; chainUntil=0; lastPopG=null;
+  piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false;
   items={stop:1, shuf:1, jump:1}; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
   spawn(); updateHud();
@@ -825,13 +825,9 @@ function update(dt, now){
     const u=gDir();
     for(const o of balls){ if(o.live) continue;
       if(gone.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<3*2*R)){ o.slip=SLIP_MS; if(u){ o.vx+=u[0]*1.2; o.vy+=u[1]*1.2; } } }
-    slowT=SLOW_MS; chainUntil=now+CHAIN_WIN;
+    chainWinLen=chainWin(chain); chainUntil=now+chainWinLen;
   }
-  // 消えた直後は時間がゆっくり（傾きセンサーと操作はふつうの速さのまま）
-  const ts = slowT>0 ? SLOW_SCALE + (1-SLOW_SCALE)*Math.pow(1-slowT/SLOW_MS,3) : 1;
-  if(slowT>0) slowT=Math.max(0,slowT-dt);
-  for(const o of balls) if(o.slip>0) o.slip-=dt*ts;
-  dt*=ts;
+  for(const o of balls) if(o.slip>0) o.slip-=dt;
   const maxSp=physicsStep(dt);
   // 「落ち着いた」かどうかは、0.12秒ごとに粒がどれだけ動いたかで判断する（接触の細かい振動は無視）
   sampleT+=dt;
@@ -849,7 +845,7 @@ function update(dt, now){
   }
   if(!piece){
     // 次の組: 前の組が出てから一定時間（ふつう1秒）たったら、積み山が動いていても出す
-    if(!popping && !over && stopLeft<=0 && now>=chainUntil && now-releaseT>=120 && now-spawnT>=LEVELS[levelKey].every) spawn(now);
+    if(!popping && !over && stopLeft<=0 && now-releaseT>=120 && now-spawnT>=LEVELS[levelKey].every) spawn(now);
     return;
   }
   pieceStep(dt);
@@ -1185,11 +1181,14 @@ function draw(now){
   for(const p of particles){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=PALETTE[p.c].hi; ctx.beginPath(); ctx.arc(p.x*s,p.y*s,p.r*s*p.life+1,0,Math.PI*2); ctx.fill(); }
   ctx.globalAlpha=1;
   // 連鎖表示
-  if(slowT>0){                                                 // ゆっくりの間は、盤面のふちが青く光る
-    const a=Math.min(1,slowT/250)*0.55;
-    const vg=ctx.createRadialGradient(W/2,W/2,W*0.32,W/2,W/2,W*0.72);
-    vg.addColorStop(0,"rgba(80,170,255,0)"); vg.addColorStop(1,`rgba(80,170,255,${a})`);
-    ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
+  if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間（残りを盤面の上のバーで見せる）
+    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=s*0.35;
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
+    ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
+    ctx.font=`800 ${s*0.42}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(`${chain}連鎖中 — 次を消すと${chain+1}連鎖`, W/2, by+bh+4);
+    ctx.restore();
   }
   if(chainFx){
     const t=(now-chainFx.t)/1100;
@@ -1545,7 +1544,7 @@ function showMenu(kind){
         <li>同じ色は<b>一度くっつくと離れない</b>。かたまりごと転がるよ</li>
         <li>ふしぎな力をもった<b>特殊なぷに</b>がステージを進むごとに増えていく。くわしくは<b>図鑑</b>で</li>
         <li>消えたあと流れた粒がまたつながると<b>連鎖</b>。点数が大きく増える</li>
-        <li>消えた直後は<b>時間がゆっくり</b>になって、まわりの粒がすべりやすくなる。そのあいだに傾けて流れを狙おう。傾けてつないだ連鎖は<b>1.5倍</b></li>
+        <li>消えてから<b>2秒以内</b>に次が消えれば連鎖。連鎖が続くほど受付時間が長くなる（上のバーが残り時間）。消えた場所のまわりはすべりやすくなるので、傾けて流れを狙おう。傾けてつないだ連鎖は<b>1.5倍</b></li>
         <li>傾けて流れの向きを変え、連鎖を起こそう</li>
         <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
