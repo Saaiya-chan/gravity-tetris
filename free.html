@@ -250,7 +250,7 @@ const REC_DEFS = [   // key, 表示名, 単位
   ["garbage","お邪魔一掃","回"], ["upside","さかさま消し","回"], ["boss","ボス撃破","回"],
 ];
 let rec={}, bestRec=store.get("bestRecFree",{}), danger=false, praiseQ=[];
-function resetRec(){ rec={}; for(const [k] of REC_DEFS) rec[k]=0; danger=false; praiseQ=[]; }
+function resetRec(){ rec={}; for(const [k] of REC_DEFS) rec[k]=0; danger=false; dangerT=0; praiseQ=[]; }
 function praise(title, sub="", col="#ffcf5a"){
   if(praiseQ.length>4) return;
   praiseQ.push({title, sub, col, t:null}); sfx("praise");
@@ -298,6 +298,34 @@ function bossStep(now){
     sfx("bomb"); shake=8; boss.warn=0;
     boss.nextAtk=now+Math.max(4500, 8000-boss.n*700);
   }
+}
+// ボスは盤面の後ろに大きく、うっすら出る（攻撃の前は目が赤く、ダメージで揺れて白く光る、倒すと消えていく）
+function drawBossBg(now){
+  const W=cv.width, s=W/N;
+  const winT = (!boss && bossFx && bossFx.win) ? Math.min(1,(now-bossFx.t)/1500) : 0;
+  const hit = boss && boss.hitT && now-boss.hitT<350 ? 1-(now-boss.hitT)/350 : 0;
+  const warn = boss && boss.warn ? Math.min(1,(now-boss.warn)/1100) : 0;
+  const r=W*0.3*(1+0.025*Math.sin(now/600))*(1+winT*0.4);
+  const cx=W/2+(hit? (Math.random()-0.5)*s*0.5 : 0), cy=W*0.5+Math.sin(now/900)*s*0.15;
+  ctx.save();
+  const al=(0.16+0.1*warn+0.18*hit)*(1-winT);
+  blob(ctx,cx,cy,r,4,al,{face:false,g:[0,1],t:now});
+  ctx.globalAlpha=al*1.3;
+  // 顔
+  ctx.fillStyle = warn>0 ? `rgb(${120+135*warn},40,60)` : "#1a0d2a";
+  for(const sx of [-1,1]){
+    ctx.beginPath(); ctx.ellipse(cx+sx*r*0.32, cy-r*0.05, r*0.09, r*(0.13-0.04*warn), 0, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.strokeStyle="#1a0d2a"; ctx.lineWidth=r*0.05; ctx.lineCap="round";           // 怒った眉
+    ctx.beginPath(); ctx.moveTo(cx+sx*r*0.48, cy-r*0.3); ctx.lineTo(cx+sx*r*0.18, cy-r*(0.2+0.06*warn)); ctx.stroke(); ctx.restore();
+  }
+  ctx.strokeStyle="#1a0d2a"; ctx.lineWidth=r*0.045; ctx.lineCap="round";
+  ctx.beginPath(); ctx.arc(cx, cy+r*0.42, r*0.18, Math.PI*1.15, Math.PI*1.85); ctx.stroke();          // への字口
+  // 王冠
+  ctx.fillStyle="#ffcf5a"; const ty=cy-r*0.92;
+  ctx.beginPath(); ctx.moveTo(cx-r*0.45,ty); ctx.lineTo(cx-r*0.5,ty-r*0.38); ctx.lineTo(cx-r*0.22,ty-r*0.16); ctx.lineTo(cx,ty-r*0.5);
+  ctx.lineTo(cx+r*0.22,ty-r*0.16); ctx.lineTo(cx+r*0.5,ty-r*0.38); ctx.lineTo(cx+r*0.45,ty); ctx.closePath(); ctx.fill();
+  if(hit){ ctx.globalAlpha=0.35*hit; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); }
+  ctx.restore();
 }
 function hitBoss(n, now){
   if(!boss) return;
@@ -444,19 +472,23 @@ let spawnT=-1e9, releaseT=-1e9;
 function spawn(now=performance.now()){
   const nx = nextPairs[0];
   const u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
-  // 出口（ボス戦中は3か所）を順番に使う。ふさがっていたら次の出口へ
-  const bases=spawnBases(); let base=null;
-  for(let k=0;k<bases.length;k++){
-    const [cx,cy]=bases[(spawnIdx+k)%bases.length];
-    const pts=nx.o.map(([x,y])=>[cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D]);
-    if(!overlaps(pts)){ base=[cx,cy]; spawnIdx=(spawnIdx+k+1)%bases.length; break; }
-  }
+  // 出口（ボス戦中は3か所）。ボス戦中はランダムな出口から出て、ほかの出口からも同時に組が落ちてくることがある
+  const bases=spawnBases(); if(boss) bases.sort(()=>Math.random()-0.5);
+  const fits=(pr,cx,cy)=>!overlaps(pr.o.map(([x,y])=>[cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D]));
+  let base=null, rest=[];
+  for(const b of bases){ if(!base && fits(nx,b[0],b[1])) base=b; else rest.push(b); }
   if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まっても空かなければおしまい
     if(quietT<400) return;
     piece=null; gameOver(); return;
   }
   const [cx,cy]=base;
   nextPairs.shift(); nextPairs.push(newPair()); spawnT=now;
+  if(boss) for(const [ex,ey] of rest){                         // 同時に落ちてくる組（操作はできない）
+    if(Math.random() > 0.4+0.1*Math.min(4,boss.n)) continue;
+    const pr=newPair(); if(!fits(pr,ex,ey)) continue;
+    pr.o.forEach(([x,y],i)=>{ const o=newBall(ex+(p[0]*x+u[0]*y)*D, ey+(p[1]*x+u[1]*y)*D, pr.c[i]); applyFlag(o, pr.f[i]);
+      o.vx=u[0]*4; o.vy=u[1]*4; balls.push(o); });
+  }
   const bs=nx.o.map(([x,y],i)=>{ const b=newBall(cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D, nx.c[i]); b.live=true;
     applyFlag(b, nx.f[i]); return b; });
   const links=[];
@@ -968,11 +1000,15 @@ function update(dt, now){
   pieceStep(dt);
 }
 // 大逆転: 出口（真ん中）のすぐそばまで積もったピンチから、まわりをすっきり空けたら
+let dangerT=0;
 function checkDanger(){
-  const c=N/2; let near=Infinity;
-  for(const o of balls){ if(o.live||o.pop) continue; near=Math.min(near,Math.hypot(o.x-c,o.y-c)); }
-  if(near<2.2*2*R) danger=true;
-  else if(danger && near>4.5*2*R){ danger=false; rec.comeback++; praise("大逆転！", "ピンチを切り抜けた", "#9dffb0"); }
+  // 止まっている粒だけで判断する（落ちていく途中の粒が真ん中を通っただけではピンチにしない）。1秒続いたらピンチ
+  const c=N/2; let near=Infinity, nearAny=Infinity;
+  for(const o of balls){ if(o.live||o.pop) continue; const d=Math.hypot(o.x-c,o.y-c); nearAny=Math.min(nearAny,d);
+    if(Math.hypot(o.vx,o.vy)<0.4) near=Math.min(near,d); }
+  dangerT = near<2.2*2*R ? dangerT+80 : 0;
+  if(dangerT>=1000) danger=true;
+  if(danger && nearAny>4.5*2*R){ danger=false; rec.comeback++; praise("大逆転！", "ピンチを切り抜けた", "#9dffb0"); }
 }
 let statusAcc=0;
 function stepFx(dt){
@@ -1239,6 +1275,7 @@ function draw(now){
   ctx.fillStyle=`rgba(255,207,90,${(0.2+0.3*Math.min(1,tiltK/2)).toFixed(3)})`; const a=s*(0.35+0.25*Math.min(1.4,tiltK)/1.4);
   ctx.beginPath(); ctx.moveTo(0,W/2-s*0.25); ctx.lineTo(-a,W/2-s*0.25-a); ctx.lineTo(a,W/2-s*0.25-a); ctx.closePath(); ctx.fill();
   ctx.restore();
+  if(boss || (bossFx && bossFx.win)) drawBossBg(now);
   // 同じ色どうしの「つながり」（くっついている粒）
   const still=balls.filter(o=>!o.live);
   const pairs=[];
@@ -1317,7 +1354,7 @@ function draw(now){
   ctx.globalAlpha=1;
   // 連鎖表示
   if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間（残りを盤面の上のバーで見せる）
-    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=boss ? s*2.15 : s*0.35;   // ボス戦中はHPバーの下に
+    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=boss ? s*1.55 : s*0.35;   // ボス戦中はHPバーの下に
     ctx.save();
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
@@ -1352,11 +1389,8 @@ function draw(now){
       ctx.strokeStyle = red ? "#ff5a5a" : "#ffcf5a"; ctx.lineWidth=Math.max(2,s*0.08); ctx.setLineDash([s*0.2,s*0.15]);
       ctx.beginPath(); ctx.arc(bx*s,by*s,s*(red?0.9+0.3*wk:0.75),0,Math.PI*2); ctx.stroke(); ctx.restore();
     });
-    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2+s*0.55, by=s*1.05, k=boss.hp/boss.maxHp;
+    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2, by=s*0.45, k=boss.hp/boss.maxHp;
     const hit = boss.hitT && now-boss.hitT<300;
-    blob(ctx, bx-s*0.75, by+bh/2, s*0.62*(hit?0.9:1), 4, 1, {face:faceOn, g:[0,1], t:now});
-    ctx.save(); ctx.translate(bx-s*0.75, by+bh/2-s*0.62);              // 王冠
-    ctx.fillStyle="#ffcf5a"; ctx.beginPath(); ctx.moveTo(-s*0.4,0); ctx.lineTo(-s*0.4,-s*0.38); ctx.lineTo(-s*0.18,-s*0.16); ctx.lineTo(0,-s*0.45); ctx.lineTo(s*0.18,-s*0.16); ctx.lineTo(s*0.4,-s*0.38); ctx.lineTo(s*0.4,0); ctx.closePath(); ctx.fill(); ctx.restore();
     ctx.fillStyle="rgba(0,0,0,.55)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = hit ? "#ffffff" : (k>0.3 ? "#ff5a7a" : "#ff2a4a"); ctx.beginPath(); ctx.roundRect(bx,by,Math.max(0,bw*k),bh,bh/2); ctx.fill();
     ctx.font=`800 ${s*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
@@ -1373,7 +1407,7 @@ function draw(now){
       ctx.lineWidth=s*0.2; ctx.strokeStyle="rgba(0,0,0,.65)"; ctx.strokeText(bossFx.text,0,0);
       ctx.fillStyle="#ff6a8a"; ctx.fillText(bossFx.text,0,0);
       ctx.font=`800 ${s*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=s*0.12;
-      ctx.strokeText("出口が3つに！ 消してダメージを与えよう",0,s*1.0); ctx.fillStyle="#fff"; ctx.fillText("出口が3つに！ 消してダメージを与えよう",0,s*1.0);
+      ctx.strokeText("出口が3つに！ 同時に落ちてくるぞ",0,s*1.0); ctx.fillStyle="#fff"; ctx.fillText("出口が3つに！ 同時に落ちてくるぞ",0,s*1.0);
       ctx.restore();
     }
   } else if(bossFx && bossFx.win && now-bossFx.t>1500) bossFx=null;
@@ -1767,7 +1801,7 @@ function showMenu(kind){
         <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
         <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う。3連鎖や50個消すごとに増える</li>
-        <li>ステージ3・6・9…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
+        <li>ステージ3・6・9…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
       ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
@@ -1810,9 +1844,21 @@ function shareX(){
   const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url);
   const msg=document.getElementById("xMsg");
   const say=t=>{ if(msg) msg.textContent=t; };
+  const mh=window.webkit && window.webkit.messageHandlers;
+  let card=null; try{ card=makeShareCard(); }catch(e){}
   try{
-    const h=window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openExternal;
-    if(h){ h.postMessage(intent); say("X を開いています…（アプリ経由）"); }       // iOS アプリ: アプリに X（なければ Safari）で開いてもらう
+    if(mh && mh.shareImage && card){                                                 // iOS アプリ: 画像つきで共有メニューを開く（そこで X を選ぶ）
+      mh.shareImage.postMessage({text, url, image:card.toDataURL("image/png")});
+      say("共有メニューから X を選んでください（画像つき）"); return;
+    }
+    if(!mh && card && navigator.canShare){                                           // ブラウザ（iPad の Safari など）: 画像つきで共有
+      card.toBlob(b=>{ const f=new File([b],"gravity-pop.png",{type:"image/png"});
+        if(navigator.canShare({files:[f]})) navigator.share({files:[f], text:text+"\n"+url}).catch(()=>{});
+        else window.open(intent,"_blank"); },"image/png");
+      say("共有メニューから X を選んでください（画像つき）"); return;
+    }
+    const h=mh && mh.openExternal;
+    if(h){ h.postMessage(intent); say("X を開いています…（アプリ経由・画像なし）"); }       // 古いアプリ: X の投稿画面を開く
     else{
       const w=window.open(intent,"_blank");                                          // ブラウザ: 新しいタブで
       say(w ? "X を開いています…" : "X を開けませんでした（アプリの入れ直しが必要かも）");
@@ -1829,13 +1875,38 @@ async function start(){
   running=true; reset(); updatePad(); updateCtrl(); hideOverlay();
   try{ window.focus(); }catch(e){}
 }
-let lastNew=[], overFx=null;
+let lastNew=[], overFx=null, boardSnap=null;
+// シェア用の結果カード（1200×675）: 左に最後の盤面、右にスコアと記録
+function makeShareCard(){
+  const c=document.createElement("canvas"); c.width=1200; c.height=675; const g=c.getContext("2d");
+  const bg=g.createLinearGradient(0,0,1200,675); bg.addColorStop(0,"#1b1430"); bg.addColorStop(1,"#0b1018"); g.fillStyle=bg; g.fillRect(0,0,1200,675);
+  // 盤面
+  const B=555, bx=50, by=60;
+  g.fillStyle="#141a26"; g.beginPath(); g.roundRect(bx-10,by-10,B+20,B+20,26); g.fill();
+  if(boardSnap){ g.save(); g.beginPath(); g.roundRect(bx,by,B,B,18); g.clip(); g.drawImage(boardSnap,bx,by,B,B); g.restore(); }
+  // 飾りのぷに
+  const deco=[[1110,90,0],[1150,150,1],[1080,170,3]]; for(const [x,y,ci] of deco) blob(g,x,y,30,ci,1,{face:true,g:[0,1],t:0});
+  const F='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
+  g.textBaseline="alphabetic"; g.textAlign="left";
+  g.fillStyle="#ffcf5a"; g.font=`900 44px ${F}`; g.fillText("グラビティ・ポップ",660,110);
+  g.fillStyle="#a9b3c7"; g.font=`700 24px ${F}`; g.fillText("SCORE",660,180);
+  g.fillStyle="#ffffff"; g.font=`900 96px ${F}`; g.fillText(String(score),660,265);
+  if(lastNew.includes("score")){ g.fillStyle="#ff6b9a"; g.font=`900 28px ${F}`; g.fillText("ベスト更新！",660,305); }
+  const lines=REC_DEFS.filter(([k])=>rec[k]>0).slice(0,7);
+  g.font=`700 27px ${F}`;
+  lines.forEach(([k,label,unit],i)=>{ const y=355+i*42;
+    g.fillStyle="#a9b3c7"; g.textAlign="left"; g.fillText(label,660,y);
+    g.fillStyle="#ffffff"; g.textAlign="right"; g.fillText(`${rec[k]}${unit}`+(lastNew.includes(k)?" NEW!":""),1140,y); });
+  g.textAlign="left"; g.fillStyle="#6f7a90"; g.font=`600 20px ${F}`; g.fillText("#グラビティポップ   傾けて遊ぶ物理落ち物パズル",660,640);
+  return c;
+}
 function gameOver(){
   over=true; piece=null;
   // ゲームオーバーの演出: 出口から近い順に灰色になって、そのあと下へこぼれ落ちる
   const now=performance.now(), c=N/2;
   for(const o of balls){ o.ovDelay=Math.hypot(o.x-c,o.y-c)*70+Math.random()*60; o.ovGrey=false; o.fvy=null; }
   overFx={t:now}; shake=10; sfx("over");
+  try{ boardSnap=document.createElement("canvas"); boardSnap.width=cv.width; boardSnap.height=cv.height; boardSnap.getContext("2d").drawImage(cv,0,0); }catch(e){ boardSnap=null; }
   rec.stage=level; rec.maxChain=Math.max(rec.maxChain,maxChain);
   lastNew=[];
   if(score>best){ if(best>0) lastNew.push("score"); best=score; store.set("bestFree",best); }

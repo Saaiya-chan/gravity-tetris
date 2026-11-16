@@ -18,9 +18,11 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         // ページから「この URL を外のアプリで開いて」と頼めるようにする（X への投稿など）
         let opener = ExternalOpener()
         config.userContentController.add(opener, name: "openExternal")
+        config.userContentController.add(opener, name: "shareImage")
 
         webView = WKWebView(frame: .zero, configuration: config)
         opener.webView = webView
+        opener.controller = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.isOpaque = false
@@ -141,8 +143,10 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
 /// その URL を外のアプリ（X アプリが入っていれば X、なければ Safari）で開く。
 private final class ExternalOpener: NSObject, WKScriptMessageHandler {
     weak var webView: WKWebView?
+    weak var controller: UIViewController?
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "shareImage" { shareImage(message.body); return }
         guard let s = message.body as? String, let url = URL(string: s),
               url.scheme == "https" || url.scheme == "http" else {
             report("URL が正しくありません")
@@ -152,6 +156,30 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
             UIApplication.shared.open(url, options: [:]) { [weak self] ok in
                 self?.report(ok ? "X を開きました" : "X を開けませんでした（iOS が拒否）")
             }
+        }
+    }
+
+    /// 結果カードの画像と文を、iOS の共有メニューで共有する（X を選べば画像つきで投稿できる）
+    private func shareImage(_ body: Any) {
+        guard let d = body as? [String: Any] else { report("共有データが正しくありません"); return }
+        var items: [Any] = []
+        if let dataURL = d["image"] as? String, let comma = dataURL.firstIndex(of: ","),
+           let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
+           let img = UIImage(data: data) { items.append(img) }
+        let text = (d["text"] as? String ?? "") + "\n" + (d["url"] as? String ?? "")
+        items.append(text)
+        DispatchQueue.main.async {
+            guard let vc = self.controller, let wv = self.webView else { return }
+            let av = UIActivityViewController(activityItems: items, applicationActivities: nil)
+            if let pop = av.popoverPresentationController {           // iPad は吹き出しで出す
+                pop.sourceView = wv
+                pop.sourceRect = CGRect(x: wv.bounds.midX, y: wv.bounds.midY, width: 1, height: 1)
+                pop.permittedArrowDirections = []
+            }
+            av.completionWithItemsHandler = { [weak self] _, done, _, _ in
+                self?.report(done ? "シェアしました" : "")
+            }
+            vc.present(av, animated: true)
         }
     }
 
