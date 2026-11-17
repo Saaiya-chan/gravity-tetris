@@ -347,9 +347,58 @@ const THEMES = [
   {k:"desert", ic:"🏜️", name:"砂漠", sub:"ざらざらで止まりやすい・砂嵐",   fs:1.8,  fk:1.8, g:1,    e:0.5, bg:["#2c2214","#18120a"], floor:"255,176,80",  more:["heavy"], ev:"sand"},
   {k:"ice",    ic:"🧊", name:"氷",   sub:"つるつるすべる・氷ぷにが多い",   fs:0.25, fk:0.2, g:1,    e:1.6, bg:["#112434","#0a141e"], floor:"150,220,255", more:["frozen","frozen"]},
   {k:"fire",   ic:"🔥", name:"炎",   sub:"重力が弱い・火の粉が粒を溶かす", fs:1,    fk:1,   g:0.7,  e:1,   bg:["#2c1310","#170907"], floor:"255,118,64",  more:["bomb"], ev:"ember"},
+  {k:"bouncy", ic:"🏀", name:"トランポリン", sub:"壁に当たるとボヨンと跳ね返る", fs:0.8, fk:0.8, g:1, e:1, wallE:0.8, bg:["#2c1426","#170a14"], floor:"255,120,200", more:["balloon"]},
   {k:"space",  ic:"🌌", name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
 ];
 function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
+// ===== 盤面の形（ステージごとに 四角 → 丸 → 六角形 → 八角形 …） =====
+const ARENAS=[{k:"square",name:"四角"},{k:"circle",name:"丸"},{k:"hex",name:"六角形"},{k:"oct",name:"八角形"}];
+function arena(){ return ARENAS[((level||1)-1)%ARENAS.length]; }
+// 多角形: 底が平らになる向き。各辺の外向きの法線と、中心から辺までの距離
+function arenaEdges(k){
+  const c=N/2;
+  if(k==="hex"){ const a=c*Math.cos(Math.PI/6); return [0,1,2,3,4,5].map(i=>{ const t=Math.PI/2+i*Math.PI/3; return [Math.cos(t),Math.sin(t),a]; }); }
+  if(k==="oct"){ return [0,1,2,3,4,5,6,7].map(i=>{ const t=Math.PI/2+i*Math.PI/4; return [Math.cos(t),Math.sin(t),c]; }); }
+  return null;
+}
+// 粒を盤面の内側に戻す。めり込んでいたら外向きの法線を返す
+function arenaPush(o){
+  const A=arena().k; if(A==="square") return null;
+  const c=N/2; let hit=null;
+  if(A==="circle"){
+    const dx=o.x-c, dy=o.y-c, d=Math.hypot(dx,dy), lim=c-R;
+    if(d>lim){ const nx=dx/d, ny=dy/d; o.x=c+nx*lim; o.y=c+ny*lim; hit=[nx,ny]; }
+    return hit;
+  }
+  for(const [nx,ny,a] of arenaEdges(A)){
+    const d=(o.x-c)*nx+(o.y-c)*ny, lim=a-R;
+    if(d>lim){ o.x-=nx*(d-lim); o.y-=ny*(d-lim); hit=[nx,ny]; }
+  }
+  return hit;
+}
+// 壁に触れているか（触れていれば外向きの法線）。位置は動かさない
+function arenaContact(o){
+  const A=arena().k, c=N/2, eps=0.002;
+  if(A==="circle"){ const dx=o.x-c, dy=o.y-c, d=Math.hypot(dx,dy); return d>=c-R-eps ? [dx/d,dy/d] : null; }
+  let hit=null; for(const [nx,ny,a] of arenaEdges(A)){ if((o.x-c)*nx+(o.y-c)*ny >= a-R-eps) hit=[nx,ny]; } return hit;
+}
+function insideArena(x,y,m=0){
+  const A=arena().k, c=N/2; if(A==="square") return true;
+  if(A==="circle") return Math.hypot(x-c,y-c) <= c-R+m;
+  return arenaEdges(A).every(([nx,ny,a])=>(x-c)*nx+(y-c)*ny <= a-R+m);
+}
+function arenaPathAppend(g,s){ arenaPath(g,s,true); }
+function arenaPath(g,s,append=false){
+  const A=arena().k, c=N/2*s;
+  if(!append) g.beginPath();
+  if(A==="circle"){ g.moveTo(c*2,c); g.arc(c,c,c,0,Math.PI*2); return; }
+  const E=arenaEdges(A); if(!E){ g.rect(0,0,N*s,N*s); return; }
+  // 隣り合う2辺の交点が角
+  for(let i=0;i<E.length;i++){ const [n1x,n1y,a1]=E[i], [n2x,n2y,a2]=E[(i+1)%E.length];
+    const det=n1x*n2y-n1y*n2x, x=(a1*n2y-a2*n1y)/det, y=(n1x*a2-n2x*a1)/det;
+    i?g.lineTo(c+x*s,c+y*s):g.moveTo(c+x*s,c+y*s); }
+  g.closePath();
+}
 let themeEvT=0, sandFx=null;
 function themeStep(now, dt){
   const th=theme(); if(!th.ev) return;
@@ -418,6 +467,12 @@ function drawThemeDecor(TH, W, s, now){
   }else if(TH.k==="fire"){                                    // 炎: 下から上がる火の粉
     for(let i=0;i<22;i++){ const sp=0.04+rnd(i,3)*0.06, y=W-(((now/1000)*sp+rnd(i,2))%1)*W*1.1, x=rnd(i,1)*W+Math.sin(now/500+i)*s*0.3;
       ctx.globalAlpha=0.25+0.2*Math.sin(now/200+i); ctx.fillStyle=i%2?"#ff9a4a":"#ffd36a"; ctx.beginPath(); ctx.arc(x,y,s*(0.04+rnd(i,4)*0.05),0,Math.PI*2); ctx.fill(); }
+  }else if(TH.k==="bouncy"){                                  // トランポリン: ふちにバネの模様
+    ctx.strokeStyle="rgba(255,140,210,.22)"; ctx.lineWidth=Math.max(1.5,s*0.06);
+    for(const side of [0,1,2,3]){ ctx.beginPath();
+      for(let i=0;i<=26;i++){ const t=i/26, z=(i%2?1:-1)*s*0.18+s*0.3;
+        const [x,y]= side===0?[t*W,z]: side===1?[W-z,t*W]: side===2?[t*W,W-z]:[z,t*W]; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+      ctx.stroke(); }
   }else if(TH.k==="space"){                                   // 宇宙: またたく星
     for(let i=0;i<40;i++){ const x=rnd(i,1)*W, y=rnd(i,2)*W; ctx.globalAlpha=0.25+0.35*Math.abs(Math.sin(now/(600+rnd(i,3)*900)+i));
       ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x,y,s*(0.02+rnd(i,4)*0.04),0,Math.PI*2); ctx.fill(); }
@@ -601,7 +656,7 @@ function reset(){
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
-  particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec();
+  particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec(); chainSnap=null; chainSnapAt=0;
   items={stop:1, shuf:1, jump:1, mag:1, boost:1}; boostLeft=0; bossShots=[];
   for(const k in carry){ items[k]=Math.min(9,(items[k]||0)+carry[k]); } carry={}; saveShop();   // ショップで買ったアイテムを持ち込む
   magLeft=0; boss=null; bossFx=null; overFx=null; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
@@ -678,6 +733,7 @@ function spawn(now=performance.now()){
 function overlaps(pts, slack=0.02){
   for(const [x,y] of pts){
     if(x<R-slack||y<R-slack||x>N-R+slack||y>N-R+slack) return true;
+    if(!insideArena(x,y,slack)) return true;
     for(const o of balls){
       if(o.live) continue;
       const dx=o.x-x, dy=o.y-y;
@@ -765,7 +821,7 @@ const E_REST=0.08;              // はね返り係数
 function bucketKey(x,y){ return (Math.floor(y)+2)*64+(Math.floor(x)+2); }
 function physicsStep(dt){
   const steps=Math.max(1,Math.ceil(dt/4)), h=dt/1000/steps;
-  const TH=theme(), ER=Math.min(0.55,E_REST*TH.e);
+  const TH=theme(), ER=Math.min(0.55,E_REST*TH.e), EW=TH.wallE!=null?TH.wallE:ER, AK=arena().k;
   const gc=G/cellM*TH.g, cos=Math.abs(gN.z), f0=FRICTION[frictionKey], f={s:f0.s*TH.fs, k:f0.k*TH.fk};
   const sin=Math.hypot(gN.x,gN.y);
   const ax=gc*gN.x, ay=gc*gN.y;
@@ -831,10 +887,14 @@ function physicsStep(dt){
       const shock = it>=IT-2;                                          // 最後の2回は「下の粒は動かない」とみなして上へ伝える
       for(const o of balls){
         if(!inv(o)) continue;
-        if(o.x<=R+0.001 && o.vx<0){ if(o.vx<-1) land(o,Math.min(1.3,0.25-o.vx/22)); o.vx*=-ER; }
-        if(o.x>=N-R-0.001 && o.vx>0){ if(o.vx>1) land(o,Math.min(1.3,0.25+o.vx/22)); o.vx*=-ER; }
-        if(o.y<=R+0.001 && o.vy<0){ if(o.vy<-1) land(o,Math.min(1.3,0.25-o.vy/22)); o.vy*=-ER; }
-        if(o.y>=N-R-0.001 && o.vy>0){ if(o.vy>1) land(o,Math.min(1.3,0.25+o.vy/22)); o.vy*=-ER; }
+        if(o.x<=R+0.001 && o.vx<0){ if(o.vx<-1) land(o,Math.min(1.3,0.25-o.vx/22)); o.vx*=-EW; }
+        if(o.x>=N-R-0.001 && o.vx>0){ if(o.vx>1) land(o,Math.min(1.3,0.25+o.vx/22)); o.vx*=-EW; }
+        if(o.y<=R+0.001 && o.vy<0){ if(o.vy<-1) land(o,Math.min(1.3,0.25-o.vy/22)); o.vy*=-EW; }
+        if(o.y>=N-R-0.001 && o.vy>0){ if(o.vy>1) land(o,Math.min(1.3,0.25+o.vy/22)); o.vy*=-EW; }
+        if(AK!=="square"){                                       // 丸・多角形の壁
+          const h=arenaContact(o);
+          if(h){ const vn=o.vx*h[0]+o.vy*h[1]; if(vn>0){ if(vn>1) land(o,Math.min(1.3,0.25+vn/22)); o.vx-=(1+EW)*vn*h[0]; o.vy-=(1+EW)*vn*h[1]; } }
+        }
       }
       for(const [o,p,nx,ny,d] of cts){
         if(d>2*R+0.005) continue;
@@ -884,7 +944,7 @@ function physicsStep(dt){
         const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1, e=d-2*R; if(e<=0) continue;
         const k=e*0.8/(wa+wb); a.x+=dx/d*k*wa; a.y+=dy/d*k*wa; b.x-=dx/d*k*wb; b.y-=dy/d*k*wb; }
       if(piece && !hovering) for(const [a,b,L] of piece.links){ const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1, e=(d-L)/2; a.x+=dx/d*e; a.y+=dy/d*e; b.x-=dx/d*e; b.y-=dy/d*e; }
-      for(const o of balls){ if(!inv(o)) continue; o.x=Math.min(N-R,Math.max(R,o.x)); o.y=Math.min(N-R,Math.max(R,o.y)); }
+      for(const o of balls){ if(!inv(o)) continue; o.x=Math.min(N-R,Math.max(R,o.x)); o.y=Math.min(N-R,Math.max(R,o.y)); if(AK!=="square") arenaPush(o); }
     }
   }
   for(const o of balls){
@@ -899,7 +959,7 @@ function pieceStep(dt){
   if(piece.drop){ dropStep(dt); return; }
   if(piece.hover>0){ piece.hover=Math.max(0,piece.hover-dt); lockTimer=0; return; }
   const sp=Math.max(...piece.balls.map(o=>Math.hypot(o.vx,o.vy)));
-  const touch = piece.balls.some(o=> o.x<=R+0.03||o.y<=R+0.03||o.x>=N-R-0.03||o.y>=N-R-0.03 ||
+  const touch = piece.balls.some(o=> o.x<=R+0.03||o.y<=R+0.03||o.x>=N-R-0.03||o.y>=N-R-0.03 || !insideArena(o.x,o.y,-0.03) ||
     balls.some(p=>!p.live && Math.hypot(p.x-o.x,p.y-o.y)<2*R+0.04));
   // 何かに乗ったら、止まっていれば LOCK_DELAY、すべり続けていても少し待って手放す（テンポのため）
   if(touch){ lockTimer+=dt; if(lockTimer>=(sp<0.6?LOCK_DELAY:LOCK_DELAY*2.5)) release(0.6); }
@@ -965,12 +1025,13 @@ function findPops(now){
   if(pops.some(o=>o.timer!=null && o.timer<=3000)){ rec.lastSec++; praise("ギリギリセーフ！", "時限ぷにを残り3秒で", "#ffe066"); }
   if(gu && gu[1]<-0.7){ rec.upside++; praise("さかさま消し！", "重力が上向きのまま", "#8fe3ff"); }
   if(tiltNice) rec.niceTilt++;
+  if(chain>=2 && chain>rec.maxChain) chainSnapAt=now+420;     // 最大連鎖を更新したら、少しあと（「○連鎖!」が出た瞬間）の盤面を撮る
   rec.maxChain=Math.max(rec.maxChain,chain);
   hitBoss(total, now, pops);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
     const th=theme(); themeEvT=0;
-    stageFx={n:level, t:now, theme:`${th.name}ステージ — ${th.sub}`, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
+    stageFx={n:level, t:now, theme:`${th.name}ステージ（${arena().name}） — ${th.sub}`, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
     if(level%BOSS_EVERY===0 && !boss) setTimeout(()=>{ if(running&&!over) startBoss(performance.now()); }, 1900);
   }
   popping=pops; popT=now;
@@ -1137,7 +1198,7 @@ function frame(now){
   if(running && !paused && !over && PORTRAIT.matches){ paused=true; showMenu("pause"); }   // 縦向きにしたら一時停止
   if(running && !paused && !over) update(dt, now);
   stepFx(dt);
-  draw(now);
+  draw(now); takeChainSnap(now);
   requestAnimationFrame(frame);
 }
 let popCheckT=0, sampleT=0, lastMove=1;
@@ -1177,7 +1238,9 @@ function update(dt, now){
   if(!popping){
     quietT = lastMove<0.02 ? quietT+dt : 0;
     popCheckT+=dt;
-    if(popCheckT>=80){ spreadVirus(popCheckT); tickTimers(popCheckT); popCheckT=0; makeBonds(); findPops(now); checkDanger(); }
+    if(popCheckT>=80){ spreadVirus(popCheckT); tickTimers(popCheckT); popCheckT=0; makeBonds(); findPops(now); checkDanger();
+      if(arena().k!=="square") for(const o of balls) if(!o.live && !insideArena(o.x,o.y,0.01)){ arenaPush(o); o.vx*=0.5; o.vy*=0.5; }   // 盤面の形が変わったとき、外に出た粒を中へ
+    }
     if(!popping && now>chainUntil) cascade=false;   // 消え終わってしばらく次が消えなければ連鎖はおしまい
   }
   if(!piece){
@@ -1477,6 +1540,11 @@ function draw(now){
   ctx.fillStyle=`rgba(255,207,90,${(0.2+0.3*Math.min(1,tiltK/2)).toFixed(3)})`; const a=s*(0.35+0.25*Math.min(1.4,tiltK)/1.4);
   ctx.beginPath(); ctx.moveTo(0,W/2-s*0.25); ctx.lineTo(-a,W/2-s*0.25-a); ctx.lineTo(a,W/2-s*0.25-a); ctx.closePath(); ctx.fill();
   ctx.restore();
+  if(arena().k!=="square"){                                    // 盤面の形: 外側を暗く、ふちを光らせる
+    ctx.save(); ctx.fillStyle="rgba(4,6,10,.78)"; ctx.beginPath(); ctx.rect(-20,-20,W+40,W+40);
+    arenaPathAppend(ctx,s); ctx.fill("evenodd");
+    arenaPath(ctx,s); ctx.strokeStyle=`rgba(${TH.floor},.55)`; ctx.lineWidth=Math.max(2,s*0.08); ctx.stroke(); ctx.restore();
+  }
   if(boss || (bossFx && bossFx.win)) drawBossBg(now);
   // 同じ色どうしの「つながり」（くっついている粒）
   const still=balls.filter(o=>!o.live);
@@ -1730,7 +1798,7 @@ function updateHud(){
   document.getElementById("lines").textContent=maxChain;
   const sn=document.getElementById("stageN"); if(sn) sn.textContent=`${level||1}`;
   const th=theme(), scN=document.getElementById("scName");
-  if(scN){ scN.textContent=`${th.ic} ${th.name}ステージ`; document.getElementById("scSub").textContent=th.sub;
+  if(scN){ scN.textContent=`${th.ic} ${th.name}ステージ`; document.getElementById("scSub").textContent=`盤面: ${arena().name} ・ ${th.sub}`;
     const fx=[]; if(boss) fx.push(`👑 ボス戦: ${boss.name}`); if(boostLeft>0) fx.push("🚀 ブースター中"); if(magLeft>0) fx.push("🧲 マグネット中"); if(stopLeft>0) fx.push("⏳ ストップ中");
     document.getElementById("scFx").textContent=fx.join("　");
     document.getElementById("stageCard").dataset.theme=th.k; }
@@ -2079,7 +2147,7 @@ function showMenu(kind){
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
         <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う ／ <b>ブースター</b>＝15秒間、連鎖の受付時間が2倍。3連鎖や50個消すごとに増える</li>
         <li>遊ぶと<b>コイン</b>がたまる（消した数・連鎖・記録・ボス撃破）。<b>ショップ</b>でアイテムを買うと、次のゲームに持っていける</li>
-        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ 宇宙（ふわふわ・よくはずむ）→ また草原…</li>
+        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ トランポリン（壁でボヨンと跳ね返る）→ 宇宙（ふわふわ・よくはずむ）→ また草原…。盤面の形も 四角 → 丸 → 六角形 → 八角形 と変わる</li>
         <li>ステージ3・6・9…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
@@ -2175,7 +2243,11 @@ async function start(){
   running=true; reset(); updatePad(); updateCtrl(); hideOverlay();
   try{ window.focus(); }catch(e){}
 }
-let lastNew=[], overFx=null, boardSnap=null;
+let lastNew=[], overFx=null, boardSnap=null, chainSnap=null, chainSnapAt=0;
+function takeChainSnap(now){
+  if(!chainSnapAt || now<chainSnapAt) return; chainSnapAt=0;
+  try{ chainSnap=document.createElement("canvas"); chainSnap.width=cv.width; chainSnap.height=cv.height; chainSnap.getContext("2d").drawImage(cv,0,0); }catch(e){ chainSnap=null; }
+}
 // シェア用の結果カード（1200×675）。デザインは4種類（A:シンプル B:ポップ C:盤面ドーン D:トレカ）
 let cardStyle = store.get("cardStyle","B");
 const CARD_F='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
@@ -2187,7 +2259,8 @@ function cardTitle(){                                          // スコアに�
 function makeShareCard(style=cardStyle){
   const c=document.createElement("canvas"); c.width=1200; c.height=675; const g=c.getContext("2d"), F=CARD_F;
   const snap=(x,y,w,h,rad)=>{ g.save(); g.beginPath(); g.roundRect(x,y,w,h,rad); g.clip();
-    if(boardSnap) g.drawImage(boardSnap,x,y,w,h); else { g.fillStyle="#141a26"; g.fillRect(x,y,w,h); } g.restore(); };
+    const sn=chainSnap||boardSnap;                             // 最大連鎖の瞬間があればそれ、なければゲームオーバーの瞬間
+    if(sn) g.drawImage(sn,x,y,w,h); else { g.fillStyle="#141a26"; g.fillRect(x,y,w,h); } g.restore(); };
   const txt=(t,x,y,font,col,align="left",stroke=0,sc="rgba(0,0,0,.55)")=>{ g.font=font; g.textAlign=align;
     if(stroke){ g.lineWidth=stroke; g.strokeStyle=sc; g.lineJoin="round"; g.strokeText(t,x,y); } g.fillStyle=col; g.fillText(t,x,y); };
   const puni=(x,y,r,ci)=>blob(g,x,y,r,ci,1,{face:true,g:[0,1],t:0});
