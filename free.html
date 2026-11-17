@@ -68,6 +68,41 @@
   .item#itemMag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
   .item.active{box-shadow:0 0 0 3px #ffcf5a, 0 3px 0 #0a121c}
   .item svg{width:26px;height:26px}
+  .item .lbl{display:none;font-size:10px;font-weight:800;line-height:1;letter-spacing:.02em;white-space:nowrap}
+  .item#itemBoost{background:linear-gradient(180deg,#6a3a12,#43240a);border-color:#d0802a;color:#ffe2c0}
+  .shop-ic#shopIc_boost{background:linear-gradient(180deg,#6a3a12,#43240a);border-color:#d0802a;color:#ffe2c0}
+  /* ステージの特徴 */
+  #stageCard{margin-top:8px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);max-width:calc(var(--side) - 8px)}
+  #stageCard .sc-name{font-size:14px;font-weight:800;color:var(--text)}
+  #stageCard .sc-sub{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
+  #stageCard .sc-fx{font-size:11px;color:#ffcf5a;margin-top:3px;line-height:1.35}
+  #stageCard .sc-fx:empty{display:none}
+  #stageCard[data-theme=desert]{background:rgba(255,176,80,.1);border-color:rgba(255,176,80,.3)}
+  #stageCard[data-theme=ice]{background:rgba(150,220,255,.1);border-color:rgba(150,220,255,.3)}
+  #stageCard[data-theme=fire]{background:rgba(255,118,64,.1);border-color:rgba(255,118,64,.3)}
+  #stageCard[data-theme=space]{background:rgba(180,150,255,.1);border-color:rgba(180,150,255,.3)}
+  #stageCard[data-theme=meadow]{background:rgba(140,230,150,.08);border-color:rgba(140,230,150,.25)}
+  /* レイアウト: 大きいリング（アイコン＋名前） */
+  body.lay-ringL .rotring .item{flex-direction:column;gap:2px;display:flex;align-items:center;justify-content:center}
+  body.lay-ringL .rotring .item .lbl{display:block;font-size:9.5px}
+  body.lay-ringL .rotring .item svg{width:46%;height:46%}
+  /* レイアウト: タイル（名前つきの大きなボタンを回転ボタンの上に並べる） */
+  body.lay-tiles #ctrlR{display:grid!important;grid-template-columns:1fr;gap:7px;width:calc(var(--side) - 4px)!important;height:auto!important;align-items:end;justify-self:end!important}
+  body.lay-tiles #ctrlR .item{position:static!important;width:auto!important;height:min(52px,calc(var(--b)*0.74))!important;display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-start;padding:0 10px;border-radius:14px}
+  body.lay-tiles #ctrlR .item svg{width:24px!important;height:24px!important;flex:none}
+  body.lay-tiles #ctrlR .item .lbl{display:block;font-size:14px}
+  body.lay-tiles #ctrlR .item .badge{position:static!important;margin-left:auto;order:3;flex:none}
+  body.lay-tiles #ctrlR .item .lbl{order:2}
+  body.lay-tiles #ctrlR #rotBtn{position:static!important;grid-column:1 / -1;justify-self:end;order:99;margin-top:4px}
+  body.lay-tiles #ctrlR .item{min-width:0}
+  @media (max-height:500px){                                     /* iPhone の横向きなど、背が低い画面 */
+    #stageCard{padding:4px 8px;margin-top:4px} #stageCard .sc-sub{display:none} #stageCard .sc-name{font-size:12px}
+    body.lay-tiles #ctrlR{gap:4px}
+    body.lay-tiles #ctrlR .item{height:29px!important;border-radius:10px}
+    body.lay-tiles #ctrlR .item svg{width:18px!important;height:18px!important}
+    body.lay-tiles #ctrlR .item .lbl{font-size:12px}
+  }
+  body.lay-tiles #ctrlR .item .lbl{overflow:hidden;text-overflow:ellipsis}
   .item.down{transform:translateY(2px);box-shadow:0 1px 0 #0a121c}
   .item.empty{opacity:.35;filter:grayscale(.6)}
   .item.empty.active{opacity:1;filter:none}
@@ -157,6 +192,7 @@
   <div class="stat"><span class="label">SCORE</span></div>
   <div id="score">0</div>
   <div class="stat" style="margin-top:4px"><span class="label">最大連鎖</span><span id="lines">0</span><span class="label" style="margin-left:10px">ステージ</span><span id="stageN">1</span></div>
+  <div id="stageCard"><div class="sc-name" id="scName">🌿 草原ステージ</div><div class="sc-sub" id="scSub">ふつうの重さとすべり</div><div class="sc-fx" id="scFx"></div></div>
   <div id="status">傾きセンサー: なし</div>
 </div>
 
@@ -175,10 +211,11 @@
 
 <div id="ctrlR" class="rotring">
   <button id="rotBtn" class="pbtn rot" aria-label="回転"><svg viewBox="0 0 24 24"><path d="M19.2 13.2A7.3 7.3 0 1 1 17 6.9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M18.6 3.2v4.6H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  <button id="itemStop" class="item" aria-label="ストップ"><svg viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nStop">1</span></button>
-  <button id="itemMag" class="item" aria-label="マグネット"><svg viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0 0 12 0V4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 4h4M16 4h4M4 8h4M16 8h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="badge" id="nMag">1</span></button>
-  <button id="itemShuf" class="item" aria-label="シャッフル"><svg viewBox="0 0 24 24"><path d="M12 12c0-1.2 1.6-1.6 2.3-.7 1 1.3-.2 3.4-2.3 3.4-2.6 0-4-2.8-3-5 1.3-2.8 5.2-3.4 7.5-1.4 2.7 2.3 2.4 6.9-.6 8.9-3.6 2.4-8.9 1.1-10.6-2.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="badge" id="nShuf">1</span></button>
-  <button id="itemJump" class="item" aria-label="ジャンプ"><svg viewBox="0 0 24 24"><path d="M4 21h16M8 15l4-4 4 4M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nJump">1</span></button>
+  <button id="itemStop" class="item" aria-label="ストップ"><svg viewBox="0 0 24 24"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nStop">1</span><span class="lbl">ストップ</span></button>
+  <button id="itemMag" class="item" aria-label="マグネット"><svg viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0 0 12 0V4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 4h4M16 4h4M4 8h4M16 8h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="badge" id="nMag">1</span><span class="lbl">マグネット</span></button>
+  <button id="itemShuf" class="item" aria-label="シャッフル"><svg viewBox="0 0 24 24"><path d="M12 12c0-1.2 1.6-1.6 2.3-.7 1 1.3-.2 3.4-2.3 3.4-2.6 0-4-2.8-3-5 1.3-2.8 5.2-3.4 7.5-1.4 2.7 2.3 2.4 6.9-.6 8.9-3.6 2.4-8.9 1.1-10.6-2.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="badge" id="nShuf">1</span><span class="lbl">シャッフル</span></button>
+  <button id="itemBoost" class="item" aria-label="ブースター"><svg viewBox="0 0 24 24"><path d="M12 2c3 2.5 4.5 6 4.5 9.5V16h-9v-4.5C7.5 8 9 4.5 12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="1.8" fill="currentColor"/><path d="M7.5 13l-3 3v3l3-1.5M16.5 13l3 3v3l-3-1.5M10 19l2 3 2-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg><span class="badge" id="nBoost">1</span><span class="lbl">ブースター</span></button>
+  <button id="itemJump" class="item" aria-label="ジャンプ"><svg viewBox="0 0 24 24"><path d="M4 21h16M8 15l4-4 4 4M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="badge" id="nJump">1</span><span class="lbl">ジャンプ</span></button>
 </div>
 
 <div id="turnHint"><svg viewBox="0 0 64 64" width="72" height="72"><rect x="20" y="8" width="24" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M50 44a20 20 0 0 1-14 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M38 52l-3 4 5 1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><div>横向きにして遊んでね</div></div>
@@ -198,7 +235,9 @@ if(!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.proto
 // 連鎖を起こしやすくする仕組み
 const SLIP_MS = 1100;         // 消えた場所のまわりの粒が滑りやすくなる長さ
 // 連鎖の受付時間: 消え終わってからこの時間内に次が消えたら連鎖。連鎖が続くほど長くなる
-function chainWin(n){ return Math.min(4500, 2000 + (n-1)*500); }
+function chainWin(n){ return Math.min(4500, 2000 + (n-1)*500) * (boostLeft>0 ? 2 : 1); }   // ブースター中は2倍
+const BOOST_MS = 15000;       // ブースターの効いている時間
+let boostLeft = 0;
 const TILT_MIN = 2.2;         // m/s^2 これ未満の傾きは無視（ほぼ水平）
 const TILT_SNAP = 32;         // 新しい方向の軸から何度以内で切替えるか
 const TILT_HOLD = 120;        // 切替えに必要な安定時間 ms
@@ -290,6 +329,7 @@ const SHOP = [
   {k:"mag",  name:"マグネット", price:50, desc:"6秒間、同じ色どうしが引き合う"},
   {k:"shuf", name:"シャッフル", price:40, desc:"全部の粒を吸い込んでばらまく"},
   {k:"jump", name:"ジャンプ",   price:30, desc:"床から突き上げて跳ねさせる"},
+  {k:"boost",name:"ブースター", price:40, desc:"15秒間、連鎖の受付時間が2倍"},
 ];
 let coins = store.get("coins", 0), carry = store.get("carry", {}), lastCoins=0;
 function saveShop(){ store.set("coins", coins); store.set("carry", carry); }
@@ -303,11 +343,11 @@ function coinsForGame(){
 // ===== ステージの属性（ステージごとに順番に変わる） =====
 // fs/fk: 静止・動摩擦の倍率  g: 重力の倍率  e: はね返りの倍率  more: 多めに出る特殊ぷに  ev: ときどき起きること
 const THEMES = [
-  {k:"meadow", name:"草原", sub:"ふつうの重さとすべり",          fs:1,    fk:1,   g:1,    e:1,   bg:["#17241c","#0f1612"], floor:"255,207,90",  more:[]},
-  {k:"desert", name:"砂漠", sub:"ざらざらで止まりやすい・砂嵐",   fs:1.8,  fk:1.8, g:1,    e:0.5, bg:["#2c2214","#18120a"], floor:"255,176,80",  more:["heavy"], ev:"sand"},
-  {k:"ice",    name:"氷",   sub:"つるつるすべる・氷ぷにが多い",   fs:0.25, fk:0.2, g:1,    e:1.6, bg:["#112434","#0a141e"], floor:"150,220,255", more:["frozen","frozen"]},
-  {k:"fire",   name:"炎",   sub:"重力が弱い・火の粉が粒を溶かす", fs:1,    fk:1,   g:0.7,  e:1,   bg:["#2c1310","#170907"], floor:"255,118,64",  more:["bomb"], ev:"ember"},
-  {k:"space",  name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
+  {k:"meadow", ic:"🌿", name:"草原", sub:"ふつうの重さとすべり",          fs:1,    fk:1,   g:1,    e:1,   bg:["#17241c","#0f1612"], floor:"255,207,90",  more:[]},
+  {k:"desert", ic:"🏜️", name:"砂漠", sub:"ざらざらで止まりやすい・砂嵐",   fs:1.8,  fk:1.8, g:1,    e:0.5, bg:["#2c2214","#18120a"], floor:"255,176,80",  more:["heavy"], ev:"sand"},
+  {k:"ice",    ic:"🧊", name:"氷",   sub:"つるつるすべる・氷ぷにが多い",   fs:0.25, fk:0.2, g:1,    e:1.6, bg:["#112434","#0a141e"], floor:"150,220,255", more:["frozen","frozen"]},
+  {k:"fire",   ic:"🔥", name:"炎",   sub:"重力が弱い・火の粉が粒を溶かす", fs:1,    fk:1,   g:0.7,  e:1,   bg:["#2c1310","#170907"], floor:"255,118,64",  more:["bomb"], ev:"ember"},
+  {k:"space",  ic:"🌌", name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
 ];
 function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
 let themeEvT=0, sandFx=null;
@@ -413,17 +453,49 @@ function drawBossBg(now){
   if(hit){ ctx.globalAlpha=0.35*hit; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); }
   ctx.restore();
 }
-function hitBoss(n, now){
-  if(!boss) return;
+// 消したぷにがHPバーに体当たりしてダメージ（当たった分だけバーが減る）
+let bossShots=[];
+function hitBoss(n, now, from=[]){
+  if(!boss || boss.dying) return;
   const dmg=Math.round(n*(1+(chain-1)*0.6));
-  boss.hp=Math.max(0,boss.hp-dmg); boss.hitT=now; boss.lastDmg=dmg;
-  if(boss.hp<=0){
-    rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
+  if(boss.disp==null) boss.disp=boss.hp;
+  boss.hp=Math.max(0,boss.hp-dmg); boss.lastDmg=dmg;
+  const src=from.length?from:[{x:N/2,y:N/2,c:0}], k=Math.min(src.length,14), per=dmg/k;
+  for(let i=0;i<k;i++){ const o=src[Math.floor(i*src.length/k)];
+    bossShots.push({x:o.x, y:o.y, c:o.c===GARBAGE?5:o.c, t0:now+i*35, dur:520+Math.random()*120, dmg:per, side:(Math.random()-0.5)*4}); }
+  if(boss.hp<=0) boss.dying=true;                              // 体当たりが全部当たってから倒れる
+}
+function bossTarget(){ const W=N, bw=W*0.62, bx=(W-bw)/2, by=0.45+0.15; return [bx + bw*Math.max(0,(boss&&boss.disp!=null?boss.disp:0)/(boss?boss.maxHp:1)), by]; }
+function stepBossShots(now){
+  if(!bossShots.length) return;
+  const keep=[];
+  for(const sh of bossShots){
+    const t=(now-sh.t0)/sh.dur;
+    if(t<1){ keep.push(sh); continue; }
+    if(boss){ boss.disp=Math.max(boss.hp, (boss.disp??boss.hp)-sh.dmg); boss.hitT=now; }
+    const [tx,ty]=bossTarget(); burst(tx-0.5,ty-0.5,sh.c); shake=Math.max(shake,4); sfx("lock");
+  }
+  bossShots=keep;
+  if(boss && boss.dying && !bossShots.length){
+    boss.disp=0; rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
     praise("ボス撃破！", `${boss.name}をたおした  +${5000*boss.n}点`, "#ffcf5a");
     bossFx={t:now, text:"", win:true}; boss=null; shake=18; sfx("bosswin"); updateHud();
   }
 }
-let items={stop:1, shuf:1, jump:1, mag:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
+function drawBossShots(now, s){
+  if(!bossShots.length) return;
+  const [tx,ty]=bossTarget();
+  for(const sh of bossShots){
+    const t=(now-sh.t0)/sh.dur; if(t<0) continue;
+    const e=t*t*(3-2*t), cx=(sh.x+tx)/2+sh.side, cy=Math.min(sh.y,ty)-3;          // 弧を描いて飛ぶ
+    const x=(1-e)*(1-e)*sh.x+2*(1-e)*e*cx+e*e*tx, y=(1-e)*(1-e)*sh.y+2*(1-e)*e*cy+e*e*ty;
+    ctx.save(); ctx.globalAlpha=0.35; ctx.strokeStyle=PALETTE[sh.c].hi; ctx.lineWidth=s*0.18*(1-e*0.5); ctx.lineCap="round";
+    const e2=Math.max(0,e-0.12), x2=(1-e2)*(1-e2)*sh.x+2*(1-e2)*e2*cx+e2*e2*tx, y2=(1-e2)*(1-e2)*sh.y+2*(1-e2)*e2*cy+e2*e2*ty;
+    ctx.beginPath(); ctx.moveTo(x2*s,y2*s); ctx.lineTo(x*s,y*s); ctx.stroke(); ctx.restore();
+    blob(ctx, x*s, y*s, s*0.42*(1-0.35*e), sh.c, 1, {face:faceOn, g:[0,1], t:now});
+  }
+}
+let items={stop:1, shuf:1, jump:1, mag:1, boost:1}, jumpFx=null, bombFx=null, stageFx=null, stopLeft=0, shuffle=null, itemFx=null, nextItemAt=50;
 const STOP_MS=10000, SHUF_IN=750, SHUF_HOLD=200, SHUF_OUT=600;
 let grid=null;                  // マス目版との互換用（使わない）
 
@@ -530,7 +602,7 @@ function reset(){
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec();
-  items={stop:1, shuf:1, jump:1, mag:1};
+  items={stop:1, shuf:1, jump:1, mag:1, boost:1}; boostLeft=0; bossShots=[];
   for(const k in carry){ items[k]=Math.min(9,(items[k]||0)+carry[k]); } carry={}; saveShop();   // ショップで買ったアイテムを持ち込む
   magLeft=0; boss=null; bossFx=null; overFx=null; jumpFx=null; stopLeft=0; shuffle=null; itemFx=null; nextItemAt=50;
   spawn(); updateHud();
@@ -894,7 +966,7 @@ function findPops(now){
   if(gu && gu[1]<-0.7){ rec.upside++; praise("さかさま消し！", "重力が上向きのまま", "#8fe3ff"); }
   if(tiltNice) rec.niceTilt++;
   rec.maxChain=Math.max(rec.maxChain,chain);
-  hitBoss(total, now);
+  hitBoss(total, now, pops);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
     const th=theme(); themeEvT=0;
@@ -921,9 +993,9 @@ function burst(x,y,c){
 
 // ===== アイテム =====
 function grantItem(now){
-  const ks=["stop","shuf","jump","mag"], k=ks[Math.random()*ks.length|0];
+  const ks=["stop","shuf","jump","mag","boost"], k=ks[Math.random()*ks.length|0];
   items[k]=Math.min(9,items[k]+1);
-  itemFx={text:{stop:"ストップ GET!",shuf:"シャッフル GET!",jump:"ジャンプ GET!",mag:"マグネット GET!"}[k], t:now};
+  itemFx={text:{stop:"ストップ GET!",shuf:"シャッフル GET!",jump:"ジャンプ GET!",mag:"マグネット GET!",boost:"ブースター GET!"}[k], t:now};
   sfx("get"); updateHud();
 }
 // ジャンプ: 床（重力の向きの辺）から突き上げて、全部の粒を跳ね上げる。落ちてくるときに少し混ざる
@@ -952,6 +1024,14 @@ function useMag(){
   items.mag--; magLeft=MAG_MS; jiggleAll(0.008); shake=6;
   itemFx={text:"マグネット!", t:performance.now()};
   sfx("mag"); updateHud();
+}
+// ブースター: 15秒間、連鎖の受付時間が2倍（連鎖がつながりやすい）
+function useBoost(){
+  if(!running||paused||over||items.boost<=0||boostLeft>0) return;
+  items.boost--; boostLeft=BOOST_MS;
+  if(cascade && chainUntil<Infinity && chainUntil>performance.now()){ chainWinLen*=2; chainUntil=performance.now()+chainWinLen; }  // いまの受付もすぐ延ばす
+  itemFx={text:"ブースター!", t:performance.now()};
+  sfx("boost"); updateHud();
 }
 function useStop(){
   if(!running||paused||over||items.stop<=0||stopLeft>0) return;
@@ -1042,6 +1122,7 @@ function sfx(kind, n=1){
   else if(kind==="boss"){ tone(110,82,0.6,"sawtooth",0.18); tone(165,123,0.6,"square",0.06,0.15); tone(82,55,0.8,"sawtooth",0.18,0.45); }
   else if(kind==="bosswin"){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,f,0.22,"triangle",0.14,i*0.09)); }
   else if(kind==="over"){ [392,330,262,196].forEach((f,i)=>tone(f,f*0.97,0.35,"triangle",0.13,i*0.22)); }
+  else if(kind==="boost"){ tone(300,1200,0.35,"sawtooth",0.08); tone(600,1800,0.3,"triangle",0.1,0.12); }
   else if(kind==="mag"){ tone(220,660,0.4,"sine",0.15); tone(330,990,0.4,"triangle",0.08,0.1); }
   else if(kind==="praise"){ [784,988,1175,1568].forEach((f,i)=>tone(f,f,0.14,"triangle",0.11,i*0.07)); }
   else if(kind==="shuf"){ tone(200,900,0.75,"sawtooth",0.05); tone(900,180,0.6,"triangle",0.12,0.95); }
@@ -1070,7 +1151,8 @@ function update(dt, now){
     return;
   }
   if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
-  if(stopLeft<=0){ bossStep(now); themeStep(now, dt); }           // ストップ中はボスとステージの出来事も止まる
+  if(stopLeft<=0){ if(!(boss&&boss.dying)) bossStep(now); themeStep(now, dt); }           // ストップ中はボスとステージの出来事も止まる
+  if(boostLeft>0){ boostLeft=Math.max(0,boostLeft-dt); if(boostLeft===0) updateHud(); }
   if(magLeft>0){ magLeft=Math.max(0,magLeft-dt); if(magLeft===0){ for(const o of balls){ o.mx=o.my=0; } magPairs=[]; updateHud(); } }
   if(popping && now-popT>=POP_MS){
     const gone=popping;
@@ -1123,6 +1205,7 @@ function stepFx(dt){
   for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx+=gx*0.00002*dt; p.vy+=gy*0.00002*dt; p.life-=dt/650; }
   particles=particles.filter(p=>p.life>0);
   shake=Math.max(0, shake - dt*0.04);
+  stepBossShots(performance.now());
   if(overFx){                                                   // ゲームオーバー演出
     const el=performance.now()-overFx.t;
     for(const o of balls){
@@ -1512,12 +1595,12 @@ function draw(now){
       ctx.strokeStyle = red ? "#ff5a5a" : "#ffcf5a"; ctx.lineWidth=Math.max(2,s*0.08); ctx.setLineDash([s*0.2,s*0.15]);
       ctx.beginPath(); ctx.arc(bx*s,by*s,s*(red?0.9+0.3*wk:0.75),0,Math.PI*2); ctx.stroke(); ctx.restore();
     });
-    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2, by=s*0.45, k=boss.hp/boss.maxHp;
+    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2, by=s*0.45, k=(boss.disp??boss.hp)/boss.maxHp;
     const hit = boss.hitT && now-boss.hitT<300;
     ctx.fillStyle="rgba(0,0,0,.55)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = hit ? "#ffffff" : (k>0.3 ? "#ff5a7a" : "#ff2a4a"); ctx.beginPath(); ctx.roundRect(bx,by,Math.max(0,bw*k),bh,bh/2); ctx.fill();
     ctx.font=`800 ${s*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
-    ctx.fillStyle="#fff"; ctx.fillText(`${boss.name}  ${boss.hp}/${boss.maxHp}`, bx+4, by+bh+4);
+    ctx.fillStyle="#fff"; ctx.fillText(`${boss.name}  ${Math.ceil(boss.disp??boss.hp)}/${boss.maxHp}`, bx+4, by+bh+4);
     if(hit){ ctx.textAlign="right"; ctx.fillStyle="#ffcf5a"; ctx.fillText(`-${boss.lastDmg}`, bx+bw, by+bh+4); }
   }
   if(bossFx && bossFx.text){                                   // 「ぷにキング あらわる！」
@@ -1534,6 +1617,10 @@ function draw(now){
       ctx.restore();
     }
   } else if(bossFx && bossFx.win && now-bossFx.t>1500) bossFx=null;
+  if(boostLeft>0){                                             // ブースター中: 下に残り秒数（オレンジ）
+    ctx.font=`800 ${s*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
+    ctx.fillStyle="rgba(255,190,110,.95)"; ctx.fillText(`🚀 ブースター ${(boostLeft/1000).toFixed(0)}秒（連鎖の受付2倍）`, W/2, W-s*(magLeft>0?0.95:0.3));
+  }
   if(magLeft>0 && magPairs.length){                            // マグネット中: 引き合っている粒どうしを光る糸で結ぶ
     ctx.save(); ctx.lineCap="round";
     const ph=now/90;
@@ -1553,6 +1640,7 @@ function draw(now){
     ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
     ctx.fillStyle="rgba(255,214,220,.95)"; ctx.fillText(`マグネット ${(magLeft/1000).toFixed(1)}秒`, W/2, W-s*0.3);
   }
+  drawBossShots(now, s);
   if(overFx){
     const t=(now-overFx.t-700)/600;
     if(t>0){
@@ -1640,7 +1728,12 @@ function drawNext(){
 function updateHud(){
   document.getElementById("score").textContent=score;
   document.getElementById("lines").textContent=maxChain;
-  const sn=document.getElementById("stageN"); if(sn) sn.textContent=`${level||1} ${theme().name}`;
+  const sn=document.getElementById("stageN"); if(sn) sn.textContent=`${level||1}`;
+  const th=theme(), scN=document.getElementById("scName");
+  if(scN){ scN.textContent=`${th.ic} ${th.name}ステージ`; document.getElementById("scSub").textContent=th.sub;
+    const fx=[]; if(boss) fx.push(`👑 ボス戦: ${boss.name}`); if(boostLeft>0) fx.push("🚀 ブースター中"); if(magLeft>0) fx.push("🧲 マグネット中"); if(stopLeft>0) fx.push("⏳ ストップ中");
+    document.getElementById("scFx").textContent=fx.join("　");
+    document.getElementById("stageCard").dataset.theme=th.k; }
   const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
   if(st){
     document.getElementById("nStop").textContent=items.stop; document.getElementById("nShuf").textContent=items.shuf;
@@ -1648,6 +1741,8 @@ function updateHud(){
     st.classList.toggle("active", stopLeft>0);
     const jp=document.getElementById("itemJump");
     if(jp){ document.getElementById("nJump").textContent=items.jump; jp.classList.toggle("empty", items.jump<=0); }
+    const bo=document.getElementById("itemBoost");
+    if(bo){ document.getElementById("nBoost").textContent=items.boost; bo.classList.toggle("empty", items.boost<=0); bo.classList.toggle("active", boostLeft>0); }
     const mg=document.getElementById("itemMag");
     if(mg){ document.getElementById("nMag").textContent=items.mag; mg.classList.toggle("empty", items.mag<=0); mg.classList.toggle("active", magLeft>0); }
   }
@@ -1670,7 +1765,37 @@ const angle=0;   // 盤面の回転（常に0）。タッチ座標変換用
 function applyOrientation(){ updatePad(); updateCtrl(); }
 window.addEventListener("orientationchange",()=>setTimeout(applyOrientation,50));
 if(screen.orientation) screen.orientation.addEventListener("change",applyOrientation);
-window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); });
+window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); layoutItems(); });
+// ===== 画面レイアウト（アイテムボタンの置き方） =====
+const LAYOUTS=[{k:"ringL",name:"大きいリング"},{k:"tiles",name:"タイル"},{k:"ring",name:"小さいリング"}];
+let layoutKey=store.get("layout","ringL"); if(!LAYOUTS.some(l=>l.k===layoutKey)) layoutKey="ringL";
+const ITEM_IDS=["itemStop","itemMag","itemShuf","itemBoost","itemJump"];
+function layoutItems(){
+  document.body.classList.remove("lay-ring","lay-ringL","lay-tiles"); document.body.classList.add("lay-"+layoutKey);
+  const box=document.getElementById("ctrlR"), rot=document.getElementById("rotBtn");
+  const els=ITEM_IDS.map(id=>document.getElementById(id));
+  if(layoutKey==="tiles"){ for(const e of els){ e.style.left=e.style.top=e.style.width=e.style.height=""; } box.style.width=box.style.height=""; rot.style.right=rot.style.bottom=""; return; }
+  // リング: 回転ボタンを中心に、左から上へ5つを同じ間隔で並べる
+  const side=document.getElementById("hudL").parentElement ? parseFloat(getComputedStyle(document.body).gridTemplateColumns.split(" ")[0]) : 200;
+  const rb=rot.offsetWidth||60, pad=rb*0.12, big=layoutKey==="ringL";
+  // 横は列の幅まで、縦はもっと高くまで使える楕円の弧に並べる（ボタンを大きくできる）
+  const avail=(side||200)-6, availH=Math.max(160, innerHeight*0.62);
+  let ib=big?70:44, rx, ry, pts;
+  for(let it=0; it<12; it++){
+    rx=avail - rb/2 - pad - ib/2; ry=Math.min(availH - rb/2 - pad - ib/2, rx*(big?1.55:1.0));
+    pts=[0,1,2,3,4].map(i=>{ const th=Math.PI*(1 - i*0.125); return [rx*Math.cos(th), -ry*Math.sin(th)]; });
+    let md=1e9; for(let i=1;i<5;i++) md=Math.min(md, Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
+    if(md >= ib*1.12) break; ib=Math.max(34, md/1.12);
+  }
+  const Wd=Math.ceil(pad+rb/2+rx+ib/2+2), Hd=Math.ceil(pad+rb/2+ry+ib/2+2);
+  box.style.width=Wd+"px"; box.style.height=Hd+"px";
+  const cx=Wd-pad-rb/2, cy=Hd-pad-rb/2; rot.style.right=pad+"px"; rot.style.bottom=pad+"px";
+  els.forEach((e,i)=>{ const [px,py]=pts[i];
+    e.style.width=e.style.height=ib+"px";
+    e.style.left=(cx+px-ib/2)+"px"; e.style.top=(cy+py-ib/2)+"px";
+    e.style.right=e.style.bottom="auto"; });
+}
+setTimeout(layoutItems,0);
 
 // ===== 傾きセンサー =====
 // iOS（iPadOS はデスクトップ版 Mac の UA を名乗るので、タッチ対応の Mac も iOS 扱い）
@@ -1838,6 +1963,7 @@ holdButton("itemStop",()=>useStop(),false);
 holdButton("itemShuf",()=>useShuffle(),false);
 holdButton("itemJump",()=>useJump(),false);
 holdButton("itemMag",()=>useMag(),false);
+holdButton("itemBoost",()=>useBoost(),false);
 document.getElementById("pauseBtn").addEventListener("click",togglePause);
 function togglePause(){ if(!running||over) return; paused=!paused; if(paused) showMenu("pause"); else hideOverlay(); }
 
@@ -1847,6 +1973,7 @@ function settingsRow(){
   return `<div class="row">
     <button id="sndBtn">音: ${soundOn?"ON":"OFF"}</button>
     <button id="faceBtn">顔: ${faceOn?"ON":"OFF"}</button>
+    <button id="layBtn">画面: ${LAYOUTS.find(l=>l.k===layoutKey).name}</button>
     <button id="bondBtn">つながり: ${BOND_STYLES.find(b=>b.key===bondStyle).name}</button>
     <button id="devBtn">特殊ぷに: ${devAll?"全部出す（開発）":"ステージで増える"}</button>
     <button id="lvBtn">難易度: ${LEVELS[levelKey].name}</button>
@@ -1857,6 +1984,7 @@ function settingsRow(){
 }
 function bindSettings(){
   document.getElementById("offBtn").onclick=()=>{ sensorOffset=(sensorOffset+1)%4; store.set("sensorOffset",sensorOffset); refreshMenu(); };
+  document.getElementById("layBtn").onclick=()=>{ const i=LAYOUTS.findIndex(l=>l.k===layoutKey); layoutKey=LAYOUTS[(i+1)%LAYOUTS.length].k; store.set("layout",layoutKey); layoutItems(); refreshMenu(); };
   document.getElementById("bondBtn").onclick=()=>{ const i=BOND_STYLES.findIndex(b=>b.key===bondStyle); bondStyle=BOND_STYLES[(i+1)%BOND_STYLES.length].key; store.set("bondStyle2",bondStyle); refreshMenu(); };
   document.getElementById("devBtn").onclick=()=>{ devAll=!devAll; store.set("devAll",devAll); refreshMenu(); };
   document.getElementById("lvBtn").onclick=()=>{ const ks=Object.keys(LEVELS); levelKey=ks[(ks.indexOf(levelKey)+1)%ks.length]; store.set("level",levelKey); refreshMenu(); };
@@ -1870,7 +1998,7 @@ function refreshMenu(){ showMenu(menuKind); }
 // ショップの画面
 function showShop(back){
   sheet.classList.add("wide");
-  const icon=k=>document.querySelector(`#item${{stop:"Stop",mag:"Mag",shuf:"Shuf",jump:"Jump"}[k]} svg`)?.outerHTML||"";
+  const icon=k=>document.querySelector(`#item${{stop:"Stop",mag:"Mag",shuf:"Shuf",jump:"Jump",boost:"Boost"}[k]} svg`)?.outerHTML||"";
   sheet.innerHTML=`<h1>🛒 ショップ</h1>
     <div class="zk-count">持っているコイン <b style="color:#ffcf5a;font-size:20px">🪙 ${coins}</b></div>
     <p style="font-size:13px">買ったアイテムは、次のゲームの最初から持っていけます（ふだんの1個に追加）</p>
@@ -1949,7 +2077,7 @@ function showMenu(kind){
         <li>傾けて流れの向きを変え、連鎖を起こそう</li>
         <li><b>本物の斜面と同じ物理</b>: 傾けるほど速く加速（g・sinθ）、摩擦（μ・g・cosθ）でブレーキ。傾きが小さいと静止摩擦で止まったまま</li>
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
-        <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う。3連鎖や50個消すごとに増える</li>
+        <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝10秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う ／ <b>ブースター</b>＝15秒間、連鎖の受付時間が2倍。3連鎖や50個消すごとに増える</li>
         <li>遊ぶと<b>コイン</b>がたまる（消した数・連鎖・記録・ボス撃破）。<b>ショップ</b>でアイテムを買うと、次のゲームに持っていける</li>
         <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ 宇宙（ふわふわ・よくはずむ）→ また草原…</li>
         <li>ステージ3・6・9…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
