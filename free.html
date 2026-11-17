@@ -439,6 +439,7 @@ const SPECIALS = [
   {k:"frozen",  st:8,  name:"氷ぷに"},
   {k:"magnet",  st:9,  name:"磁石ぷに"},
   {k:"timer",   st:10, name:"時限ぷに"},
+  {k:"sticky",  st:11, name:"べたべたぷに"},
 ];
 const TIMER_MS = 30000;
 let devAll = store.get("devAll", true);          // 開発版: 最初から全部出す
@@ -485,7 +486,7 @@ function makeBonds(){
   for(let i=0;i<list.length;i++){ const a=list[i];
     for(let j=i+1;j<list.length;j++){ const b=list[j];
       if(a.frozen||b.frozen) continue;
-      const ok = a.c===b.c || (a.c===RAINBOW && b.c!==GARBAGE) || (b.c===RAINBOW && a.c!==GARBAGE);
+      const ok = a.c===b.c || (a.c===RAINBOW && b.c!==GARBAGE) || (b.c===RAINBOW && a.c!==GARBAGE) || a.sticky || b.sticky;   // べたべたは色に関係なくくっつく
       if(!ok) continue;
       const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy>TOUCH*TOUCH) continue;
       const k=a.id<b.id?a.id+'_'+b.id:b.id+'_'+a.id;
@@ -516,7 +517,7 @@ function tickTimers(dt){
     if(o.timer==null || o.live || o.pop) continue;
     o.timer-=dt;
     if(o.timer<=0){
-      o.timer=null; o.c=GARBAGE; o.virus=o.bomb=o.magnet=o.balloon=false; o.wv=(o.wv||0)+0.015;
+      o.timer=null; o.c=GARBAGE; o.virus=o.bomb=o.magnet=o.balloon=o.sticky=false; o.wv=(o.wv||0)+0.015;
       dropBonds(x=>x!==o); burst(o.x-0.5,o.y-0.5,GARBAGE); sfx("lock");
     }
   }
@@ -554,11 +555,12 @@ const ZUKAN = [
   {k:"frozen",  st:8,  name:"氷ぷに",     c:1, fx:{frozen:true}, desc:"摩擦ゼロでつるつる滑り、くっつかない。となりで粒が消えると溶けてふつうの粒に。", flv:"ひんやりクール。本当はみんなと遊びたい。"},
   {k:"magnet",  st:9,  name:"磁石ぷに",   c:0, fx:{magnet:true}, desc:"近くにいる同じ色の粒を引き寄せる。", flv:"さみしがり屋。同じ色をそばに呼びよせる。"},
   {k:"timer",   st:10, name:"時限ぷに",   c:3, fx:{timer:18000}, desc:"着地から30秒以内に消さないと、お邪魔ぷにになってしまう。", flv:"いつも時計を気にしている、せっかちさん。"},
+  {k:"sticky",  st:11, name:"べたべたぷに", c:2, fx:{sticky:true}, desc:"まわりの粒と色に関係なくくっつく（消えるのは同じ色が4つそろったときだけ）。", flv:"人なつっこくて、だれにでもべったり。"},
 ];
 let zkSeen = new Set(store.get("zkSeen",["normal"]));
 function zkMark(k){ if(k && !zkSeen.has(k)){ zkSeen.add(k); store.set("zkSeen",[...zkSeen]); } }
 // 組の軸の粒が真ん中に出る。形は「重力の向き = 下」として置く
-let spawnT=-1e9, releaseT=-1e9;
+let spawnT=-1e9, releaseT=-1e9, blockedT=0;
 function spawn(now=performance.now()){
   const nx = nextPairs[0];
   const u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
@@ -567,10 +569,22 @@ function spawn(now=performance.now()){
   const fits=(pr,cx,cy)=>!overlaps(pr.o.map(([x,y])=>[cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D]));
   let base=null, rest=[];
   for(const b of bases){ if(!base && fits(nx,b[0],b[1])) base=b; else rest.push(b); }
-  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まっても空かなければおしまい
-    if(quietT<400) return;
-    piece=null; gameOver(); return;
+  // 出口の真上がふさがっていても、形を回したり少しずらしたりして入るなら出す（出口が空いているのにおしまい、にならないように）
+  if(!base){
+    const rots=[o=>o, o=>o.map(([x,y])=>[-y,x]), o=>o.map(([x,y])=>[-x,-y]), o=>o.map(([x,y])=>[y,-x])];
+    const shifts=[[0,0],[0,-0.5],[0.5,0],[-0.5,0],[0,-1],[1,0],[-1,0],[0.5,-0.5],[-0.5,-0.5]];
+    outer: for(const b of bases) for(const rf of rots) for(const [sx,sy] of shifts){
+      const o2=rf(nx.o), cx=b[0]+(p[0]*sx+u[0]*sy)*D, cy=b[1]+(p[1]*sx+u[1]*sy)*D;
+      if(fits({o:o2},cx,cy)){ nx.o=o2; base=[cx,cy]; rest=bases.filter(q=>q!==b); break outer; }
+    }
   }
+  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まって1.5秒たっても空かなければおしまい
+    if(quietT<400){ blockedT=0; return; }
+    if(!blockedT){ blockedT=now; return; }
+    if(now-blockedT<1500) return;
+    blockedT=0; piece=null; gameOver(); return;
+  }
+  blockedT=0;
   const [cx,cy]=base;
   nextPairs.shift(); nextPairs.push(newPair()); spawnT=now;
   if(boss) for(const [ex,ey] of rest){                         // 同時に落ちてくる組（操作はできない）
@@ -949,7 +963,7 @@ function useShuffle(){
   if(!running||paused||over||items.shuf<=0||shuffle||popping) return;
   const src=balls.filter(o=>!o.live);
   if(!src.length) return;
-  const FL=['virus','vLeft','bomb','balloon','heavy','frozen','magnet','timer'];
+  const FL=['virus','vLeft','bomb','balloon','heavy','frozen','magnet','timer','sticky'];
   const from=src.map(o=>{ const b={x:o.x-0.5, y:o.y-0.5, c:o.c}; for(const k of FL) if(o[k]!=null) b[k]=o[k]; return b; });
   // 行き先: 真ん中3×3と、落下中の組のまわりを避けて、ランダムに散らす（1マスに1個なので重ならない）
   const c=(N-1)/2, spots=[];
@@ -1050,7 +1064,7 @@ function update(dt, now){
   if(shuffle){                                  // シャッフル演出中は時間を止める
     if(now-shuffle.t >= SHUF_IN+SHUF_HOLD+SHUF_OUT){
       const c=N/2;
-      for(const b of shuffle.to){ const o=newBall(b.x+0.5,b.y+0.5,b.c); for(const k of ['virus','vLeft','bomb','balloon','heavy','frozen','magnet','timer']) if(b[k]!=null) o[k]=b[k]; if(o.virus) o.vT=0; const dx=o.x-c, dy=o.y-c, d=Math.hypot(dx,dy)||1; o.vx=dx/d*2; o.vy=dy/d*2; o.wv=0.008; balls.push(o); }
+      for(const b of shuffle.to){ const o=newBall(b.x+0.5,b.y+0.5,b.c); for(const k of ['sticky','virus','vLeft','bomb','balloon','heavy','frozen','magnet','timer']) if(b[k]!=null) o[k]=b[k]; if(o.virus) o.vT=0; const dx=o.x-c, dy=o.y-c, d=Math.hypot(dx,dy)||1; o.vx=dx/d*2; o.vy=dy/d*2; o.wv=0.008; balls.push(o); }
       shuffle=null; chain=0; cascade=false; quietT=0;
     }
     return;
@@ -1113,7 +1127,7 @@ function stepFx(dt){
     const el=performance.now()-overFx.t;
     for(const o of balls){
       const e=el-o.ovDelay;
-      if(e>0 && !o.ovGrey){ o.ovGrey=true; o.c=GARBAGE; o.virus=o.bomb=o.magnet=o.balloon=o.frozen=o.heavy=false; o.timer=null; o.wv=(o.wv||0)-0.012; }
+      if(e>0 && !o.ovGrey){ o.ovGrey=true; o.c=GARBAGE; o.virus=o.bomb=o.magnet=o.balloon=o.frozen=o.heavy=o.sticky=false; o.timer=null; o.wv=(o.wv||0)-0.012; }
       if(e>900){                                                // 画面の下へこぼれ落ちる
         if(o.fvy==null){ o.fvy=-(1.5+Math.random()*3); o.fvx=(Math.random()-0.5)*3; }
         o.fvy+=30*dt/1000; o.y+=o.fvy*dt/1000; o.x+=o.fvx*dt/1000;
@@ -1193,6 +1207,17 @@ function blob(g,cx,cy,r,ci,alpha=1,o={}){
     const q=r*1.02; g.beginPath(); g.moveTo(cx-q,cy-q*0.6); g.lineTo(cx-q*0.6,cy-q); g.lineTo(cx+q*0.7,cy-q); g.lineTo(cx+q,cy-q*0.5); g.lineTo(cx+q,cy+q*0.7); g.lineTo(cx+q*0.6,cy+q); g.lineTo(cx-q*0.7,cy+q); g.lineTo(cx-q,cy+q*0.6); g.closePath(); g.fill();
     g.globalAlpha=alpha*0.9; g.stroke(); g.beginPath(); g.moveTo(cx-q*0.6,cy-q*0.5); g.lineTo(cx-q*0.2,cy-q*0.8); g.stroke();
     g.restore();
+  }
+  if(F.sticky){                                         // べたべた: はちみつのしずくが垂れて、表面がてかてか
+    g.fillStyle="rgba(255,190,60,.85)";
+    for(const [dx,len] of [[-0.45,0.38],[0.05,0.55],[0.42,0.3]]){
+      const L=len*(0.85+0.15*Math.sin(tt/500+dx*5));
+      g.beginPath(); g.moveTo(cx+dx*r-r*0.12, cy+r*0.62); g.lineTo(cx+dx*r+r*0.12, cy+r*0.62);
+      g.lineTo(cx+dx*r+r*0.07, cy+r*(0.62+L)); g.arc(cx+dx*r, cy+r*(0.62+L), r*0.09, 0, Math.PI); g.closePath(); g.fill();
+    }
+    g.strokeStyle="rgba(255,200,80,.7)"; g.lineWidth=Math.max(1.5,r*0.1);
+    g.beginPath(); g.arc(cx,cy,r*0.98,Math.PI*0.15,Math.PI*0.85); g.stroke();
+    g.fillStyle="rgba(255,255,255,.55)"; g.beginPath(); g.ellipse(cx+r*0.35,cy-r*0.45,r*0.12,r*0.07,-0.6,0,Math.PI*2); g.fill();
   }
   if(F.magnet){                                         // 磁石: 頭にU字の磁石
     g.save(); g.globalAlpha=alpha; g.lineWidth=Math.max(2,r*0.2); g.lineCap="butt";
@@ -1386,6 +1411,10 @@ function draw(now){
     for(const [a1,b1] of pairs) neck(ctx,a1.x*s,a1.y*s,b1.x*s,b1.y*s,r*0.98,0.9,0.4,PALETTE[a1.c].base);
   }
   for(const [a1,b1] of pairs) bondUnder(ctx,a1.x*s,a1.y*s,b1.x*s,b1.y*s,r,a1.c);
+  for(const [a1,b1] of bonds){                                  // べたべたでくっついた違う色どうし: はちみつの橋
+    if(a1.c===b1.c || !(a1.sticky||b1.sticky) || a1.pop || b1.pop || a1.live || b1.live) continue;
+    neck(ctx,a1.x*s,a1.y*s,b1.x*s,b1.y*s,r*0.96,0.9,0.5,"rgba(255,186,60,.9)");
+  }
   // 粒
   const k = popping ? Math.min(1,(now-popT)/POP_MS) : 0;
   const G=gDir()||[0,1];
@@ -1914,7 +1943,7 @@ function showMenu(kind){
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
         <li>同じ色は<b>一度くっつくと離れない</b>。かたまりごと転がるよ</li>
-        <li>ふしぎな力をもった<b>特殊なぷに</b>がステージを進むごとに増えていく。くわしくは<b>図鑑</b>で</li>
+        <li>ふしぎな力をもった<b>特殊なぷに</b>（爆弾・お邪魔・感染・風船・重り・虹・氷・磁石・時限・べたべた）がステージを進むごとに増えていく。くわしくは<b>図鑑</b>で</li>
         <li>消えたあと流れた粒がまたつながると<b>連鎖</b>。点数が大きく増える</li>
         <li>消えてから<b>2秒以内</b>に次が消えれば連鎖。連鎖が続くほど受付時間が長くなる（上のバーが残り時間）。消えた場所のまわりはすべりやすくなるので、傾けて流れを狙おう。傾けてつないだ連鎖は<b>1.5倍</b></li>
         <li>傾けて流れの向きを変え、連鎖を起こそう</li>
@@ -1951,15 +1980,13 @@ function showMenu(kind){
       <p style="font-size:22px;color:var(--text);margin:4px 0">SCORE ${score}${lastNew.includes("score")?' <i class="new">ベスト更新!</i>':''}</p>
       <p style="margin:2px 0">ベスト: ${best}　／　<b style="color:#ffcf5a">🪙 +${lastCoins}</b>（${coins}）</p>
       <div class="rec-list">${rows}</div>
-      <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="xBtn">𝕏 で投稿</button></div>
-      <div class="row"><button id="imgBtn">🖼 画像を保存・共有</button></div>
+      <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="shareBtn">📤 シェア（画像つき）</button></div>
       <div class="row"><button id="shopBtn">🛒 ショップ（🪙${coins}）</button></div>
       <p id="xMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>
       ${settingsRow()}`;
     bindSettings();
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
-    document.getElementById("xBtn").onclick=()=>shareX(false);
-    document.getElementById("imgBtn").onclick=()=>shareX(true);
+    document.getElementById("shareBtn").onclick=()=>shareX(true);
     document.getElementById("shopBtn").onclick=()=>showShop("over");
   }
 }
@@ -1972,7 +1999,7 @@ window.__shareDone=()=>shareScrim(false);
 // X に記録を投稿する（投稿画面を開くだけ。送信は本人が X で押す）
 function shareX(withImage){
   const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
-  const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}`;
+  const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}${withImage?"\n#グラビティポップ #落ちものパズル #ぷに":""}`;
   const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
   const tags=["グラビティポップ","落ちものパズル","ぷに"];
   const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url)+"&hashtags="+encodeURIComponent(tags.join(","));
@@ -1994,7 +2021,7 @@ function shareX(withImage){
     if(mh && mh.shareImage && card){                                                 // iOS アプリ: 画像つきで共有メニューを開く（そこで X を選ぶ）
       shareScrim(true);                                                              // 共有メニューの後ろを暗くぼかす（半透明のメニューが見やすいように）
       mh.shareImage.postMessage({text, url, image:card.toDataURL("image/png")});
-      say("「画像を保存」で写真に保存して、X で添付できます"); return;
+      say("共有メニューから送り先を選んでください（X は X アプリが入っていると出ます）"); return;
     }
     if(!mh && card && navigator.canShare){                                           // ブラウザ（iPad の Safari など）: 画像つきで共有
       card.toBlob(b=>{ const f=new File([b],"gravity-pop.png",{type:"image/png"});
