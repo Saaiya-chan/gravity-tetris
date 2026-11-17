@@ -6,6 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>グラビティ・ポップ フリー</title>
+<meta property="og:title" content="グラビティ・ポップ">
+<meta property="og:description" content="iPad を傾けて遊ぶ、物理で転がる落ちものパズル。同じ色のぷにを4つくっつけて消そう！">
+<meta property="og:image" content="https://saaiya-chan.github.io/gravity-tetris/og.png">
+<meta property="og:url" content="https://saaiya-chan.github.io/gravity-tetris/free.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://saaiya-chan.github.io/gravity-tetris/og.png">
 <style>
   :root{
     --bg:#0e1116; --panel:#171b23; --line:#262c38; --text:#e8ecf3; --dim:#8a93a6; --accent:#ffcf5a;
@@ -1966,13 +1972,24 @@ window.__shareDone=()=>shareScrim(false);
 // X に記録を投稿する（投稿画面を開くだけ。送信は本人が X で押す）
 function shareX(withImage){
   const top=REC_DEFS.filter(([k])=>rec[k]>0 && !["maxChain","stage","maxPop"].includes(k)).slice(0,3).map(([k,label,unit])=>`${label}${rec[k]>1?"×"+rec[k]:""}`);
-  const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}\n#グラビティポップ`;
+  const text=`グラビティ・ポップで ${score}点！\n最大${rec.maxChain}連鎖・ステージ${rec.stage}${top.length?"\n"+top.join("・"):""}${lastNew.includes("score")?"\nベスト更新！":""}`;
   const url="https://saaiya-chan.github.io/gravity-tetris/free.html";
-  const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url);
+  const tags=["グラビティポップ","落ちものパズル","ぷに"];
+  const intent="https://x.com/intent/post?text="+encodeURIComponent(text)+"&url="+encodeURIComponent(url)+"&hashtags="+encodeURIComponent(tags.join(","));
   const msg=document.getElementById("xMsg");
   const say=t=>{ if(msg) msg.textContent=t; };
   const mh=window.webkit && window.webkit.messageHandlers;
-  let card=null; if(withImage) try{ card=makeShareCard(); }catch(e){}
+  let card=null; try{ card=makeShareCard(); }catch(e){}
+  if(!withImage){
+    // X で投稿: 結果カードの画像をコピーしてから投稿画面を開く（投稿画面で長押し→ペーストで画像を添付できる）
+    try{
+      if(mh && mh.postX && card){ mh.postX.postMessage({intent, image:card.toDataURL("image/png")}); say("画像をコピーしました。X の投稿画面で長押し→「ペースト」で画像を添付できます"); return; }
+      if(!mh && card && navigator.clipboard && window.ClipboardItem){
+        navigator.clipboard.write([new ClipboardItem({"image/png": new Promise(r=>card.toBlob(r,"image/png"))})])
+          .then(()=>say("画像をコピーしました。X の投稿画面で貼り付けて添付できます")).catch(()=>{});
+      }
+    }catch(e){}
+  }
   try{
     if(mh && mh.shareImage && card){                                                 // iOS アプリ: 画像つきで共有メニューを開く（そこで X を選ぶ）
       shareScrim(true);                                                              // 共有メニューの後ろを暗くぼかす（半透明のメニューが見やすいように）
@@ -2004,28 +2021,73 @@ async function start(){
   try{ window.focus(); }catch(e){}
 }
 let lastNew=[], overFx=null, boardSnap=null;
-// シェア用の結果カード（1200×675）: 左に最後の盤面、右にスコアと記録
-function makeShareCard(){
-  const c=document.createElement("canvas"); c.width=1200; c.height=675; const g=c.getContext("2d");
-  const bg=g.createLinearGradient(0,0,1200,675); bg.addColorStop(0,"#1b1430"); bg.addColorStop(1,"#0b1018"); g.fillStyle=bg; g.fillRect(0,0,1200,675);
-  // 盤面
-  const B=555, bx=50, by=60;
-  g.fillStyle="#141a26"; g.beginPath(); g.roundRect(bx-10,by-10,B+20,B+20,26); g.fill();
-  if(boardSnap){ g.save(); g.beginPath(); g.roundRect(bx,by,B,B,18); g.clip(); g.drawImage(boardSnap,bx,by,B,B); g.restore(); }
-  // 飾りのぷに
-  const deco=[[1110,90,0],[1150,150,1],[1080,170,3]]; for(const [x,y,ci] of deco) blob(g,x,y,30,ci,1,{face:true,g:[0,1],t:0});
-  const F='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
-  g.textBaseline="alphabetic"; g.textAlign="left";
-  g.fillStyle="#ffcf5a"; g.font=`900 44px ${F}`; g.fillText("グラビティ・ポップ",660,110);
-  g.fillStyle="#a9b3c7"; g.font=`700 24px ${F}`; g.fillText("SCORE",660,180);
-  g.fillStyle="#ffffff"; g.font=`900 96px ${F}`; g.fillText(String(score),660,265);
-  if(lastNew.includes("score")){ g.fillStyle="#ff6b9a"; g.font=`900 28px ${F}`; g.fillText("ベスト更新！",660,305); }
-  const lines=REC_DEFS.filter(([k])=>rec[k]>0).slice(0,7);
-  g.font=`700 27px ${F}`;
-  lines.forEach(([k,label,unit],i)=>{ const y=355+i*42;
-    g.fillStyle="#a9b3c7"; g.textAlign="left"; g.fillText(label,660,y);
-    g.fillStyle="#ffffff"; g.textAlign="right"; g.fillText(`${rec[k]}${unit}`+(lastNew.includes(k)?" NEW!":""),1140,y); });
-  g.textAlign="left"; g.fillStyle="#6f7a90"; g.font=`600 20px ${F}`; g.fillText("#グラビティポップ   傾けて遊ぶ物理落ち物パズル",660,640);
+// シェア用の結果カード（1200×675）。デザインは4種類（A:シンプル B:ポップ C:盤面ドーン D:トレカ）
+let cardStyle = store.get("cardStyle","B");
+const CARD_F='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
+function cardRecs(n){ return REC_DEFS.filter(([k])=>rec[k]>0 && k!=="stage").slice(0,n); }
+function cardTitle(){                                          // スコアに応じた称号
+  const t=[[0,"ぷに見習い"],[3000,"ぷに使い"],[20000,"ころがし名人"],[100000,"傾きの達人"],[500000,"重力マスター"],[2000000,"ぷにの神"]];
+  let r=t[0][1]; for(const [v,n] of t) if(score>=v) r=n; return r;
+}
+function makeShareCard(style=cardStyle){
+  const c=document.createElement("canvas"); c.width=1200; c.height=675; const g=c.getContext("2d"), F=CARD_F;
+  const snap=(x,y,w,h,rad)=>{ g.save(); g.beginPath(); g.roundRect(x,y,w,h,rad); g.clip();
+    if(boardSnap) g.drawImage(boardSnap,x,y,w,h); else { g.fillStyle="#141a26"; g.fillRect(x,y,w,h); } g.restore(); };
+  const txt=(t,x,y,font,col,align="left",stroke=0,sc="rgba(0,0,0,.55)")=>{ g.font=font; g.textAlign=align;
+    if(stroke){ g.lineWidth=stroke; g.strokeStyle=sc; g.lineJoin="round"; g.strokeText(t,x,y); } g.fillStyle=col; g.fillText(t,x,y); };
+  const puni=(x,y,r,ci)=>blob(g,x,y,r,ci,1,{face:true,g:[0,1],t:0});
+  const isNew=k=>lastNew.includes(k);
+  g.textBaseline="alphabetic";
+  if(style==="A"){                                             // A: シンプル（暗い背景、左に盤面）
+    const bg=g.createLinearGradient(0,0,1200,675); bg.addColorStop(0,"#1b1430"); bg.addColorStop(1,"#0b1018"); g.fillStyle=bg; g.fillRect(0,0,1200,675);
+    g.fillStyle="#141a26"; g.beginPath(); g.roundRect(40,50,575,575,26); g.fill(); snap(50,60,555,555,18);
+    [[1110,90,0],[1150,150,1],[1080,170,3]].forEach(([x,y,ci])=>puni(x,y,30,ci));
+    txt("グラビティ・ポップ",660,110,`900 44px ${F}`,"#ffcf5a");
+    txt("SCORE",660,180,`700 24px ${F}`,"#a9b3c7"); txt(String(score),660,265,`900 96px ${F}`,"#fff");
+    if(isNew("score")) txt("ベスト更新！",660,305,`900 28px ${F}`,"#ff6b9a");
+    cardRecs(7).forEach(([k,l,u],i)=>{ const y=355+i*42; txt(l,660,y,`700 27px ${F}`,"#a9b3c7"); txt(`${rec[k]}${u}`+(isNew(k)?" NEW!":""),1140,y,`700 27px ${F}`,"#fff","right"); });
+    txt("#グラビティポップ",660,640,`600 20px ${F}`,"#6f7a90");
+  }else if(style==="B"){                                       // B: ポップ（明るいグラデーション、ぷにがいっぱい、スコアどーん）
+    const bg=g.createLinearGradient(0,0,1200,675); bg.addColorStop(0,"#ff8fc0"); bg.addColorStop(0.5,"#ffb36b"); bg.addColorStop(1,"#ffe27a"); g.fillStyle=bg; g.fillRect(0,0,1200,675);
+    g.globalAlpha=0.18; g.fillStyle="#fff"; for(let i=0;i<14;i++){ g.beginPath(); g.arc((i*173)%1200, (i*97)%675, 40+(i%4)*25, 0, Math.PI*2); g.fill(); } g.globalAlpha=1;
+    const ps=[[70,615,48,0],[165,645,32,1],[1100,110,62,2],[1000,60,40,3],[1140,615,50,4],[60,90,48,1],[1050,650,30,0]];
+    ps.forEach(([x,y,r,ci])=>puni(x,y,r,ci));
+    txt("グラビティ・ポップ",600,100,`900 54px ${F}`,"#fff","center",12,"rgba(180,60,90,.55)");
+    txt(cardTitle(),600,165,`900 34px ${F}`,"#7a2a4a","center");
+    txt(String(score),600,320,`900 150px ${F}`,"#fff","center",22,"rgba(160,50,80,.6)");
+    txt(isNew("score")?"点  ★ベスト更新！":"点",600,375,`900 36px ${F}`,"#7a2a4a","center");
+    const rs=cardRecs(6); const bw=330, bh=62, gap=18, cols=3, x0=600-(cols*bw+(cols-1)*gap)/2;
+    rs.forEach(([k,l,u],i)=>{ const x=x0+(i%cols)*(bw+gap), y=410+Math.floor(i/cols)*(bh+gap);
+      g.fillStyle="rgba(255,255,255,.82)"; g.beginPath(); g.roundRect(x,y,bw,bh,31); g.fill();
+      txt(l,x+24,y+41,`800 25px ${F}`,"#8a4a62"); txt(`${rec[k]}${u}`,x+bw-22,y+41,`900 28px ${F}`,isNew(k)?"#ff3d7f":"#4a2a3a","right"); });
+    txt("#グラビティポップ",600,650,`800 22px ${F}`,"rgba(122,42,74,.8)","center");
+  }else if(style==="C"){                                       // C: 盤面ドーン（最後の盤面を大きく、下に帯）
+    g.fillStyle="#0b0f16"; g.fillRect(0,0,1200,675);
+    if(boardSnap){ g.save(); g.filter="blur(18px) brightness(.55)"; g.drawImage(boardSnap,-100,-262,1400,1400); g.restore(); }
+    g.fillStyle="rgba(0,0,0,.35)"; g.fillRect(0,0,1200,675);
+    snap(330,25,540,540,24); g.strokeStyle="rgba(255,255,255,.5)"; g.lineWidth=4; g.beginPath(); g.roundRect(330,25,540,540,24); g.stroke();
+    const band=g.createLinearGradient(0,560,0,675); band.addColorStop(0,"rgba(255,207,90,.95)"); band.addColorStop(1,"rgba(255,160,70,.95)");
+    g.fillStyle=band; g.fillRect(0,575,1200,100);
+    txt(`${score}点`,40,645,`900 60px ${F}`,"#2a1606");
+    txt(`最大${rec.maxChain}連鎖 ・ ステージ${rec.stage}${rec.boss?` ・ ボス${rec.boss}体撃破`:""}`,1160,620,`800 26px ${F}`,"#4a2a0a","right");
+    txt("グラビティ・ポップ  #グラビティポップ",1160,655,`700 20px ${F}`,"rgba(74,42,10,.75)","right");
+    if(isNew("score")) txt("ベスト更新！",345,75,`900 32px ${F}`,"#ff5a8a","left",8);
+    [[95,120,60,0],[175,230,42,3],[1105,140,58,2],[1030,250,40,1]].forEach(([x,y,r,ci])=>puni(x,y,r,ci));
+  }else{                                                       // D: トレカ（金の枠、称号、ステータス）
+    const bg=g.createRadialGradient(600,300,50,600,340,750); bg.addColorStop(0,"#3a2a6a"); bg.addColorStop(1,"#0e0a20"); g.fillStyle=bg; g.fillRect(0,0,1200,675);
+    for(let i=0;i<60;i++){ g.globalAlpha=0.3+((i*37)%10)/20; g.fillStyle="#fff"; g.beginPath(); g.arc((i*197)%1200,(i*131)%675,1+(i%3),0,Math.PI*2); g.fill(); } g.globalAlpha=1;
+    const gold=g.createLinearGradient(0,0,1200,675); gold.addColorStop(0,"#fff1b0"); gold.addColorStop(0.5,"#d9a43a"); gold.addColorStop(1,"#fff1b0");
+    g.strokeStyle=gold; g.lineWidth=14; g.beginPath(); g.roundRect(24,24,1152,627,36); g.stroke();
+    g.lineWidth=3; g.beginPath(); g.roundRect(44,44,1112,587,26); g.stroke();
+    snap(80,95,480,480,20); g.strokeStyle=gold; g.lineWidth=6; g.beginPath(); g.roundRect(80,95,480,480,20); g.stroke();
+    txt("GRAVITY POP",620,120,`900 30px ${F}`,"#d9a43a"); 
+    txt(cardTitle(),620,190,`900 58px ${F}`,"#fff1b0","left",8,"rgba(0,0,0,.5)");
+    txt("SCORE",620,255,`800 24px ${F}`,"#b9a8e8"); txt(String(score),620,335,`900 80px ${F}`,"#fff");
+    const stars=Math.min(5,1+Math.floor(Math.log10(Math.max(10,score))-2)); txt("★".repeat(stars)+"☆".repeat(5-stars),1130,255,`900 40px ${F}`,"#ffcf5a","right");
+    cardRecs(5).forEach(([k,l,u],i)=>{ const y=395+i*44; txt(l,620,y,`700 26px ${F}`,"#b9a8e8"); txt(`${rec[k]}${u}`+(isNew(k)?" NEW":""),1130,y,`800 26px ${F}`,"#fff","right"); });
+    txt("#グラビティポップ",620,615,`700 20px ${F}`,"#8f80c0");
+    puni(1080,130,46,6);
+  }
   return c;
 }
 function gameOver(){

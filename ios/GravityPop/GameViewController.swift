@@ -20,6 +20,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let opener = ExternalOpener()
         config.userContentController.add(opener, name: "openExternal")
         config.userContentController.add(opener, name: "shareImage")
+        config.userContentController.add(opener, name: "postX")
 
         webView = WKWebView(frame: .zero, configuration: config)
         opener.webView = webView
@@ -148,6 +149,7 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "shareImage" { shareImage(message.body); return }
+        if message.name == "postX" { postX(message.body); return }
         guard let s = message.body as? String, let url = URL(string: s),
               url.scheme == "https" || url.scheme == "http" else {
             report("URL が正しくありません")
@@ -156,6 +158,21 @@ private final class ExternalOpener: NSObject, WKScriptMessageHandler {
         DispatchQueue.main.async {
             UIApplication.shared.open(url, options: [:]) { [weak self] ok in
                 self?.report(ok ? "X を開きました" : "X を開けませんでした（iOS が拒否）")
+            }
+        }
+    }
+
+    /// X で投稿: 結果カードの画像をクリップボードにコピーしてから、X の投稿画面を開く
+    private func postX(_ body: Any) {
+        guard let d = body as? [String: Any], let s = d["intent"] as? String, let url = URL(string: s) else { return }
+        if let dataURL = d["image"] as? String, let comma = dataURL.firstIndex(of: ","),
+           let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...]), options: .ignoreUnknownCharacters),
+           let img = UIImage(data: data) {
+            UIPasteboard.general.image = img
+        }
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:]) { [weak self] ok in
+                if !ok { self?.report("X を開けませんでした") }
             }
         }
     }
