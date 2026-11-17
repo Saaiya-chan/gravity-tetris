@@ -68,6 +68,11 @@
   .item#itemMag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
   .item.active{box-shadow:0 0 0 3px #ffcf5a, 0 3px 0 #0a121c}
   .item svg{width:26px;height:26px}
+  .slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:12px auto;max-width:520px;text-align:left}
+  .slot-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--text)}
+  .slot-row select{font-size:15px;padding:6px 8px;border-radius:10px;background:#1a1f2b;color:var(--text);border:1px solid #3a4458}
+  #ctrlL .item{position:absolute}
+  body.lay-ringL .item .lbl{display:block;font-size:12px}
   .item .lbl{display:none;font-size:10px;font-weight:800;line-height:1;letter-spacing:.02em;white-space:nowrap}
   .item#itemBoost{background:linear-gradient(180deg,#6a3a12,#43240a);border-color:#d0802a;color:#ffe2c0}
   .shop-ic#shopIc_boost{background:linear-gradient(180deg,#6a3a12,#43240a);border-color:#d0802a;color:#ffe2c0}
@@ -1856,30 +1861,69 @@ window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); layoutIte
 const LAYOUTS=[{k:"ringL",name:"大きいリング"},{k:"tiles",name:"タイル"},{k:"ring",name:"小さいリング"}];
 let layoutKey=store.get("layout","ringL"); if(!LAYOUTS.some(l=>l.k===layoutKey)) layoutKey="ringL";
 const ITEM_IDS=["itemStop","itemMag","itemShuf","itemBoost","itemJump"];
+const ITEM_EL={stop:"itemStop", mag:"itemMag", shuf:"itemShuf", boost:"itemBoost", jump:"itemJump"};
+const ITEM_NAME={stop:"ストップ", mag:"マグネット", shuf:"シャッフル", boost:"ブースター", jump:"ジャンプ"};
+// アイテムのスロット: 右手は回転ボタンのまわりに5つ（左→上）、左手は「落とす」の上に3つ（左上→上→右上）
+const SLOT_DEF=[["R0","右手 1（左）"],["R1","右手 2"],["R2","右手 3"],["R3","右手 4"],["R4","右手 5（上）"],["L0","左手 1（左上）"],["L1","左手 2（上）"],["L2","左手 3（右上）"]];
+let slots=Object.assign({R0:"stop",R1:"mag",R2:"shuf",R3:"boost",R4:"jump",L0:"",L1:"",L2:""}, store.get("slots",{}));
 function layoutItems(){
   document.body.classList.remove("lay-ring","lay-ringL","lay-tiles"); document.body.classList.add("lay-"+layoutKey);
-  const box=document.getElementById("ctrlR"), rot=document.getElementById("rotBtn");
+  const box=document.getElementById("ctrlR"), rot=document.getElementById("rotBtn"), left=document.getElementById("ctrlL"), drop=document.getElementById("dropBtn");
   const els=ITEM_IDS.map(id=>document.getElementById(id));
+  for(const e of els){ e.style.display=""; if(e.parentElement!==box) box.appendChild(e); }
+  left.style.paddingTop="";
   if(layoutKey==="tiles"){ for(const e of els){ e.style.left=e.style.top=e.style.width=e.style.height=""; } box.style.width=box.style.height=""; rot.style.right=rot.style.bottom=""; return; }
-  // リング: 回転ボタンを中心に、左から上へ5つを同じ間隔で並べる
-  const side=document.getElementById("hudL").parentElement ? parseFloat(getComputedStyle(document.body).gridTemplateColumns.split(" ")[0]) : 200;
+  const side=parseFloat(getComputedStyle(document.body).gridTemplateColumns.split(" ")[0])||200;
   const rb=rot.offsetWidth||60, pad=rb*0.12, big=layoutKey==="ringL";
-  // 横は列の幅まで、縦はもっと高くまで使える楕円の弧に並べる（ボタンを大きくできる）
-  const avail=(side||200)-6, availH=Math.max(160, innerHeight*0.62);
-  let ib=big?70:44, rx, ry, pts;
-  for(let it=0; it<12; it++){
-    rx=avail - rb/2 - pad - ib/2; ry=Math.min(availH - rb/2 - pad - ib/2, rx*(big?1.55:1.0));
-    pts=[0,1,2,3,4].map(i=>{ const th=Math.PI*(1 - i*0.125); return [rx*Math.cos(th), -ry*Math.sin(th)]; });
+  // 右手: 横は列の幅まで、縦は高くまで使える楕円の弧（ボタンをできるだけ大きく）
+  const avail=side-6, availH=Math.max(160, innerHeight*0.62);
+  // 楕円の弧（左→上）に、弧の長さが等しくなるよう5つ並べる
+  const arcPts=(rx,ry)=>{ const M=200, P=[], L=[0];
+    for(let j=0;j<=M;j++){ const th=Math.PI*(1-0.5*j/M); P.push([rx*Math.cos(th), -ry*Math.sin(th)]); if(j) L.push(L[j-1]+Math.hypot(P[j][0]-P[j-1][0],P[j][1]-P[j-1][1])); }
+    const out=[]; for(let i=0;i<5;i++){ const t=L[M]*i/4; let j=0; while(j<M && L[j]<t) j++; out.push(P[j]); } return out; };
+  var ib=big?96:46, rx, ry, pts;
+  for(let it=0; it<16; it++){
+    rx=avail - rb/2 - pad - ib/2; ry=Math.min(availH - rb/2 - pad - ib/2, rx*(big?2.4:1.0));
+    pts=arcPts(rx,ry);
     let md=1e9; for(let i=1;i<5;i++) md=Math.min(md, Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
-    if(md >= ib*1.12) break; ib=Math.max(34, md/1.12);
+    if(md >= ib*1.08) break; ib=Math.max(36, md/1.08);
   }
   const Wd=Math.ceil(pad+rb/2+rx+ib/2+2), Hd=Math.ceil(pad+rb/2+ry+ib/2+2);
   box.style.width=Wd+"px"; box.style.height=Hd+"px";
   const cx=Wd-pad-rb/2, cy=Hd-pad-rb/2; rot.style.right=pad+"px"; rot.style.bottom=pad+"px";
-  els.forEach((e,i)=>{ const [px,py]=pts[i];
-    e.style.width=e.style.height=ib+"px";
-    e.style.left=(cx+px-ib/2)+"px"; e.style.top=(cy+py-ib/2)+"px";
-    e.style.right=e.style.bottom="auto"; });
+  const place=(e,x,y)=>{ e.style.width=e.style.height=ib+"px"; e.style.left=(x-ib/2)+"px"; e.style.top=(y-ib/2)+"px"; e.style.right=e.style.bottom="auto"; };
+  const used=new Set();
+  for(let i=0;i<5;i++){ const k=slots["R"+i]; if(!k||used.has(k)) continue; used.add(k); place(document.getElementById(ITEM_EL[k]), cx+pts[i][0], cy+pts[i][1]); }
+  // 左手: 「落とす」ボタンの上に扇形
+  const lk=[0,1,2].map(i=>slots["L"+i]).filter(k=>k&&!used.has(k));
+  if(lk.length){
+    // 左・真ん中（少し高く）・右の3か所。移動ボタンの列の上に、重ならないように並べる
+    left.style.position="relative";
+    const lw0=left.clientWidth; ib=Math.min(ib, (lw0-16)/3);
+    left.style.paddingTop=Math.ceil(ib*1.5+14)+"px";
+    const lb=left.getBoundingClientRect();
+    const padTop=Math.min(...["mvA","dropBtn","mvB"].map(id=>document.getElementById(id).getBoundingClientRect().top))-lb.top;
+    const lw=left.clientWidth, yb=padTop-ib/2-6, xs=[ib/2+4, lw/2, lw-ib/2-4], ys=[yb, yb-ib*0.45, yb];
+    [0,1,2].forEach(i=>{ const k=slots["L"+i]; if(!k||used.has(k)) return; used.add(k);
+      const e=document.getElementById(ITEM_EL[k]); left.appendChild(e); place(e, xs[i], ys[i]); });
+  }
+  for(const [k,id] of Object.entries(ITEM_EL)) if(!used.has(k)) document.getElementById(id).style.display="none";
+}
+// アイテムの配置をカスタマイズする画面
+function showSlots(back){
+  sheet.classList.add("wide");
+  const opt=cur=>`<option value="">（なし）</option>`+Object.keys(ITEM_EL).map(k=>`<option value="${k}" ${cur===k?"selected":""}>${ITEM_NAME[k]}</option>`).join("");
+  sheet.innerHTML=`<h1>🎛 アイテムの配置</h1>
+    <p style="font-size:13px">右手は回転ボタンのまわり、左手は「落とす」ボタンの上に置けます。同じアイテムは1か所だけ（ほかのスロットに入れると入れ替わります）</p>
+    <div class="slot-grid">${SLOT_DEF.map(([id,label])=>`<label class="slot-row"><span>${label}</span><select data-slot="${id}">${opt(slots[id])}</select></label>`).join("")}</div>
+    <div class="row"><button id="slotReset">はじめの配置に戻す</button><button class="big" id="slotBack">もどる</button></div>`;
+  for(const sel of sheet.querySelectorAll("select[data-slot]")) sel.onchange=()=>{
+    const id=sel.dataset.slot, k=sel.value;
+    if(k) for(const [sid] of SLOT_DEF) if(sid!==id && slots[sid]===k) slots[sid]=slots[id]||"";   // 入れ替え
+    slots[id]=k; store.set("slots",slots); layoutItems(); showSlots(back);
+  };
+  document.getElementById("slotReset").onclick=()=>{ slots={R0:"stop",R1:"mag",R2:"shuf",R3:"boost",R4:"jump",L0:"",L1:"",L2:""}; store.set("slots",slots); layoutItems(); showSlots(back); };
+  document.getElementById("slotBack").onclick=()=>{ sheet.classList.remove("wide"); showMenu(back); };
 }
 setTimeout(layoutItems,0);
 
@@ -2172,20 +2216,22 @@ function showMenu(kind){
       ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
       ${settingsRow()}
       <button class="big" id="startBtn">スタート</button>
-      <div class="row"><button id="zkBtn">📖 ぷに図鑑</button><button id="shopBtn">🛒 ショップ（🪙${coins}）</button></div>
+      <div class="row"><button id="zkBtn">📖 ぷに図鑑</button><button id="shopBtn">🛒 ショップ（🪙${coins}）</button><button id="slotBtn">🎛 アイテム配置</button></div>
       <p style="margin-top:14px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`;
     bindSettings();
     document.getElementById("startBtn").onclick=start;
     document.getElementById("zkBtn").onclick=()=>showZukan("title");
     document.getElementById("shopBtn").onclick=()=>showShop("title");
+    document.getElementById("slotBtn").onclick=()=>showSlots("title");
   }else if(kind==="pause"){
     sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
       <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
-      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button><button id="bossBtn">👑 ボス戦（開発）</button></div>`;
+      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button><button id="bossBtn">👑 ボス戦（開発）</button><button id="slotBtn">🎛 アイテム配置</button></div>`;
     bindSettings();
     document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");
+    document.getElementById("slotBtn").onclick=()=>showSlots("pause");
     document.getElementById("bossBtn").onclick=()=>{ paused=false; hideOverlay(); if(!boss) startBoss(performance.now(), Math.max(1,Math.floor(level/BOSS_EVERY))); };
   }else if(kind==="over"){
     const rows=REC_DEFS.filter(([k])=>rec[k]>0).map(([k,label,unit])=>
@@ -2195,12 +2241,18 @@ function showMenu(kind){
       <p style="margin:2px 0">ベスト: ${best}　／　<b style="color:#ffcf5a">🪙 +${lastCoins}</b>（${coins}）</p>
       <div class="rec-list">${rows}</div>
       <div class="row"><button class="big" id="againBtn">もう一度</button><button class="big xbtn" id="shareBtn">📤 シェア（画像つき）</button></div>
+      <div class="row"><button id="cardStyleBtn">カード: ${{A:"シンプル",B:"ポップ",C:"盤面ドーン",D:"トレカ"}[cardStyle]}</button>${cardStyle==="C"?`<button id="cardBgBtn">背景: ${(CARD_BGS[cardBg]||CARD_BGS.stage).name}</button>`:""}<button id="cardPrevBtn">👀 カードを見る</button></div>
+      <div id="cardPrev"></div>
       <div class="row"><button id="shopBtn">🛒 ショップ（🪙${coins}）</button></div>
       <p id="xMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>
       ${settingsRow()}`;
     bindSettings();
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
     document.getElementById("shareBtn").onclick=()=>shareX(true);
+    const prev=()=>{ const el=document.getElementById("cardPrev"); el.innerHTML=""; const c=makeShareCard(); c.style.width="100%"; c.style.borderRadius="10px"; c.style.marginTop="8px"; el.appendChild(c); };
+    document.getElementById("cardStyleBtn").onclick=()=>{ const o=["A","B","C","D"]; cardStyle=o[(o.indexOf(cardStyle)+1)%4]; store.set("cardStyle",cardStyle); showMenu("over"); prev(); };
+    const cb=document.getElementById("cardBgBtn"); if(cb) cb.onclick=()=>{ const o=Object.keys(CARD_BGS); cardBg=o[(o.indexOf(cardBg)+1)%o.length]; store.set("cardBg",cardBg); showMenu("over"); prev(); };
+    document.getElementById("cardPrevBtn").onclick=prev;
     document.getElementById("shopBtn").onclick=()=>showShop("over");
   }
 }
@@ -2267,7 +2319,15 @@ function takeChainSnap(now){
   try{ chainSnap=document.createElement("canvas"); chainSnap.width=cv.width; chainSnap.height=cv.height; chainSnap.getContext("2d").drawImage(cv,0,0); }catch(e){ chainSnap=null; }
 }
 // シェア用の結果カード（1200×675）。デザインは4種類（A:シンプル B:ポップ C:盤面ドーン D:トレカ）
-let cardStyle = store.get("cardStyle","B");
+let cardStyle = store.get("cardStyle","C");
+let cardBg = store.get("cardBg","stage");      // C の背景: night(黒) / pop(ピンク) / sky(空) / sunset(夕焼け) / stage(ステージの色)
+const CARD_BGS = {
+  night:  {name:"夜",       g:["#0b0f16","#0b0f16"], band:["#ffcf5a","#ffa046"], ink:"#2a1606"},
+  pop:    {name:"ポップ",   g:["#ff8fc0","#ffd27a"], band:["#ffffff","#ffe8f2"], ink:"#7a2a4a"},
+  sky:    {name:"空",       g:["#5ab8ff","#b8f0ff"], band:["#ffffff","#e6f6ff"], ink:"#14507a"},
+  sunset: {name:"夕焼け",   g:["#ff7a59","#5a2a8a"], band:["#ffd36a","#ffb04a"], ink:"#4a1a0a"},
+  stage:  {name:"ステージ", g:null,                  band:["#ffcf5a","#ffa046"], ink:"#2a1606"},
+};
 const CARD_F='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
 function cardRecs(n){ return REC_DEFS.filter(([k])=>rec[k]>0 && k!=="stage").slice(0,n); }
 function cardTitle(){                                          // スコアに応じた称号
@@ -2308,15 +2368,17 @@ function makeShareCard(style=cardStyle){
       txt(l,x+24,y+41,`800 25px ${F}`,"#8a4a62"); txt(`${rec[k]}${u}`,x+bw-22,y+41,`900 28px ${F}`,isNew(k)?"#ff3d7f":"#4a2a3a","right"); });
     txt("#グラビティポップ",600,650,`800 22px ${F}`,"rgba(122,42,74,.8)","center");
   }else if(style==="C"){                                       // C: 盤面ドーン（最後の盤面を大きく、下に帯）
-    g.fillStyle="#0b0f16"; g.fillRect(0,0,1200,675);
-    if(boardSnap){ g.save(); g.filter="blur(18px) brightness(.55)"; g.drawImage(boardSnap,-100,-262,1400,1400); g.restore(); }
-    g.fillStyle="rgba(0,0,0,.35)"; g.fillRect(0,0,1200,675);
+    const B=CARD_BGS[cardBg]||CARD_BGS.stage, th=theme();
+    const gc = B.g || [th.floor ? `rgb(${th.floor})` : "#ffcf5a", th.bg[1]];
+    const bg=g.createLinearGradient(0,0,1200,675); bg.addColorStop(0,gc[0]); bg.addColorStop(1,gc[1]); g.fillStyle=bg; g.fillRect(0,0,1200,675);
+    if(cardBg!=="night"){ g.globalAlpha=0.16; g.fillStyle="#fff"; for(let i=0;i<12;i++){ g.beginPath(); g.arc((i*197)%1200,(i*113)%560,35+(i%4)*22,0,Math.PI*2); g.fill(); } g.globalAlpha=1; }
+    g.fillStyle="rgba(0,0,0,.25)"; g.beginPath(); g.roundRect(338,33,540,540,24); g.fill();     // 盤面の影
     snap(330,25,540,540,24); g.strokeStyle="rgba(255,255,255,.5)"; g.lineWidth=4; g.beginPath(); g.roundRect(330,25,540,540,24); g.stroke();
-    const band=g.createLinearGradient(0,560,0,675); band.addColorStop(0,"rgba(255,207,90,.95)"); band.addColorStop(1,"rgba(255,160,70,.95)");
+    const band=g.createLinearGradient(0,560,0,675); band.addColorStop(0,B.band[0]); band.addColorStop(1,B.band[1]);
     g.fillStyle=band; g.fillRect(0,575,1200,100);
-    txt(`${score}点`,40,645,`900 60px ${F}`,"#2a1606");
-    txt(`最大${rec.maxChain}連鎖 ・ ステージ${rec.stage}${rec.boss?` ・ ボス${rec.boss}体撃破`:""}`,1160,620,`800 26px ${F}`,"#4a2a0a","right");
-    txt("グラビティ・ポップ  #グラビティポップ",1160,655,`700 20px ${F}`,"rgba(74,42,10,.75)","right");
+    txt(`${score}点`,40,645,`900 60px ${F}`,B.ink);
+    txt(`最大${rec.maxChain}連鎖 ・ ステージ${rec.stage}${rec.boss?` ・ ボス${rec.boss}体撃破`:""}`,1160,620,`800 26px ${F}`,B.ink,"right");
+    txt("グラビティ・ポップ  #グラビティポップ",1160,655,`700 20px ${F}`,B.ink+"bb","right");
     if(isNew("score")) txt("ベスト更新！",345,75,`900 32px ${F}`,"#ff5a8a","left",8);
     [[95,120,60,0],[175,230,42,3],[1105,140,58,2],[1030,250,40,1]].forEach(([x,y,r,ci])=>puni(x,y,r,ci));
   }else{                                                       // D: トレカ（金の枠、称号、ステータス）
