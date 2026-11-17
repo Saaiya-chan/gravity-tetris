@@ -61,7 +61,16 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }   // 画面端のスワイプで誤って閉じにくくする
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
+    // 傾けて遊ぶので、大きく傾けたときに iOS が画面をくるっと逆さまにしないよう、
+    // 起動したときの横向きに固定する（反対向きで遊びたいときは、アプリを開き直す）
+    private var lockedMask: UIInterfaceOrientationMask = .landscape
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { lockedMask }
+
+    private func lockOrientation() {
+        guard lockedMask == .landscape, let o = view.window?.windowScene?.interfaceOrientation else { return }
+        lockedMask = (o == .landscapeLeft) ? .landscapeLeft : .landscapeRight
+        if #available(iOS 16.0, *) { setNeedsUpdateOfSupportedInterfaceOrientations() }
+    }
 
     // MARK: - 画面の向きをページに教える
     // 縦持ちのまま起動すると、画面は横なのに window.orientation が 0（縦）のままになり、
@@ -70,6 +79,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         pushOrientation()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.lockOrientation(); self?.pushOrientation() }
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {

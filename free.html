@@ -227,7 +227,8 @@
 <script>
 "use strict";
 // ===== 設定 =====
-const N = 13;                 // 盤面サイズ（奇数で中心が1マスに決まる）
+let N = 13;                   // 盤面サイズ（広い盤面のステージでは大きくなり、ぷにが相対的に小さく見える）
+const N0 = 13;                // ふつうの盤面サイズ（文字の大きさの基準）
 const SLIDE_MS = 42;          // 粒が1マス流れる間隔
 const LOCK_DELAY = 150;       // 接地してから固定されるまで
 const POP_MS = 420;           // 消える演出の長さ
@@ -352,7 +353,22 @@ const THEMES = [
 ];
 function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
 // ===== 盤面の形（ステージごとに 四角 → 丸 → 六角形 → 八角形 …） =====
-const ARENAS=[{k:"square",name:"四角"},{k:"circle",name:"丸"},{k:"hex",name:"六角形"},{k:"oct",name:"八角形"}];
+const ARENAS=[{k:"square",name:"四角"},{k:"circle",name:"丸"},{k:"hex",name:"六角形"},{k:"oct",name:"八角形"},{k:"square",name:"広い四角（ぷにが小さく）",n:19}];
+// 盤面の大きさをステージに合わせる。広くなるときは粒を真ん中へ寄せたまま広げ、狭くなるときにはみ出した粒はボーナスで消える
+function applyArenaSize(){
+  const want=arena().n||N0; if(want===N) return;
+  const dx=(want-N)/2; N=want;
+  for(const o of balls){ o.x+=dx; o.y+=dx; }
+  if(dx<0){
+    const out=balls.filter(o=>!o.live && (o.x<R||o.y<R||o.x>N-R||o.y>N-R));
+    if(out.length){ for(const o of out) burst(o.x-0.5,o.y-0.5,o.c===GARBAGE?5:o.c);
+      balls=balls.filter(o=>!out.includes(o)); dropBonds(o=>!out.includes(o)); score+=out.length*20;
+      praise("はみ出しボーナス！", `${out.length}個  +${out.length*20}点`, "#9dffb0"); }
+    for(const o of balls){ o.x=Math.min(N-R,Math.max(R,o.x)); o.y=Math.min(N-R,Math.max(R,o.y)); }
+  }
+  if(piece) for(const o of piece.balls){ o.x=Math.min(N-R,Math.max(R,o.x)); o.y=Math.min(N-R,Math.max(R,o.y)); }
+  shake=Math.max(shake,8);
+}
 function arena(){ return ARENAS[((level||1)-1)%ARENAS.length]; }
 // 多角形: 底が平らになる向き。各辺の外向きの法線と、中心から辺までの距離
 function arenaEdges(k){
@@ -430,7 +446,8 @@ function startBoss(now, n=Math.max(1,Math.floor(level/BOSS_EVERY))){
 // 出口: 真ん中と、重力に直角な向きに左右4マス
 function spawnBases(){
   const c=N/2, u=gDir()||[0,1], p=[u[1],-u[0]];
-  return boss ? [[c,c],[c+p[0]*4,c+p[1]*4],[c-p[0]*4,c-p[1]*4]] : [[c,c]];
+  const k=4*N/N0;
+  return boss ? [[c,c],[c+p[0]*k,c+p[1]*k],[c-p[0]*k,c-p[1]*k]] : [[c,c]];
 }
 function bossStep(now){
   if(!boss) return;
@@ -520,7 +537,7 @@ function hitBoss(n, now, from=[]){
     bossShots.push({x:o.x, y:o.y, c:o.c===GARBAGE?5:o.c, t0:now+i*35, dur:520+Math.random()*120, dmg:per, side:(Math.random()-0.5)*4}); }
   if(boss.hp<=0) boss.dying=true;                              // 体当たりが全部当たってから倒れる
 }
-function bossTarget(){ const W=N, bw=W*0.62, bx=(W-bw)/2, by=0.45+0.15; return [bx + bw*Math.max(0,(boss&&boss.disp!=null?boss.disp:0)/(boss?boss.maxHp:1)), by]; }
+function bossTarget(){ const W=N, bw=W*0.62, bx=(W-bw)/2, by=0.6*N/N0; return [bx + bw*Math.max(0,(boss&&boss.disp!=null?boss.disp:0)/(boss?boss.maxHp:1)), by]; }
 function stepBossShots(now){
   if(!bossShots.length) return;
   const keep=[];
@@ -652,7 +669,7 @@ function tickTimers(dt){
 function dropBonds(keep){ bonds=bonds.filter(bd=>keep(bd[0])&&keep(bd[1])); bondKeys=new Set(bonds.map(bd=>bd[2])); }
 function reset(){
   balls=[]; bonds=[]; bondKeys=new Set(); grav = grav ?? 0;
-  score=0; maxChain=0; popped=0; level=1; colorsN=4; themeEvT=0; sandFx=null;
+  score=0; maxChain=0; popped=0; level=1; colorsN=4; themeEvT=0; sandFx=null; N=N0;
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
@@ -1030,6 +1047,7 @@ function findPops(now){
   hitBoss(total, now, pops);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
+    applyArenaSize();
     const th=theme(); themeEvT=0;
     stageFx={n:level, t:now, theme:`${th.name}ステージ（${arena().name}） — ${th.sub}`, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
     if(level%BOSS_EVERY===0 && !boss) setTimeout(()=>{ if(running&&!over) startBoss(performance.now()); }, 1900);
@@ -1508,7 +1526,7 @@ function stickerBack(g,group,s,r){
 }
 function draw(now){
   fitCanvas(cv);
-  const W=cv.width, s=W/N, r=s*R*0.97;
+  const W=cv.width, s=W/N, u=W/N0, r=s*R*0.97;      // s: 盤面の1マス、u: 文字や表示の大きさの基準（広い盤面でも文字は小さくならない）
   ctx.save();
   ctx.clearRect(0,0,W,W);
   if(shake>0) ctx.translate((Math.random()-0.5)*shake*s*0.06,(Math.random()-0.5)*shake*s*0.06);
@@ -1628,11 +1646,11 @@ function draw(now){
   ctx.globalAlpha=1;
   // 連鎖表示
   if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間（残りを盤面の上のバーで見せる）
-    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,s*0.14), bx=(W-bw)/2, by=boss ? s*1.55 : s*0.35;   // ボス戦中はHPバーの下に
+    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,u*0.14), bx=(W-bw)/2, by=boss ? u*1.55 : u*0.35;   // ボス戦中はHPバーの下に
     ctx.save();
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
-    ctx.font=`800 ${s*0.42}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.font=`800 ${u*0.42}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
     ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(`${chain}連鎖中 — 次を消すと${chain+1}連鎖`, W/2, by+bh+4);
     ctx.restore();
   }
@@ -1643,14 +1661,14 @@ function draw(now){
       const sc = t<0.15 ? 0.6+t/0.15*0.6 : 1.2-Math.min(0.2,(t-0.15)*0.6);
       const big=1+Math.min(0.6,(chainFx.n-2)*0.12);              // 連鎖が多いほど大きく
       ctx.save(); ctx.translate(W/2,W*0.32); ctx.scale(sc*big,sc*big); ctx.globalAlpha = t>0.7 ? 1-(t-0.7)/0.3 : 1;
-      ctx.font=`900 ${s*1.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=s*0.22; ctx.strokeStyle="rgba(0,0,0,.55)"; ctx.strokeText(`${chainFx.n}連鎖!`,0,0);
-      const tg=ctx.createLinearGradient(0,-s*0.8,0,s*0.8); tg.addColorStop(0,"#fff6c8"); tg.addColorStop(1,"#ffb02e");
+      ctx.font=`900 ${u*1.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=u*0.22; ctx.strokeStyle="rgba(0,0,0,.55)"; ctx.strokeText(`${chainFx.n}連鎖!`,0,0);
+      const tg=ctx.createLinearGradient(0,-u*0.8,0,u*0.8); tg.addColorStop(0,"#fff6c8"); tg.addColorStop(1,"#ffb02e");
       ctx.fillStyle=tg; ctx.fillText(`${chainFx.n}連鎖!`,0,0);
       if(chainFx.nice){                                         // 傾けてつないだ連鎖
-        ctx.font=`900 ${s*0.62}px -apple-system,"Hiragino Sans",sans-serif`;
-        ctx.lineWidth=s*0.14; ctx.strokeText("ナイス傾き！ ×1.5",0,s*1.15);
-        ctx.fillStyle="#8fe3ff"; ctx.fillText("ナイス傾き！ ×1.5",0,s*1.15);
+        ctx.font=`900 ${u*0.62}px -apple-system,"Hiragino Sans",sans-serif`;
+        ctx.lineWidth=u*0.14; ctx.strokeText("ナイス傾き！ ×1.5",0,u*1.15);
+        ctx.fillStyle="#8fe3ff"; ctx.fillText("ナイス傾き！ ×1.5",0,u*1.15);
       }
       ctx.restore();
     }
@@ -1660,14 +1678,14 @@ function draw(now){
     bases.forEach(([bx,by],i)=>{
       const red = i>0 && wk>0;
       ctx.save(); ctx.globalAlpha = red ? 0.5+0.5*Math.sin(now/60) : 0.35;
-      ctx.strokeStyle = red ? "#ff5a5a" : "#ffcf5a"; ctx.lineWidth=Math.max(2,s*0.08); ctx.setLineDash([s*0.2,s*0.15]);
+      ctx.strokeStyle = red ? "#ff5a5a" : "#ffcf5a"; ctx.lineWidth=Math.max(2,u*0.08); ctx.setLineDash([u*0.2,u*0.15]);
       ctx.beginPath(); ctx.arc(bx*s,by*s,s*(red?0.9+0.3*wk:0.75),0,Math.PI*2); ctx.stroke(); ctx.restore();
     });
-    const bw=W*0.62, bh=Math.max(8,s*0.3), bx=(W-bw)/2, by=s*0.45, k=(boss.disp??boss.hp)/boss.maxHp;
+    const bw=W*0.62, bh=Math.max(8,u*0.3), bx=(W-bw)/2, by=u*0.45, k=(boss.disp??boss.hp)/boss.maxHp;
     const hit = boss.hitT && now-boss.hitT<300;
     ctx.fillStyle="rgba(0,0,0,.55)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = hit ? "#ffffff" : (k>0.3 ? "#ff5a7a" : "#ff2a4a"); ctx.beginPath(); ctx.roundRect(bx,by,Math.max(0,bw*k),bh,bh/2); ctx.fill();
-    ctx.font=`800 ${s*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.font=`800 ${u*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
     ctx.fillStyle="#fff"; ctx.fillText(`${boss.name}  ${Math.ceil(boss.disp??boss.hp)}/${boss.maxHp}`, bx+4, by+bh+4);
     if(hit){ ctx.textAlign="right"; ctx.fillStyle="#ffcf5a"; ctx.fillText(`-${boss.lastDmg}`, bx+bw, by+bh+4); }
   }
@@ -1677,25 +1695,25 @@ function draw(now){
     else{
       ctx.save(); ctx.translate(W/2,W*0.45); const sc=t<0.15?0.4+t/0.15*0.8:1.2-Math.min(0.2,(t-0.15)*0.4); ctx.scale(sc,sc);
       ctx.globalAlpha = t>0.75 ? 1-(t-0.75)/0.25 : 1;
-      ctx.font=`900 ${s*1.1}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=s*0.2; ctx.strokeStyle="rgba(0,0,0,.65)"; ctx.strokeText(bossFx.text,0,0);
+      ctx.font=`900 ${u*1.1}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=u*0.2; ctx.strokeStyle="rgba(0,0,0,.65)"; ctx.strokeText(bossFx.text,0,0);
       ctx.fillStyle="#ff6a8a"; ctx.fillText(bossFx.text,0,0);
-      ctx.font=`800 ${s*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=s*0.12;
-      ctx.strokeText("出口が3つに！ 同時に落ちてくるぞ",0,s*1.0); ctx.fillStyle="#fff"; ctx.fillText("出口が3つに！ 同時に落ちてくるぞ",0,s*1.0);
+      ctx.font=`800 ${u*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.12;
+      ctx.strokeText("出口が3つに！ 同時に落ちてくるぞ",0,u*1.0); ctx.fillStyle="#fff"; ctx.fillText("出口が3つに！ 同時に落ちてくるぞ",0,u*1.0);
       ctx.restore();
     }
   } else if(bossFx && bossFx.win && now-bossFx.t>1500) bossFx=null;
   if(boostLeft>0){                                             // ブースター中: 下に残り秒数（オレンジ）
-    ctx.font=`800 ${s*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
-    ctx.fillStyle="rgba(255,190,110,.95)"; ctx.fillText(`🚀 ブースター ${(boostLeft/1000).toFixed(0)}秒（連鎖の受付2倍）`, W/2, W-s*(magLeft>0?0.95:0.3));
+    ctx.font=`800 ${u*0.45}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
+    ctx.fillStyle="rgba(255,190,110,.95)"; ctx.fillText(`🚀 ブースター ${(boostLeft/1000).toFixed(0)}秒（連鎖の受付2倍）`, W/2, W-u*(magLeft>0?0.95:0.3));
   }
   if(magLeft>0 && magPairs.length){                            // マグネット中: 引き合っている粒どうしを光る糸で結ぶ
     ctx.save(); ctx.lineCap="round";
     const ph=now/90;
     for(const [a,b,d] of magPairs){
       const al=(1-d/MAG_RANGE)*0.85;
-      ctx.strokeStyle=PALETTE[a.c].hi; ctx.globalAlpha=al; ctx.lineWidth=Math.max(1.5,s*0.07);
-      ctx.setLineDash([s*0.18,s*0.16]); ctx.lineDashOffset=-ph*s*0.05;
+      ctx.strokeStyle=PALETTE[a.c].hi; ctx.globalAlpha=al; ctx.lineWidth=Math.max(1.5,u*0.07);
+      ctx.setLineDash([u*0.18,u*0.16]); ctx.lineDashOffset=-ph*u*0.05;
       ctx.beginPath(); ctx.moveTo(a.x*s,a.y*s); ctx.lineTo(b.x*s,b.y*s); ctx.stroke();
     }
     ctx.restore();
@@ -1705,8 +1723,8 @@ function draw(now){
     const vg=ctx.createRadialGradient(W/2,W/2,W*0.36,W/2,W/2,W*0.72);
     vg.addColorStop(0,"rgba(255,90,120,0)"); vg.addColorStop(1,`rgba(255,90,120,${a})`);
     ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
-    ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
-    ctx.fillStyle="rgba(255,214,220,.95)"; ctx.fillText(`マグネット ${(magLeft/1000).toFixed(1)}秒`, W/2, W-s*0.3);
+    ctx.font=`800 ${u*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="bottom";
+    ctx.fillStyle="rgba(255,214,220,.95)"; ctx.fillText(`マグネット ${(magLeft/1000).toFixed(1)}秒`, W/2, W-u*0.3);
   }
   drawBossShots(now, s);
   if(overFx){
@@ -1715,8 +1733,8 @@ function draw(now){
       ctx.save(); ctx.fillStyle=`rgba(5,8,14,${Math.min(0.5,t*0.5)})`; ctx.fillRect(0,0,W,W);
       const sc = t<1 ? 2.2-1.2*Math.min(1,t)*(2-Math.min(1,t)) : 1;
       ctx.translate(W/2,W*0.42); ctx.scale(sc,sc); ctx.globalAlpha=Math.min(1,t*1.5);
-      ctx.font=`900 ${s*1.6}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=s*0.25; ctx.strokeStyle="rgba(0,0,0,.7)"; ctx.strokeText("GAME OVER",0,0);
+      ctx.font=`900 ${u*1.6}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=u*0.25; ctx.strokeStyle="rgba(0,0,0,.7)"; ctx.strokeText("GAME OVER",0,0);
       const tg=ctx.createLinearGradient(0,-s,0,s); tg.addColorStop(0,"#ffd6e0"); tg.addColorStop(1,"#ff5a7a");
       ctx.fillStyle=tg; ctx.fillText("GAME OVER",0,0);
       ctx.restore();
@@ -1730,10 +1748,10 @@ function draw(now){
       const sc = t<0.12 ? 0.5+t/0.12*0.6 : 1.1-Math.min(0.1,(t-0.12)*0.4);
       ctx.save(); ctx.translate(W/2,W*0.58); ctx.scale(sc,sc); ctx.globalAlpha = t>0.75 ? 1-(t-0.75)/0.25 : 1;
       ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.font=`900 ${s*1.05}px -apple-system,"Hiragino Sans",sans-serif`;
-      ctx.lineWidth=s*0.18; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(pq.title,0,0);
+      ctx.font=`900 ${u*1.05}px -apple-system,"Hiragino Sans",sans-serif`;
+      ctx.lineWidth=u*0.18; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(pq.title,0,0);
       ctx.fillStyle=pq.col; ctx.fillText(pq.title,0,0);
-      if(pq.sub){ ctx.font=`800 ${s*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=s*0.12; ctx.strokeText(pq.sub,0,s*0.9); ctx.fillStyle="#fff"; ctx.fillText(pq.sub,0,s*0.9); }
+      if(pq.sub){ ctx.font=`800 ${u*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.12; ctx.strokeText(pq.sub,0,u*0.9); ctx.fillStyle="#fff"; ctx.fillText(pq.sub,0,u*0.9); }
       ctx.restore();
     }
   }
@@ -1742,23 +1760,23 @@ function draw(now){
     if(t>=1) stageFx=null;
     else{
       ctx.save(); ctx.globalAlpha = t>0.75 ? 1-(t-0.75)/0.25 : Math.min(1,t*6);
-      ctx.translate(W/2,W*0.5); ctx.font=`900 ${s*1.1}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=s*0.18; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(`ステージ ${stageFx.n}`,0,0); ctx.fillStyle="#ffe7a0"; ctx.fillText(`ステージ ${stageFx.n}`,0,0);
-      let ty=s*1.0;
-      if(stageFx.theme){ ctx.font=`800 ${s*0.55}px -apple-system,"Hiragino Sans",sans-serif`; ctx.strokeText(stageFx.theme,0,ty); ctx.fillStyle="#ffffff"; ctx.fillText(stageFx.theme,0,ty); ty+=s*0.8; }
-      if(stageFx.text){ ctx.font=`800 ${s*0.6}px -apple-system,"Hiragino Sans",sans-serif`; ctx.strokeText(stageFx.text,0,ty); ctx.fillStyle="#bfffd9"; ctx.fillText(stageFx.text,0,ty); }
+      ctx.translate(W/2,W*0.5); ctx.font=`900 ${u*1.1}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=u*0.18; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(`ステージ ${stageFx.n}`,0,0); ctx.fillStyle="#ffe7a0"; ctx.fillText(`ステージ ${stageFx.n}`,0,0);
+      let ty=u*1.0;
+      if(stageFx.theme){ ctx.font=`800 ${u*0.55}px -apple-system,"Hiragino Sans",sans-serif`; ctx.strokeText(stageFx.theme,0,ty); ctx.fillStyle="#ffffff"; ctx.fillText(stageFx.theme,0,ty); ty+=u*0.8; }
+      if(stageFx.text){ ctx.font=`800 ${u*0.6}px -apple-system,"Hiragino Sans",sans-serif`; ctx.strokeText(stageFx.text,0,ty); ctx.fillStyle="#bfffd9"; ctx.fillText(stageFx.text,0,ty); }
       ctx.restore();
     }
   }
   // ストップ中: 青い縁取りと残り時間
   if(stopLeft>0){
     const k=stopLeft/STOP_MS;
-    ctx.strokeStyle="rgba(127,208,255,.75)"; ctx.lineWidth=s*0.14;
-    ctx.strokeRect(s*0.07,s*0.07,W-s*0.14,W-s*0.14);
-    const cx=W/2, cy=s*1.0, rr=s*0.55;
+    ctx.strokeStyle="rgba(127,208,255,.75)"; ctx.lineWidth=u*0.14;
+    ctx.strokeRect(u*0.07,u*0.07,W-u*0.14,W-u*0.14);
+    const cx=W/2, cy=u*1.0, rr=u*0.55;
     ctx.fillStyle="rgba(10,30,50,.75)"; ctx.beginPath(); ctx.arc(cx,cy,rr*1.15,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#7fd0ff"; ctx.lineWidth=s*0.1; ctx.beginPath(); ctx.arc(cx,cy,rr,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
-    ctx.fillStyle="#dff3ff"; ctx.font=`800 ${s*0.5}px -apple-system,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.strokeStyle="#7fd0ff"; ctx.lineWidth=u*0.1; ctx.beginPath(); ctx.arc(cx,cy,rr,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    ctx.fillStyle="#dff3ff"; ctx.font=`800 ${u*0.5}px -apple-system,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillText(Math.ceil(stopLeft/1000),cx,cy+1);
   }
   if(itemFx){
@@ -1766,16 +1784,16 @@ function draw(now){
     if(t>=1) itemFx=null;
     else{
       ctx.save(); ctx.globalAlpha = t>0.7 ? 1-(t-0.7)/0.3 : 1;
-      ctx.translate(W/2, W*0.72 - t*s*0.8);
-      ctx.font=`900 ${s*0.75}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=s*0.16; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(itemFx.text,0,0);
+      ctx.translate(W/2, W*0.72 - t*u*0.8);
+      ctx.font=`900 ${u*0.75}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=u*0.16; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.strokeText(itemFx.text,0,0);
       ctx.fillStyle="#bfe9ff"; ctx.fillText(itemFx.text,0,0);
       ctx.restore();
     }
   }
   if(paused && running && !over){
     ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(0,0,W,W);
-    ctx.fillStyle="#fff"; ctx.font=`700 ${s*1.2}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle="#fff"; ctx.font=`700 ${u*1.2}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillText("PAUSE",W/2,W/2);
   }
   ctx.restore();
