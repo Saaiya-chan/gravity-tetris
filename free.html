@@ -68,6 +68,16 @@
   .item#itemMag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
   .item.active{box-shadow:0 0 0 3px #ffcf5a, 0 3px 0 #0a121c}
   .item svg{width:26px;height:26px}
+  /* 空いているスロットは「＋」の丸で表示（押すとアイテムを選べる） */
+  .slotEmpty{position:absolute;border-radius:50%;background:rgba(10,14,22,.45);border:2px solid rgba(255,255,255,.28);
+    color:rgba(255,255,255,.75);display:grid;place-items:center;padding:0;box-shadow:inset 0 0 12px rgba(0,0,0,.35);touch-action:manipulation}
+  .slotEmpty svg{width:42%;height:42%}
+  .slotEmpty:active{transform:scale(.94)}
+  #slotPick{position:fixed;z-index:40;background:rgba(16,20,30,.96);border:1px solid #3a4458;border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #slotPick button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;font-size:14px;font-weight:800;color:#fff;background:#232a3a;border:1px solid #3a4458;min-width:150px}
+  #slotPick button svg{width:22px;height:22px}
+  #slotPick .pk-n{margin-left:auto;color:#ffcf5a}
+  #slotPick .pk-t{font-size:12px;color:var(--dim);padding:2px 4px}
   .slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:12px auto;max-width:520px;text-align:left}
   .slot-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--text)}
   .slot-row select{font-size:15px;padding:6px 8px;border-radius:10px;background:#1a1f2b;color:var(--text);border:1px solid #3a4458}
@@ -1871,6 +1881,11 @@ function layoutItems(){
   const box=document.getElementById("ctrlR"), rot=document.getElementById("rotBtn"), left=document.getElementById("ctrlL"), drop=document.getElementById("dropBtn");
   const els=ITEM_IDS.map(id=>document.getElementById(id));
   for(const e of els){ e.style.display=""; if(e.parentElement!==box) box.appendChild(e); }
+  document.querySelectorAll(".slotEmpty").forEach(e=>e.remove());
+  const plus=(parent,slotId,x,y,size)=>{ const b=document.createElement("button"); b.className="slotEmpty"; b.setAttribute("aria-label","アイテムを置く");
+    b.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+    b.style.width=b.style.height=size+"px"; b.style.left=(x-size/2)+"px"; b.style.top=(y-size/2)+"px";
+    b.onclick=ev=>{ ev.stopPropagation(); openSlotPick(slotId,b); }; parent.appendChild(b); };
   left.style.paddingTop="";
   if(layoutKey==="tiles"){ for(const e of els){ e.style.left=e.style.top=e.style.width=e.style.height=""; } box.style.width=box.style.height=""; rot.style.right=rot.style.bottom=""; return; }
   const side=parseFloat(getComputedStyle(document.body).gridTemplateColumns.split(" ")[0])||200;
@@ -1893,10 +1908,9 @@ function layoutItems(){
   const cx=Wd-pad-rb/2, cy=Hd-pad-rb/2; rot.style.right=pad+"px"; rot.style.bottom=pad+"px";
   const place=(e,x,y)=>{ e.style.width=e.style.height=ib+"px"; e.style.left=(x-ib/2)+"px"; e.style.top=(y-ib/2)+"px"; e.style.right=e.style.bottom="auto"; };
   const used=new Set();
-  for(let i=0;i<5;i++){ const k=slots["R"+i]; if(!k||used.has(k)) continue; used.add(k); place(document.getElementById(ITEM_EL[k]), cx+pts[i][0], cy+pts[i][1]); }
+  for(let i=0;i<5;i++){ const k=slots["R"+i]; if(!k||used.has(k)){ plus(box,"R"+i,cx+pts[i][0],cy+pts[i][1],ib*0.82); continue; } used.add(k); place(document.getElementById(ITEM_EL[k]), cx+pts[i][0], cy+pts[i][1]); }
   // 左手: 「落とす」ボタンの上に扇形
-  const lk=[0,1,2].map(i=>slots["L"+i]).filter(k=>k&&!used.has(k));
-  if(lk.length){
+  {
     // 左・真ん中（少し高く）・右の3か所。移動ボタンの列の上に、重ならないように並べる
     left.style.position="relative";
     const lw0=left.clientWidth; ib=Math.min(ib, (lw0-16)/3);
@@ -1904,11 +1918,28 @@ function layoutItems(){
     const lb=left.getBoundingClientRect();
     const padTop=Math.min(...["mvA","dropBtn","mvB"].map(id=>document.getElementById(id).getBoundingClientRect().top))-lb.top;
     const lw=left.clientWidth, yb=padTop-ib/2-6, xs=[ib/2+4, lw/2, lw-ib/2-4], ys=[yb, yb-ib*0.45, yb];
-    [0,1,2].forEach(i=>{ const k=slots["L"+i]; if(!k||used.has(k)) return; used.add(k);
+    [0,1,2].forEach(i=>{ const k=slots["L"+i]; if(!k||used.has(k)){ plus(left,"L"+i,xs[i],ys[i],ib*0.82); return; } used.add(k);
       const e=document.getElementById(ITEM_EL[k]); left.appendChild(e); place(e, xs[i], ys[i]); });
   }
   for(const [k,id] of Object.entries(ITEM_EL)) if(!used.has(k)) document.getElementById(id).style.display="none";
 }
+// 空きスロットの「＋」を押したとき: まだ置いていないアイテムから選ぶ
+function openSlotPick(slotId, anchor){
+  closeSlotPick();
+  const placed=new Set(Object.values(slots).filter(Boolean));
+  const free=Object.keys(ITEM_EL).filter(k=>!placed.has(k));
+  const pk=document.createElement("div"); pk.id="slotPick";
+  pk.innerHTML=`<div class="pk-t">ここに置くアイテム</div>`+(free.length? free.map(k=>`<button data-k="${k}">${document.querySelector("#"+ITEM_EL[k]+" svg").outerHTML}${ITEM_NAME[k]}<span class="pk-n">×${items[k]??0}</span></button>`).join("")
+    : `<div class="pk-t">全部のアイテムを置いています。<br>ポーズ →「🎛 アイテム配置」で入れ替えられます</div>`);
+  document.body.appendChild(pk);
+  const r=anchor.getBoundingClientRect(), w=pk.offsetWidth, h=pk.offsetHeight;
+  pk.style.left=Math.max(6, Math.min(innerWidth-w-6, r.left+r.width/2-w/2))+"px";
+  pk.style.top=Math.max(6, Math.min(innerHeight-h-6, r.top-h-8))+"px";
+  for(const b of pk.querySelectorAll("button[data-k]")) b.onclick=ev=>{ ev.stopPropagation(); slots[slotId]=b.dataset.k; store.set("slots",slots); closeSlotPick(); layoutItems(); updateHud(); };
+  setTimeout(()=>document.addEventListener("pointerdown", slotPickOutside, true), 0);
+}
+function slotPickOutside(ev){ const pk=document.getElementById("slotPick"); if(pk && !pk.contains(ev.target)) closeSlotPick(); }
+function closeSlotPick(){ const pk=document.getElementById("slotPick"); if(pk) pk.remove(); document.removeEventListener("pointerdown", slotPickOutside, true); }
 // アイテムの配置をカスタマイズする画面
 function showSlots(back){
   sheet.classList.add("wide");
