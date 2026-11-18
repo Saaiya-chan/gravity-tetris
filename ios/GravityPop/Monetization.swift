@@ -1,0 +1,238 @@
+import UIKit
+import WebKit
+import StoreKit
+import AppTrackingTransparency
+import GoogleMobileAds
+import UserMessagingPlatform
+
+/// 広告と「広告を消す」買い切りの設定。
+enum AdConfig {
+    /// バナー広告のユニット ID。
+    /// 開発中（Debug）は Google のテスト用 ID を使う（本物の広告を自分でタップするとアカウント停止になるため）。
+    /// ★ 公開前に、AdMob で作った自分のバナー広告ユニット ID を下の Release 側に入れる。
+    /// ★ Info.plist の GADApplicationIdentifier も、自分の AdMob アプリ ID に置き換える。
+    #if DEBUG
+    static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"
+    #else
+    static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"   // ← 本番のバナー広告ユニット ID に置き換える
+    #endif
+
+    /// App Store Connect で作る「非消耗型」App 内課金の製品 ID
+    static let removeAdsProductID = "com.saaiya.gravitypop.removeads"
+}
+
+/// バナー広告の表示と、広告を消す買い切り（StoreKit 2）を受け持つ。
+///
+/// ページとのやりとり:
+/// - ページ → アプリ: `window.webkit.messageHandlers.iap.postMessage({action: "buy" | "restore" | "privacy" | "state"})`
+/// - アプリ → ページ: `window.__iapState({adFree, price, privacyOptions, busy, message})`、`window.__setAd(高さpx)`
+final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
+    weak var controller: UIViewController?
+    weak var webView: WKWebView?
+
+    private var banner: BannerView?
+    private var bannerHeight: CGFloat = 0
+    private var adFree = UserDefaults.standard.bool(forKey: "adFree")
+    private var product: Product?
+    private var updatesTask: Task<Void, Never>?
+    private var adsStarted = false
+    private var busy = false
+
+    deinit { updatesTask?.cancel() }
+
+    // MARK: - はじめる
+
+    func start() {
+        // 別の端末で買ったとき・返金されたときなどの知らせを受け取る
+        updatesTask = Task { [weak self] in
+            for await result in Transaction.updates { await self?.handle(result) }
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.refreshEntitlements()
+            await self.loadProduct()
+            await MainActor.run {
+                self.pushState()
+                if !self.adFree { self.gatherConsentAndStartAds() }
+            }
+        }
+    }
+
+    // MARK: - 同意（ヨーロッパなどの同意画面 → iOS の「トラッキングの許可」）→ 広告を始める
+
+    private func gatherConsentAndStartAds() {
+        guard let vc = controller else { return }
+        let params = UMPRequestParameters()
+        UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(with: params) { [weak self] _ in
+            UMPConsentForm.loadAndPresentIfRequired(from: vc) { [weak self] _ in
+                guard let self else { return }
+                self.pushState()                                     // 「プライバシー設定」ボタンを出すかどうか
+                self.requestTrackingThenStart()
+            }
+        }
+    }
+
+    private func requestTrackingThenStart() {
+        let go = { [weak self] in
+            guard let self, UMPConsentInformation.sharedInstance.canRequestAds else { return }
+            self.startAds()
+        }
+        if #available(iOS 14.5, *), ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
+            // 同意画面を閉じた直後だと表示されないことがあるので、少し待ってから聞く
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                ATTrackingManager.requestTrackingAuthorization { _ in DispatchQueue.main.async { go() } }
+            }
+        } else {
+            go()
+        }
+    }
+
+    private func startAds() {
+        guard !adsStarted, !adFree else { return }
+        adsStarted = true
+        MobileAds.shared.start(completionHandler: nil)
+        showBanner()
+    }
+
+    // MARK: - バナー（盤面の下・真ん中）
+
+    private func showBanner() {
+        guard banner == nil, !adFree, let wv = webView, let vc = controller else { return }
+        let size = currentOrientationAnchoredAdaptiveBanner(width: bannerWidth(in: wv.bounds.size))
+        let b = BannerView(adSize: size)
+        b.adUnitID = AdConfig.bannerUnitID
+        b.rootViewController = vc
+        b.delegate = self
+        b.translatesAutoresizingMaskIntoConstraints = false
+        b.isHidden = true                                      // 広告が届くまでは場所を空けない
+        wv.addSubview(b)
+        NSLayoutConstraint.activate([
+            b.centerXAnchor.constraint(equalTo: wv.centerXAnchor),
+            b.bottomAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+        ])
+        banner = b
+        b.load(Request())
+    }
+
+    /// 広告の幅は、広告がないときの盤面の一辺くらい（左右のボタンの列にかからない幅）にする。
+    /// ページの CSS と同じ計算: 列の幅 = 170〜240px（画面幅の20%）、盤面 = min(高さ-20, 幅-列×2-44)
+    private func bannerWidth(in size: CGSize) -> CGFloat {
+        let w = max(size.width, size.height), h = min(size.width, size.height)
+        let side = min(240, max(170, w * 0.2))
+        let board = min(h - 20, w - side * 2 - 44)
+        return max(320, floor(board))
+    }
+
+    private func hideBanner() {
+        banner?.removeFromSuperview()
+        banner = nil
+        setAdHeight(0)
+    }
+
+    private func setAdHeight(_ h: CGFloat) {
+        bannerHeight = h
+        webView?.evaluateJavaScript("window.__setAd && window.__setAd(\(Int(ceil(h))))")
+    }
+
+    func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+        bannerView.isHidden = false
+        setAdHeight(bannerView.adSize.size.height + 8)
+    }
+
+    func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+        bannerView.isHidden = true
+        setAdHeight(0)                                         // 広告が来ないときは盤面を大きく戻す
+    }
+
+    /// ページを読み込み直したときに、今の状態をもう一度教える
+    func pageDidLoad() {
+        setAdHeight(banner?.isHidden == false ? bannerHeight : 0)
+        pushState()
+    }
+
+    // MARK: - ページからの頼みごと
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let d = message.body as? [String: Any], let action = d["action"] as? String else { return }
+        switch action {
+        case "buy": Task { await buy() }
+        case "restore": Task { await restore() }
+        case "privacy":
+            guard let vc = controller else { return }
+            UMPConsentForm.presentPrivacyOptionsForm(from: vc) { [weak self] _ in self?.pushState() }
+        default: pushState()
+        }
+    }
+
+    // MARK: - 買い切り（StoreKit 2）
+
+    private func loadProduct() async {
+        product = try? await Product.products(for: [AdConfig.removeAdsProductID]).first
+    }
+
+    private func refreshEntitlements() async {
+        var owned = false
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let t) = result, t.productID == AdConfig.removeAdsProductID, t.revocationDate == nil { owned = true }
+        }
+        await setAdFree(owned)
+    }
+
+    private func handle(_ result: VerificationResult<Transaction>) async {
+        guard case .verified(let t) = result else { return }
+        if t.productID == AdConfig.removeAdsProductID { await setAdFree(t.revocationDate == nil) }
+        await t.finish()
+    }
+
+    private func buy() async {
+        if product == nil { await loadProduct() }
+        guard let product else { await report("いまは購入できません。通信を確認してください"); return }
+        await setBusy(true)
+        do {
+            switch try await product.purchase() {
+            case .success(let v):
+                await handle(v)
+                await report("ありがとうございます！ 広告を消しました")
+            case .pending: await report("購入の承認待ちです")
+            case .userCancelled: break
+            @unknown default: break
+            }
+        } catch {
+            await report("購入できませんでした")
+        }
+        await setBusy(false)
+    }
+
+    private func restore() async {
+        await setBusy(true)
+        try? await AppStore.sync()
+        await refreshEntitlements()
+        await report(adFree ? "購入を復元しました" : "復元できる購入が見つかりませんでした")
+        await setBusy(false)
+    }
+
+    @MainActor private func setAdFree(_ v: Bool) {
+        let was = adFree
+        adFree = v
+        UserDefaults.standard.set(v, forKey: "adFree")
+        if v { hideBanner() } else if was && !v { gatherConsentAndStartAds() }
+        pushState()
+    }
+
+    @MainActor private func setBusy(_ v: Bool) { busy = v; pushState() }
+
+    @MainActor private func report(_ text: String) { pushState(message: text) }
+
+    // MARK: - ページへ知らせる
+
+    private func pushState(message: String? = nil) {
+        let privacy = UMPConsentInformation.sharedInstance.privacyOptionsRequirementStatus == .required
+        var d: [String: Any] = ["adFree": adFree, "privacyOptions": privacy, "busy": busy, "canBuy": product != nil]
+        if let p = product { d["price"] = p.displayPrice }
+        if let m = message { d["message"] = m }
+        guard let data = try? JSONSerialization.data(withJSONObject: d), let json = String(data: data, encoding: .utf8) else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript("window.__iapState && window.__iapState(\(json))")
+        }
+    }
+}

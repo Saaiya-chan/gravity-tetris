@@ -12,7 +12,9 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
     private static let remoteURL = URL(string: "https://saaiya-chan.github.io/gravity-tetris/free.html")!
 
     private var webView: WKWebView!
+    private let money = Monetization()   // バナー広告と「広告を消す」買い切り
     private var usingBundled = false
+    private var moneyStarted = false
 
     override func loadView() {
         let config = WKWebViewConfiguration()
@@ -23,6 +25,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         config.userContentController.add(opener, name: "openExternal")
         config.userContentController.add(opener, name: "shareImage")
         config.userContentController.add(opener, name: "postX")
+        config.userContentController.add(money, name: "iap")
         #if !DEBUG
         // App Store 版であることをページに教える（開発用の機能を隠してもらう）
         config.userContentController.addUserScript(WKUserScript(
@@ -32,6 +35,8 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         webView = WKWebView(frame: .zero, configuration: config)
         opener.webView = webView
         opener.controller = self
+        money.webView = webView
+        money.controller = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.isOpaque = false
@@ -91,6 +96,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         super.viewDidAppear(animated)
         pushOrientation()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.lockOrientation(); self?.pushOrientation() }
+        if !moneyStarted { moneyStarted = true; money.start() }   // 画面が出てから（同意画面などを出せるように）
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -100,6 +106,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         pushOrientation()
+        money.pageDidLoad()
     }
 
     private func pushOrientation() {

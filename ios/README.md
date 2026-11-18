@@ -29,3 +29,15 @@
 2. Xcode で実行先を **Any iOS Device (arm64)** にする → メニュー **Product → Archive**
 3. できあがった Organizer で **Distribute App → App Store Connect → Upload**
 4. App Store Connect で、ビルドを選び、スクショ・説明文・年齢制限・価格・App のプライバシー（「データを収集しない」）を入れて **審査に提出**
+
+## 広告と「広告を消す」買い切り
+
+- バナー広告（Google AdMob）を盤面の下に出します。ゲームは広告の高さだけ盤面を小さくします（`window.__setAd`）。
+- 「広告を消す」は非消耗型の App 内課金（製品 ID `com.saaiya.gravitypop.removeads`）。タイトルとポーズに「広告を消す」「購入を復元」ボタンが出ます。
+- ヨーロッパなどでは Google の同意画面（UMP）、そのあと iOS の「トラッキングの許可」を聞きます。
+- 初めて開くと、Xcode が Google の広告ライブラリ（Swift Package）を自動でダウンロードします。
+
+公開前に置き換えるもの（今は Google のテスト用）:
+1. `GravityPop/Info.plist` の `GADApplicationIdentifier` → 自分の AdMob アプリ ID（`ca-app-pub-…~…`）
+2. `GravityPop/Monetization.swift` の `AdConfig.bannerUnitID`（Release 側）→ 自分のバナー広告ユニット ID（`ca-app-pub-…/…`）
+3. App Store Connect で App 内課金「非消耗型」を作る（製品 ID は上と同じ）

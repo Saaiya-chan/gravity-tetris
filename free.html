@@ -17,14 +17,15 @@
     --bg:#0e1116; --panel:#171b23; --line:#262c38; --text:#e8ecf3; --dim:#8a93a6; --accent:#ffcf5a;
     --side: clamp(170px, 20vw, 240px);                     /* 左右の列幅 */
     --b: clamp(46px, min(calc((var(--side) - 28px)/3.25), calc(13dvh)), 84px);   /* 操作ボタンの大きさ */
-    --s: min(calc(100dvh - 20px), calc(100vw - 2*var(--side) - 44px));          /* 盤面の一辺 */
+    --ad: 0px;                                                                   /* 下のバナー広告の高さ（アプリが教えてくれる） */
+    --s: min(calc(100dvh - 20px - var(--ad)), calc(100vw - 2*var(--side) - 44px));          /* 盤面の一辺 */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none}
   body{
     display:grid; place-content:center; gap:0 12px;
-    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) calc(max(10px,env(safe-area-inset-bottom)) + var(--ad)) max(10px,env(safe-area-inset-left));
     grid-template-columns: var(--side) var(--s) var(--side);
     grid-template-rows: auto 1fr;
     height:100dvh;
@@ -128,7 +129,7 @@
   body.lay-tiles #ctrlR #rotBtn{position:static!important;grid-column:1 / -1;justify-self:end;order:99;margin-top:4px}
   body.lay-tiles #ctrlR .item{min-width:0}
   @media (max-height:500px){                                     /* iPhone の横向きなど、背が低い画面 */
-    #hudL{max-height:calc(100dvh - var(--b)*2.6 - 30px);overflow:hidden} #stageCard .sc-pts li:nth-child(n+4){display:none} #status{display:none}
+    #hudL{max-height:calc(100dvh - var(--ad) - var(--b)*2.6 - 30px);overflow:hidden} #stageCard .sc-pts li:nth-child(n+4){display:none} #status{display:none}
     #stageCard{padding:4px 8px;margin-top:4px} #stageCard .sc-name{font-size:14px} #stageCard .sc-pts{font-size:11.5px;line-height:1.35;margin-top:2px} #stageCard .sc-fx{font-size:11.5px}
     body.lay-tiles #ctrlR{gap:4px}
     body.lay-tiles #ctrlR .item{height:29px!important;border-radius:10px}
@@ -2261,6 +2262,31 @@ function bindSettings(){
 }
 let menuKind="title";
 function refreshMenu(){ showMenu(menuKind); }
+// ===== 広告と「広告を消す」買い切り（iOS アプリのときだけ。Web 版は広告なし） =====
+const IAP_MH = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iap;
+let iap = {adFree:false, price:null, privacyOptions:false, busy:false, canBuy:false};
+window.__setAd = px => { document.documentElement.style.setProperty("--ad", (px|0)+"px"); window.dispatchEvent(new Event("resize")); };
+window.__iapState = st => {
+  iap = Object.assign(iap, st);
+  if(st.message){ const m=document.getElementById("iapMsg"); if(m) m.textContent=st.message; }
+  if(!overlay.classList.contains("hidden") && (menuKind==="title"||menuKind==="pause")){
+    const msg=st.message; refreshMenu(); const m=document.getElementById("iapMsg"); if(m && msg) m.textContent=msg;
+  }
+};
+function iapSend(action){ if(IAP_MH) IAP_MH.postMessage({action}); }
+function iapRow(){
+  if(!IAP_MH) return "";
+  const btns = iap.adFree ? `<span style="color:#9dffb0;font-size:14px">✓ 広告なし版</span>`
+    : `<button id="noAdBtn"${iap.busy?" disabled":""}>🚫 広告を消す${iap.price?`（${iap.price}）`:""}</button><button id="restoreBtn"${iap.busy?" disabled":""}>購入を復元</button>`;
+  return `<div class="row">${btns}${iap.privacyOptions?`<button id="privBtn">プライバシー設定</button>`:""}</div><p id="iapMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>`;
+}
+function bindIap(){
+  const b=id=>document.getElementById(id);
+  if(b("noAdBtn")) b("noAdBtn").onclick=()=>iapSend("buy");
+  if(b("restoreBtn")) b("restoreBtn").onclick=()=>iapSend("restore");
+  if(b("privBtn")) b("privBtn").onclick=()=>iapSend("privacy");
+}
+if(IAP_MH) setTimeout(()=>iapSend("state"),0);
 // ショップの画面
 function showShop(back){
   sheet.classList.add("wide");
@@ -2332,7 +2358,7 @@ function showMenu(kind){
   const secure = window.isSecureContext;
   if(kind==="title"){
     sheet.innerHTML=`<h1>グラビティ・ポップ${RELEASE?"":` <span style="font-size:.6em;color:#ffcf5a">フリー</span>`}</h1>
-      <p>マス目のない版。端末を傾けると、<br>粒が本当の「下」に向かってころがり落ちます。</p>
+      <p>${RELEASE||IAP_MH?"":"マス目のない版。"}端末を傾けると、<br>粒が本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
@@ -2353,8 +2379,9 @@ function showMenu(kind){
       ${settingsRow()}
       <button class="big" id="startBtn">スタート</button>
       <div class="row"><button id="zkBtn">📖 ぷに図鑑</button><button id="shopBtn">🛒 ショップ（🪙${coins}）</button><button id="slotBtn">🎛 アイテム配置</button></div>
-      <p style="margin-top:14px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`;
-    bindSettings();
+      ${iapRow()}
+      ${RELEASE||IAP_MH?"":`<p style="margin-top:14px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`}`;
+    bindSettings(); bindIap();
     document.getElementById("startBtn").onclick=start;
     document.getElementById("zkBtn").onclick=()=>showZukan("title");
     document.getElementById("shopBtn").onclick=()=>showShop("title");
@@ -2362,8 +2389,9 @@ function showMenu(kind){
   }else if(kind==="pause"){
     sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
       <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
-      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button>${RELEASE?"":`<button id="bossBtn">👑 ボス戦（開発）</button>`}<button id="slotBtn">🎛 アイテム配置</button></div>`;
-    bindSettings();
+      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button>${RELEASE?"":`<button id="bossBtn">👑 ボス戦（開発）</button>`}<button id="slotBtn">🎛 アイテム配置</button></div>
+      ${iapRow()}`;
+    bindSettings(); bindIap();
     document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");

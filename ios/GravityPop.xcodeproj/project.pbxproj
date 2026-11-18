@@ -13,6 +13,9 @@
 		A10000000000000000000003 /* free.html in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* free.html */; };
 		A10000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* Assets.xcassets */; };
 		A10000000000000000000007 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* PrivacyInfo.xcprivacy */; };
+		A1000000000000000000000A /* Monetization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Monetization.swift */; };
+		A1000000000000000000000B /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AC000000000000000000000B /* GoogleMobileAds */; };
+		A1000000000000000000000C /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = AC000000000000000000000C /* GoogleUserMessagingPlatform */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +27,7 @@
 		A20000000000000000000009 /* GravityPop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GravityPop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000000000000000000007 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Monetization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Monetization.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -31,6 +35,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1000000000000000000000B /* GoogleMobileAds in Frameworks */,
+				A1000000000000000000000C /* GoogleUserMessagingPlatform in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -51,6 +57,7 @@
 				A20000000000000000000001 /* AppDelegate.swift */,
 				A20000000000000000000004 /* SceneDelegate.swift */,
 				A20000000000000000000002 /* GameViewController.swift */,
+				A2000000000000000000000A /* Monetization.swift */,
 				A20000000000000000000003 /* free.html */,
 				A20000000000000000000005 /* Info.plist */,
 				A20000000000000000000006 /* Assets.xcassets */,
@@ -83,6 +90,10 @@
 			dependencies = (
 			);
 			name = GravityPop;
+			packageProductDependencies = (
+				AC000000000000000000000B /* GoogleMobileAds */,
+				AC000000000000000000000C /* GoogleUserMessagingPlatform */,
+			);
 			productName = GravityPop;
 			productReference = A20000000000000000000009 /* GravityPop.app */;
 			productType = "com.apple.product-type.application";
@@ -112,6 +123,10 @@
 				Base,
 			);
 			mainGroup = A40000000000000000000001;
+			packageReferences = (
+				AB000000000000000000000B /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				AB000000000000000000000C /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
+			);
 			productRefGroup = A40000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -142,6 +157,7 @@
 				A10000000000000000000001 /* AppDelegate.swift in Sources */,
 				A10000000000000000000002 /* GameViewController.swift in Sources */,
 				A10000000000000000000004 /* SceneDelegate.swift in Sources */,
+				A1000000000000000000000A /* Monetization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +289,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB000000000000000000000B /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+		AB000000000000000000000C /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AC000000000000000000000B /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB000000000000000000000B /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		AC000000000000000000000C /* GoogleUserMessagingPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB000000000000000000000C /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */;
+			productName = GoogleUserMessagingPlatform;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A70000000000000000000001 /* Project object */;
 }
