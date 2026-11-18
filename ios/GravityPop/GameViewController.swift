@@ -4,8 +4,10 @@ import LinkPresentation
 
 /// ゲーム本体（free.html）を全画面の WebView で表示する。
 ///
-/// - 通常は GitHub Pages の最新版を読み込む（push するとアプリにもすぐ反映される）。
-/// - ネットにつながらないときは、アプリに同梱した free.html を読み込む。
+/// - App Store 用（Release ビルド・Archive）: アプリに同梱した free.html だけを読み込む。
+///   審査を通った中身のまま動き、ネットがなくても遊べる。開発用のボタンはページ側で隠す。
+/// - 開発用（Debug ビルド・Xcode から実行）: GitHub Pages の最新版を読み込む（push するとすぐ反映）。
+///   ネットにつながらないときは同梱の free.html にする。
 final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     private static let remoteURL = URL(string: "https://saaiya-chan.github.io/gravity-tetris/free.html")!
 
@@ -21,6 +23,11 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
         config.userContentController.add(opener, name: "openExternal")
         config.userContentController.add(opener, name: "shareImage")
         config.userContentController.add(opener, name: "postX")
+        #if !DEBUG
+        // App Store 版であることをページに教える（開発用の機能を隠してもらう）
+        config.userContentController.addUserScript(WKUserScript(
+            source: "window.__appRelease = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #endif
 
         webView = WKWebView(frame: .zero, configuration: config)
         opener.webView = webView
@@ -41,7 +48,11 @@ final class GameViewController: UIViewController, WKNavigationDelegate, WKUIDele
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        #if DEBUG
         loadRemote()
+        #else
+        loadBundled()
+        #endif
     }
 
     private func loadRemote() {

@@ -128,6 +128,7 @@
   body.lay-tiles #ctrlR #rotBtn{position:static!important;grid-column:1 / -1;justify-self:end;order:99;margin-top:4px}
   body.lay-tiles #ctrlR .item{min-width:0}
   @media (max-height:500px){                                     /* iPhone の横向きなど、背が低い画面 */
+    #hudL{max-height:calc(100dvh - var(--b)*2.6 - 30px);overflow:hidden} #stageCard .sc-pts li:nth-child(n+4){display:none} #status{display:none}
     #stageCard{padding:4px 8px;margin-top:4px} #stageCard .sc-name{font-size:14px} #stageCard .sc-pts{font-size:11.5px;line-height:1.35;margin-top:2px} #stageCard .sc-fx{font-size:11.5px}
     body.lay-tiles #ctrlR{gap:4px}
     body.lay-tiles #ctrlR .item{height:29px!important;border-radius:10px}
@@ -621,7 +622,8 @@ const SPECIALS = [
   {k:"sticky",  st:11, name:"べたべたぷに"},
 ];
 const TIMER_MS = 30000;
-let devAll = store.get("devAll", true);          // 開発版: 最初から全部出す
+const RELEASE = window.__appRelease===true;      // App Store 版: 開発用の機能を隠す（アプリが起動時に教えてくれる）
+let devAll = RELEASE ? false : store.get("devAll", true);          // 開発版: 最初から全部出す
 function unlocked(k){ const x=SPECIALS.find(a=>a.k===k); return devAll || (level||1) >= x.st; }
 // 落ちてくる組の形（1 = 粒1個ぶん。x: 重力に対して右、y: 重力の向き。[0,0] が回転の軸）
 const SHAPES = [
@@ -2239,7 +2241,7 @@ function settingsRow(){
     <button id="faceBtn">顔: ${faceOn?"ON":"OFF"}</button>
     <button id="layBtn">画面: ${LAYOUTS.find(l=>l.k===layoutKey).name}</button>
     <button id="bondBtn">つながり: ${BOND_STYLES.find(b=>b.key===bondStyle).name}</button>
-    <button id="devBtn">特殊ぷに: ${devAll?"全部出す（開発）":"ステージで増える"}</button>
+    ${RELEASE?"":`<button id="devBtn">特殊ぷに: ${devAll?"全部出す（開発）":"ステージで増える"}</button>`}
     <button id="lvBtn">難易度: ${LEVELS[levelKey].name}</button>
     <button id="fricBtn">摩擦: ${FRICTION[frictionKey].name}</button>
     <button id="scaleBtn">1マス: ${Math.round(cellM*100)}cm</button>
@@ -2250,7 +2252,7 @@ function bindSettings(){
   document.getElementById("offBtn").onclick=()=>{ sensorOffset=(sensorOffset+1)%4; store.set("sensorOffset",sensorOffset); refreshMenu(); };
   document.getElementById("layBtn").onclick=()=>{ const i=LAYOUTS.findIndex(l=>l.k===layoutKey); layoutKey=LAYOUTS[(i+1)%LAYOUTS.length].k; store.set("layout",layoutKey); layoutItems(); refreshMenu(); };
   document.getElementById("bondBtn").onclick=()=>{ const i=BOND_STYLES.findIndex(b=>b.key===bondStyle); bondStyle=BOND_STYLES[(i+1)%BOND_STYLES.length].key; store.set("bondStyle2",bondStyle); refreshMenu(); };
-  document.getElementById("devBtn").onclick=()=>{ devAll=!devAll; store.set("devAll",devAll); refreshMenu(); };
+  if(document.getElementById("devBtn")) document.getElementById("devBtn").onclick=()=>{ devAll=!devAll; store.set("devAll",devAll); refreshMenu(); };
   document.getElementById("lvBtn").onclick=()=>{ const ks=Object.keys(LEVELS); levelKey=ks[(ks.indexOf(levelKey)+1)%ks.length]; store.set("level",levelKey); refreshMenu(); };
   document.getElementById("fricBtn").onclick=()=>{ const ks=Object.keys(FRICTION); frictionKey=ks[(ks.indexOf(frictionKey)+1)%ks.length]; store.set("friction",frictionKey); refreshMenu(); };
   document.getElementById("scaleBtn").onclick=()=>{ cellM=SCALES[(SCALES.indexOf(cellM)+1)%SCALES.length]; store.set("cellM",cellM); refreshMenu(); };
@@ -2272,14 +2274,14 @@ function showShop(back){
         <button class="buy" data-k="${it.k}" ${coins<it.price||(carry[it.k]||0)>=5?"disabled":""}>🪙 ${it.price} で買う</button></div></div>`).join("")}
     </div>
     <p id="shopMsg" style="min-height:1.2em;font-size:13px;color:#9dffb0"></p>
-    <div class="row"><button class="big" id="shopBack">もどる</button><button id="coinDev">🪙 +100（開発）</button></div>`;
+    <div class="row"><button class="big" id="shopBack">もどる</button>${RELEASE?"":`<button id="coinDev">🪙 +100（開発）</button>`}</div>`;
   for(const b of sheet.querySelectorAll("button.buy")) b.onclick=()=>{
     const it=SHOP.find(x=>x.k===b.dataset.k);
     if(coins<it.price) return;
     coins-=it.price; carry[it.k]=(carry[it.k]||0)+1; saveShop(); sfx("get");
     showShop(back); document.getElementById("shopMsg").textContent=`${it.name}を買いました！`;
   };
-  document.getElementById("coinDev").onclick=()=>{ coins+=100; saveShop(); showShop(back); };
+  if(document.getElementById("coinDev")) document.getElementById("coinDev").onclick=()=>{ coins+=100; saveShop(); showShop(back); };
   document.getElementById("shopBack").onclick=()=>{ sheet.classList.remove("wide"); showMenu(back); };
   overlay.scrollTop=0;
 }
@@ -2329,7 +2331,7 @@ function showMenu(kind){
   menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide"); cancelAnimationFrame(zkAnim);
   const secure = window.isSecureContext;
   if(kind==="title"){
-    sheet.innerHTML=`<h1>グラビティ・ポップ <span style="font-size:.6em;color:#ffcf5a">フリー</span></h1>
+    sheet.innerHTML=`<h1>グラビティ・ポップ${RELEASE?"":` <span style="font-size:.6em;color:#ffcf5a">フリー</span>`}</h1>
       <p>マス目のない版。端末を傾けると、<br>粒が本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
@@ -2360,13 +2362,13 @@ function showMenu(kind){
   }else if(kind==="pause"){
     sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
       <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
-      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button><button id="bossBtn">👑 ボス戦（開発）</button><button id="slotBtn">🎛 アイテム配置</button></div>`;
+      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button>${RELEASE?"":`<button id="bossBtn">👑 ボス戦（開発）</button>`}<button id="slotBtn">🎛 アイテム配置</button></div>`;
     bindSettings();
     document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");
     document.getElementById("slotBtn").onclick=()=>enterSlotEdit("pause");
-    document.getElementById("bossBtn").onclick=()=>{ paused=false; hideOverlay(); if(!boss) startBoss(performance.now(), Math.max(1,Math.floor(level/BOSS_EVERY))); };
+    if(document.getElementById("bossBtn")) document.getElementById("bossBtn").onclick=()=>{ paused=false; hideOverlay(); if(!boss) startBoss(performance.now(), Math.max(1,Math.floor(level/BOSS_EVERY))); };
   }else if(kind==="over"){
     const rows=REC_DEFS.filter(([k])=>rec[k]>0).map(([k,label,unit])=>
       `<div class="rec-row"><span>${label}</span><b>${rec[k]}${unit}${lastNew.includes(k)?' <i class="new">NEW!</i>':''}</b></div>`).join("");
