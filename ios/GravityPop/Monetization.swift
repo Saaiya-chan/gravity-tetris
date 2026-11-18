@@ -9,12 +9,11 @@ import UserMessagingPlatform
 enum AdConfig {
     /// バナー広告のユニット ID。
     /// 開発中（Debug）は Google のテスト用 ID を使う（本物の広告を自分でタップするとアカウント停止になるため）。
-    /// ★ 公開前に、AdMob で作った自分のバナー広告ユニット ID を下の Release 側に入れる。
-    /// ★ Info.plist の GADApplicationIdentifier も、自分の AdMob アプリ ID に置き換える。
+    /// App Store 版（Release）は AdMob で作った本番の ID。アプリ ID は Info.plist の GADApplicationIdentifier。
     #if DEBUG
     static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"
     #else
-    static let bannerUnitID = "ca-app-pub-3940256099942544/2435281174"   // ← 本番のバナー広告ユニット ID に置き換える
+    static let bannerUnitID = "ca-app-pub-1305362296318691/2739880720"   // 本番: AdMob「プレイ画面バナー」
     #endif
 
     /// App Store Connect で作る「非消耗型」App 内課金の製品 ID

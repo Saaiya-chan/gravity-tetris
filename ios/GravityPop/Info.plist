@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-1305362296318691~8183779093</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>あなたに合った広告を表示するために使います。許可しなくても遊べます。</string>
 	<key>SKAdNetworkItems</key>
