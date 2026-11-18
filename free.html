@@ -69,6 +69,20 @@
   .item#itemMag{background:linear-gradient(180deg,#5e2b34,#401b22);border-color:#b04a5c;color:#ffd6dc}
   .item.active{box-shadow:0 0 0 3px #ffcf5a, 0 3px 0 #0a121c}
   .item svg{width:26px;height:26px}
+  /* アイテムを取ったときの演出 */
+  .itemGet{position:fixed;z-index:8;pointer-events:none;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:10px}
+  .itemGet .ig-ic{border-radius:28%;border:3px solid;display:grid;place-items:center;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 0 40px rgba(255,220,120,.9),0 10px 24px rgba(0,0,0,.5)}
+  .itemGet .ig-ic svg{width:58%;height:58%}
+  .itemGet .ig-tx{font-weight:900;font-size:clamp(20px,3.4vw,34px);color:#fff;white-space:nowrap;text-shadow:0 0 6px #000,0 2px 0 #000,0 0 14px rgba(0,0,0,.8)}
+  .itemGet .ig-tx b{color:#ffcf5a}
+  .itemGet .ig-tx{background:rgba(8,10,14,.82);padding:4px 18px;border-radius:999px}
+  .itemGet .ig-rays{position:absolute;left:50%;top:38%;width:260%;aspect-ratio:1;border-radius:50%;z-index:-1;
+    background:repeating-conic-gradient(rgba(255,225,130,.55) 0 9deg, transparent 9deg 30deg);
+    -webkit-mask:radial-gradient(circle, #000 0 30%, transparent 68%);mask:radial-gradient(circle, #000 0 30%, transparent 68%)}
+  /* 次のステージまでの進み具合 */
+  #stageCard .sc-prog{height:6px;border-radius:3px;background:rgba(255,255,255,.14);margin-top:7px;overflow:hidden}
+  #stageCard .sc-prog i{display:block;height:100%;width:0;background:#ffcf5a;border-radius:3px;transition:width .3s}
+  #stageCard .sc-next{font-size:12px;color:var(--dim);margin-top:3px}
   /* 空いているスロットは「＋」の丸で表示（押すとアイテムを選べる） */
   .slotEmpty{position:absolute;border-radius:50%;background:rgba(10,14,22,.45);border:2px solid rgba(255,255,255,.28);
     color:rgba(255,255,255,.75);display:grid;place-items:center;padding:0;box-shadow:inset 0 0 12px rgba(0,0,0,.35);touch-action:manipulation}
@@ -187,6 +201,23 @@
   #overlay.hidden{display:none}
   .sheet{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;text-align:center}
   .sheet h1{margin:0 0 4px;font-size:28px}
+  /* ホーム画面 */
+  .sheet.home{max-width:520px;padding:20px 26px 18px;background:linear-gradient(180deg,#1c2238,#141826);border-color:#2f3856}
+  #homeArt{width:300px;height:92px;max-width:100%;display:block;margin:0 auto}
+  .home-title{font-size:34px!important;font-weight:900;letter-spacing:.04em;background:linear-gradient(180deg,#fff,#ffd978);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .home-tag{margin:2px 0 8px;color:var(--dim);font-size:14px}
+  .home-stats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+  .home-stats span{background:rgba(255,255,255,.06);border-radius:999px;padding:4px 12px}
+  .home-stats b{color:var(--text);font-size:15px;margin-left:3px}
+  .sheet button.home-start{display:block;width:100%;margin:14px 0 4px;padding:16px;font-size:24px;border-radius:16px;box-shadow:0 5px 0 #a87400}
+  .sheet button.home-start:active{transform:translateY(4px);box-shadow:0 1px 0 #a87400}
+  .home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+  .home-grid button{padding:10px 2px;font-size:12px;border-radius:12px;display:grid;gap:3px;justify-items:center;line-height:1.2}
+  .home-grid button i{font-style:normal;font-size:24px}
+  @media (min-height:600px) and (min-width:900px){ .sheet.home{max-width:640px;padding:30px 40px 26px} #homeArt{width:390px;height:120px} .home-title{font-size:46px!important} .home-tag{font-size:17px;margin-bottom:12px}
+    .home-stats{font-size:15px} .home-stats b{font-size:18px} .sheet button.home-start{padding:22px;font-size:30px;margin-top:20px} .home-grid{gap:12px;margin-top:16px} .home-grid button{padding:14px 4px;font-size:14px} .home-grid button i{font-size:32px} }
+  @media (max-height:500px){ #homeArt{height:60px;width:196px} .home-title{font-size:24px!important} .home-tag{display:none} .sheet.home{padding:10px 20px}
+    .sheet button.home-start{padding:9px;font-size:19px;margin:8px 0 2px} .home-grid{margin-top:8px} .home-grid button{padding:6px 2px;font-size:11px} .home-grid button i{font-size:18px} }
   .sheet p{color:var(--dim);font-size:14px;line-height:1.7;margin:8px 0}
   #slotBar button{color:var(--text);background:#232937;border:1px solid #333b4d;border-radius:10px;padding:8px 14px;font-size:15px;margin:0 4px}
   #slotBar .big{font-size:18px;padding:10px 32px;background:var(--accent);color:#1a1a1a;border:none;font-weight:800}
@@ -228,7 +259,7 @@
   <div class="stat"><span class="label">SCORE</span></div>
   <div id="score">0</div>
   <div class="stat" style="margin-top:4px"><span class="label">最大連鎖</span><span id="lines">0</span><span class="label" style="margin-left:10px">ステージ</span><span id="stageN">1</span></div>
-  <div id="stageCard"><div class="sc-name" id="scName">🌿 草原ステージ</div><ul class="sc-pts" id="scPts"></ul><div class="sc-fx" id="scFx"></div></div>
+  <div id="stageCard"><div class="sc-name" id="scName">🌿 草原ステージ</div><ul class="sc-pts" id="scPts"></ul><div class="sc-prog"><i id="scBar"></i></div><div class="sc-next" id="scNext"></div><div class="sc-fx" id="scFx"></div></div>
   <div id="status">傾きセンサー: なし</div>
 </div>
 
@@ -352,6 +383,10 @@ function praise(title, sub="", col="#ffcf5a"){
 const R = 0.48;                 // 粒の半径（盤面の単位）
 const TOUCH = 2*R*1.07;         // この距離以内なら「くっついている」
 let balls, piece, nextPairs, grav, score, maxChain, popped, level, colorsN;
+// ステージは「そのステージで消した数」で進む。先のステージほどたくさん消す必要がある（60, 75, 90 … 最大150個）。
+// ボス戦の間は数えない（ボスを倒してから次のステージへ）。まとめて消しても一度に進むのは1ステージだけ。
+let stagePop=0;
+function stageNeed(lv){ return Math.min(150, 60+15*((lv||1)-1)); }
 let lockTimer, dirty, popping, popT, chain, running, paused, over;
 let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
 let particles=[], chainFx=null, shake=0;
@@ -707,7 +742,7 @@ function tickTimers(dt){
 function dropBonds(keep){ bonds=bonds.filter(bd=>keep(bd[0])&&keep(bd[1])); bondKeys=new Set(bonds.map(bd=>bd[2])); }
 function reset(){
   balls=[]; bonds=[]; bondKeys=new Set(); grav = grav ?? 0;
-  score=0; maxChain=0; popped=0; level=1; colorsN=4; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
+  score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=4; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
@@ -873,9 +908,22 @@ function release(str=0.6){
 //   重力の盤面成分 g・sinθ（向きは自由）と、盤面の摩擦（動摩擦 μk・g・cosθ、止まっている粒は μs・g・cosθ まで耐える）
 // がかかり、粒どうし・壁とはほとんど跳ねずにぶつかる（逐次インパルス法）。
 const E_REST=0.08;              // はね返り係数
+// 重力の向きを大きく変えた直後（逆さまにしたときなど）は、止まっていた粒がすぐ動き出すようにする。
+// 「少し前までの重力の向き」をゆっくり追いかけて覚えておき、今の向きとの違いが大きいほど強く効く（0〜1）。約1秒でふつうに戻る。
+let gPrev=null, flipK=0;
+function updateFlip(dt){
+  const u=gDir(); if(!u){ return; }
+  if(!gPrev){ gPrev=[u[0],u[1]]; flipK=0; return; }
+  const m=Math.hypot(gPrev[0],gPrev[1])||1, dot=(gPrev[0]*u[0]+gPrev[1]*u[1])/m;
+  const want=Math.max(0, Math.min(1, (0.5-dot)/1.0));          // 60°より大きく変わると効き始め、真逆で最大
+  flipK = Math.max(want, flipK - dt/700);
+  const k=Math.min(1, dt/900); gPrev[0]+=(u[0]-gPrev[0])*k; gPrev[1]+=(u[1]-gPrev[1])*k;
+}
 function bucketKey(x,y){ return (Math.floor(y)+2)*64+(Math.floor(x)+2); }
 function physicsStep(dt){
   const steps=Math.max(1,Math.ceil(dt/4)), h=dt/1000/steps;
+  updateFlip(dt);
+  const fsK=1-0.9*flipK, fkK=1-0.75*flipK, gK=1+0.9*flipK;
   const TH=theme(), ER=Math.min(TH.maxE||0.55,E_REST*TH.e), EW=TH.wallE!=null?TH.wallE:ER, AK=arena().k;
   const gc=G/cellM*TH.g, cos=Math.abs(gN.z), f0=FRICTION[frictionKey], f={s:f0.s*TH.fs, k:f0.k*TH.fk};
   const sin=Math.hypot(gN.x,gN.y);
@@ -911,9 +959,10 @@ function physicsStep(dt){
       const L=!o.live;                                          // 特殊な動きは着地してから（落ちてくる組はふつうに落ちる）
       let fs = (L&&o.frozen) ? 0 : ((L&&o.heavy) ? f.s*3 : f.s);       // 氷はつるつる、重りは動きにくい
       if(o.slip>0 || (magLeft>0 && !o.live)) fs*=0.15;           // 消えた場所のまわりと、マグネット中はすべりやすい
+      if(!o.live) fs*=fsK;                                        // 逆さまにした直後は引っかからない
       if(sp<0.03 && !ex && !ey && sin<=fs*cos && !o.live) { o.vx=o.vy=0; continue; }
       const sg = (L&&o.balloon) ? -1 : 1;                           // 風船は重力と逆に浮く
-      o.vx+=(ax*sg+ex)*h; o.vy+=(ay*sg+ey)*h;
+      const gk=o.live?1:gK; o.vx+=(ax*sg*gk+ex)*h; o.vy+=(ay*sg*gk+ey)*h;
       if(o.live && gu){ const va=o.vx*gu[0]+o.vy*gu[1];              // 落ちてくる組は、傾きが小さくても最低この速さで落ちる（テンポ用）
         if(va<vmin){ const dv=Math.min(vmin-va, 90*h); o.vx+=gu[0]*dv; o.vy+=gu[1]*dv; } }
     }
@@ -980,7 +1029,7 @@ function physicsStep(dt){
     const fr=gc*f.k*cos*h;
     for(const o of balls){
       const sp=Math.hypot(o.vx,o.vy); if(sp===0) continue;
-      const fo = o.live ? fr : fr*(o.frozen ? 0 : (o.heavy ? 3 : 1))*((o.slip>0 || magLeft>0) ? 0.15 : 1);
+      const fo = o.live ? fr : fr*fkK*(o.frozen ? 0 : (o.heavy ? 3 : 1))*((o.slip>0 || magLeft>0) ? 0.15 : 1);
       let k = sp<=fo ? 0 : (sp-fo)/sp;
       if(o.live && sp*k>vmax) k=vmax/sp;
       o.vx*=k; o.vy*=k;
@@ -1063,7 +1112,9 @@ function findPops(now){
   if(chain>=2 && lastPopG && gu && (gu[0]*lastPopG[0]+gu[1]*lastPopG[1]) < Math.cos(20*Math.PI/180)){ tiltNice=true; gain=Math.round(gain*1.5); }
   if(gu) lastPopG=gu;
   score += gain;
-  popped += pops.length; level = 1+Math.floor(popped/40); colorsN = level>=5 ? 5 : 4;
+  popped += pops.length;
+  if(!boss){ stagePop += pops.length; if(stagePop>=stageNeed(level)){ level++; stagePop=0; } }
+  colorsN = level>=5 ? 5 : 4;
   // となりで消えた粒があるお邪魔は巻き込まれて消える（くっついたお邪魔のかたまりごとではなく、触れている粒だけ）
   const gb=list.filter(o=>o.c===GARBAGE && !pops.includes(o) && pops.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<=TOUCH));
   pops.push(...gb); score += gb.length*20;
@@ -1110,10 +1161,38 @@ function burst(x,y,c){
 }
 
 // ===== アイテム =====
+// アイテムを取ったときの演出: 盤面の真ん中にアイコンが大きく飛び出し、「○○ GET!」と出てから、そのアイテムのボタンへ飛んでいく
+const ITEM_BTN={stop:"itemStop",shuf:"itemShuf",jump:"itemJump",mag:"itemMag",boost:"itemBoost"};
+let itemGetQ=Promise.resolve();
+function showItemGet(k){ itemGetQ=itemGetQ.then(()=>playItemGet(k)).catch(()=>{}); }
+function playItemGet(k){
+  return new Promise(done=>{
+    const btn=document.getElementById(ITEM_BTN[k]), st=document.getElementById("stage");
+    if(!btn||!st||!document.body.animate){ done(); return; }
+    const cs=getComputedStyle(btn), sr=st.getBoundingClientRect(), size=Math.round(Math.min(150, Math.max(84, sr.width*0.22)));
+    const el=document.createElement("div"); el.className="itemGet";
+    el.style.left=(sr.left+sr.width/2)+"px"; el.style.top=(sr.top+sr.height/2)+"px";
+    el.innerHTML=`<div class="ig-rays"></div><div class="ig-ic" style="width:${size}px;height:${size}px;background:${cs.backgroundImage};border-color:${cs.borderTopColor};color:${cs.color}">${btn.querySelector("svg")?.outerHTML||""}</div><div class="ig-tx">${ITEM_NAME[k]} <b>GET!</b></div>`;
+    document.body.appendChild(el);
+    const ic=el.querySelector(".ig-ic"), tx=el.querySelector(".ig-tx"), rays=el.querySelector(".ig-rays");
+    rays.animate([{transform:"translate(-50%,-50%) scale(.2) rotate(0deg)",opacity:0},{transform:"translate(-50%,-50%) scale(1) rotate(40deg)",opacity:.9,offset:.25},{transform:"translate(-50%,-50%) scale(1.1) rotate(120deg)",opacity:0}],{duration:1000,easing:"ease-out",fill:"forwards"});
+    tx.animate([{opacity:0,transform:"translateY(10px) scale(.8)"},{opacity:1,transform:"none",offset:.2},{opacity:1,transform:"none",offset:.8},{opacity:0,transform:"translateY(-6px)"}],{duration:1000,fill:"forwards"});
+    ic.animate([{transform:"scale(.1) rotate(-25deg)",opacity:0},{transform:"scale(1.25) rotate(6deg)",opacity:1,offset:.5},{transform:"scale(1) rotate(0deg)",opacity:1}],{duration:420,easing:"cubic-bezier(.2,1.4,.4,1)",fill:"forwards"});
+    setTimeout(()=>{
+      const br=btn.getBoundingClientRect(), shown=br.width>0 && getComputedStyle(btn).display!=="none";
+      const ir=ic.getBoundingClientRect();
+      const dx=shown ? br.left+br.width/2-(ir.left+ir.width/2) : 0, dy=shown ? br.top+br.height/2-(ir.top+ir.height/2) : -30;
+      const sc=shown ? br.width/ir.width : 0.6;
+      const a=ic.animate([{transform:"translate(0,0) scale(1)",opacity:1},{transform:`translate(${dx}px,${dy}px) scale(${sc})`,opacity:shown?1:0}],{duration:430,easing:"cubic-bezier(.5,0,.8,.4)",fill:"forwards"});
+      a.onfinish=()=>{ el.remove(); if(shown){ btn.animate([{transform:"scale(1)"},{transform:"scale(1.35)"},{transform:"scale(1)"}],{duration:320,easing:"ease-out"}); const bd=btn.querySelector(".badge"); if(bd) bd.animate([{transform:"scale(1)"},{transform:"scale(1.9)"},{transform:"scale(1)"}],{duration:420,easing:"ease-out"}); } done(); };
+    }, 950);
+    setTimeout(()=>{ if(el.isConnected){ el.remove(); done(); } }, 2200);
+  });
+}
 function grantItem(now){
   const ks=["stop","shuf","jump","mag","boost"], k=ks[Math.random()*ks.length|0];
   items[k]=Math.min(9,items[k]+1);
-  itemFx={text:{stop:"ストップ GET!",shuf:"シャッフル GET!",jump:"ジャンプ GET!",mag:"マグネット GET!",boost:"ブースター GET!"}[k], t:now};
+  showItemGet(k);
   sfx("get"); updateHud();
 }
 // ジャンプ: 床（重力の向きの辺）から突き上げて、全部の粒を跳ね上げる。落ちてくるときに少し混ざる
@@ -1698,7 +1777,7 @@ function draw(now){
     ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
     ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
     ctx.font=`800 ${u*0.42}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
-    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(`${chain}連鎖中 — 次を消すと${chain+1}連鎖`, W/2, by+bh+4);
+    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(`${chain}連鎖中`, W/2, by+bh+4);
     ctx.restore();
   }
   if(chainFx){
@@ -1872,6 +1951,9 @@ function updateHud(){
     document.getElementById("scPts").innerHTML=[`盤面: ${arena().name}`, ...th.pts].map(t=>`<li>${t}</li>`).join("");
     const fx=[]; if(boss) fx.push(`👑 ボス戦: ${boss.name}`); if(boostLeft>0) fx.push("🚀 ブースター中"); if(magLeft>0) fx.push("🧲 マグネット中"); if(stopLeft>0) fx.push("⏳ ストップ中");
     document.getElementById("scFx").textContent=fx.join("　");
+    const need=stageNeed(level), left=Math.max(0,need-stagePop);
+    document.getElementById("scBar").style.width=(boss?100:Math.min(100,stagePop/need*100))+"%";
+    document.getElementById("scNext").textContent = boss ? "ボス戦中" : `次のステージまで あと${left}個`;
     document.getElementById("stageCard").dataset.theme=th.k; }
   const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
   if(st){
@@ -2353,12 +2435,62 @@ function showZukan(back){
   cancelAnimationFrame(zkAnim); zkAnim=requestAnimationFrame(draw);
   overlay.scrollTop=0;
 }
-function showMenu(kind){
-  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide"); cancelAnimationFrame(zkAnim);
+function goHome(){                                              // 遊ぶのをやめてホームへ（盤面を空にする）
+  running=false; paused=false; over=false; overFx=null; piece=null; balls=[]; bonds=[]; bondKeys=new Set(); particles=[];
+  boss=null; bossFx=null; bossShots=[]; stageFx=null; stageTrans=null; chainFx=null; popping=null; chain=0;
+  score=0; maxChain=0; popped=0; stagePop=0; level=1; N=N0; applyArenaSize(); updateHud();
+  showMenu("title");
+}
+// ホームの絵: 5色のぷにが並んでゆれる
+let homeAnim=0;
+function drawHomeArt(){
+  const c=document.getElementById("homeArt"); if(!c) return;
+  const dpr=Math.min(3,window.devicePixelRatio||1), W=300, H=92; c.width=W*dpr; c.height=H*dpr;
+  const g=c.getContext("2d");
+  const draw=now=>{
+    if(!c.isConnected) return;
+    g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+    for(let j=0;j<5;j++){
+      const ph=now/380+j*1.3, r=24+(j===2?5:0), y=H-r-6-Math.max(0,Math.sin(ph))*12, blink=((now/1000+j*0.7)%4)<0.12;
+      blob(g, 36+j*57, y, r*(1+0.03*Math.sin(ph*2)), j, 1, {face:true, blink, g:[0,1], t:now});
+    }
+    homeAnim=requestAnimationFrame(draw);
+  };
+  cancelAnimationFrame(homeAnim); homeAnim=requestAnimationFrame(draw);
+}
+let menuBack="title";
+function showMenu(kind, back){
+  if(back) menuBack=back;
+  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home"); cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
   const secure = window.isSecureContext;
-  if(kind==="title"){
-    sheet.innerHTML=`<h1>グラビティ・ポップ${RELEASE?"":` <span style="font-size:.6em;color:#ffcf5a">フリー</span>`}</h1>
-      <p>${RELEASE||IAP_MH?"":"マス目のない版。"}端末を傾けると、<br>粒が本当の「下」に向かってころがり落ちます。</p>
+  if(kind==="title"){                                          // ホーム画面
+    sheet.classList.add("home");
+    sheet.innerHTML=`<canvas id="homeArt"></canvas>
+      <h1 class="home-title">グラビティ・ポップ${RELEASE?"":` <span style="font-size:.5em;color:#ffcf5a">フリー</span>`}</h1>
+      <p class="home-tag">傾けて、ころがして、まとめて消そう</p>
+      <div class="home-stats"><span>ベスト <b>${best||0}</b></span><span>最大連鎖 <b>${bestRec.maxChain||0}</b></span><span>🪙 <b>${coins}</b></span></div>
+      ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
+      <button class="big home-start" id="startBtn">▶ スタート</button>
+      <div class="home-grid">
+        <button id="helpBtn"><i>❓</i>あそびかた</button>
+        <button id="zkBtn"><i>📖</i>ぷに図鑑</button>
+        <button id="shopBtn"><i>🛒</i>ショップ</button>
+        <button id="slotBtn"><i>🎛</i>アイテム配置</button>
+        <button id="setBtn"><i>⚙️</i>設定</button>
+      </div>
+      ${iapRow()}
+      ${RELEASE||IAP_MH?"":`<p style="margin-top:10px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`}`;
+    bindIap(); drawHomeArt();
+    document.getElementById("startBtn").onclick=start;
+    document.getElementById("helpBtn").onclick=()=>showMenu("help","title");
+    document.getElementById("setBtn").onclick=()=>showMenu("settings","title");
+    document.getElementById("zkBtn").onclick=()=>showZukan("title");
+    document.getElementById("shopBtn").onclick=()=>showShop("title");
+    document.getElementById("slotBtn").onclick=()=>enterSlotEdit("title");
+  }else if(kind==="help"){
+    sheet.classList.add("wide");
+    sheet.innerHTML=`<h1>❓ あそびかた</h1>
+      <p>端末を傾けると、ぷにが本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
@@ -2375,25 +2507,26 @@ function showMenu(kind){
         <li>ステージ5・10・15…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
-      ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
-      ${settingsRow()}
-      <button class="big" id="startBtn">スタート</button>
-      <div class="row"><button id="zkBtn">📖 ぷに図鑑</button><button id="shopBtn">🛒 ショップ（🪙${coins}）</button><button id="slotBtn">🎛 アイテム配置</button></div>
-      ${iapRow()}
-      ${RELEASE||IAP_MH?"":`<p style="margin-top:14px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`}`;
-    bindSettings(); bindIap();
-    document.getElementById("startBtn").onclick=start;
-    document.getElementById("zkBtn").onclick=()=>showZukan("title");
-    document.getElementById("shopBtn").onclick=()=>showShop("title");
-    document.getElementById("slotBtn").onclick=()=>enterSlotEdit("title");
+      <button class="big" id="backBtn">もどる</button>`;
+    document.getElementById("backBtn").onclick=()=>showMenu(menuBack);
+    overlay.scrollTop=0;
+  }else if(kind==="settings"){
+    sheet.innerHTML=`<h1>⚙️ 設定</h1>${settingsRow()}
+      <button class="big" id="backBtn" style="margin-top:14px">もどる</button>`;
+    bindSettings();
+    document.getElementById("backBtn").onclick=()=>showMenu(menuBack);
   }else if(kind==="pause"){
-    sheet.innerHTML=`<h1>ポーズ</h1>${settingsRow()}
+    sheet.innerHTML=`<h1>ポーズ</h1>
       <div class="row"><button class="big" id="resumeBtn">続ける</button></div>
-      <div class="row"><button id="restartBtn">最初から</button><button id="zkBtn">📖 ぷに図鑑</button>${RELEASE?"":`<button id="bossBtn">👑 ボス戦（開発）</button>`}<button id="slotBtn">🎛 アイテム配置</button></div>
+      <div class="row"><button id="restartBtn">最初から</button><button id="homeBtn">🏠 ホームへ</button></div>
+      <div class="row"><button id="helpBtn">❓ あそびかた</button><button id="zkBtn">📖 ぷに図鑑</button><button id="slotBtn">🎛 アイテム配置</button><button id="setBtn">⚙️ 設定</button>${RELEASE?"":`<button id="bossBtn">👑 ボス戦（開発）</button>`}</div>
       ${iapRow()}`;
-    bindSettings(); bindIap();
+    bindIap();
     document.getElementById("resumeBtn").onclick=()=>{ paused=false; hideOverlay(); };
     document.getElementById("restartBtn").onclick=()=>{ reset(); paused=false; hideOverlay(); };
+    document.getElementById("homeBtn").onclick=goHome;
+    document.getElementById("helpBtn").onclick=()=>showMenu("help","pause");
+    document.getElementById("setBtn").onclick=()=>showMenu("settings","pause");
     document.getElementById("zkBtn").onclick=()=>showZukan("pause");
     document.getElementById("slotBtn").onclick=()=>enterSlotEdit("pause");
     if(document.getElementById("bossBtn")) document.getElementById("bossBtn").onclick=()=>{ paused=false; hideOverlay(); if(!boss) startBoss(performance.now(), Math.max(1,Math.floor(level/BOSS_EVERY))); };
@@ -2409,8 +2542,8 @@ function showMenu(kind){
       <div id="cardPrev"></div>
       <div class="row"><button id="shopBtn">🛒 ショップ（🪙${coins}）</button></div>
       <p id="xMsg" style="font-size:12px;margin:2px 0;color:var(--dim);min-height:1em"></p>
-      ${settingsRow()}`;
-    bindSettings();
+      <div class="row"><button id="homeBtn">🏠 ホームへ</button></div>`;
+    document.getElementById("homeBtn").onclick=goHome;
     document.getElementById("againBtn").onclick=()=>{ reset(); hideOverlay(); };
     document.getElementById("shareBtn").onclick=()=>shareX(true);
     const prev=()=>{ const el=document.getElementById("cardPrev"); el.innerHTML=""; const c=makeShareCard(); c.style.width="100%"; c.style.borderRadius="10px"; c.style.marginTop="8px"; el.appendChild(c); };
