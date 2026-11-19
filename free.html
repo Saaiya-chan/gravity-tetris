@@ -24,19 +24,19 @@
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none}
   body{
-    display:grid; place-content:center; gap:0 12px;
+    display:grid; justify-content:center; align-content:stretch; gap:0 12px;
     padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) calc(max(10px,env(safe-area-inset-bottom)) + var(--ad)) max(10px,env(safe-area-inset-left));
     grid-template-columns: var(--side) var(--s) var(--side);
-    grid-template-rows: auto 1fr;
+    grid-template-rows: minmax(0,1fr);                      /* 左右の列は、上に情報・下にボタンを同じ1マスの中で上下に寄せる（片方が高くても全体が画面からはみ出さない） */
     height:100dvh;
-    grid-template-areas: "hudL stage hudR" "ctrlL stage ctrlR";
+    grid-template-areas: "left stage right";
     background: radial-gradient(120% 80% at 50% 40%, #151a24 0%, var(--bg) 70%);
   }
-  #hudL{grid-area:hudL;justify-self:start;align-self:start}
-  #hudR{grid-area:hudR;justify-self:end;align-self:start;display:flex;gap:10px;align-items:center}
+  #hudL{grid-area:left;justify-self:start;align-self:start}
+  #hudR{grid-area:right;justify-self:end;align-self:start;display:flex;gap:10px;align-items:center}
   #stage{grid-area:stage;width:var(--s);height:var(--s);position:relative;align-self:center}
-  #ctrlL{grid-area:ctrlL;justify-self:center;align-self:end;margin-bottom:6px}
-  #ctrlR{grid-area:ctrlR;justify-self:center;align-self:end;margin-bottom:6px}
+  #ctrlL{grid-area:left;position:relative;z-index:1;justify-self:center;align-self:end;margin-bottom:6px}
+  #ctrlR{grid-area:right;position:relative;z-index:1;justify-self:center;align-self:end;margin-bottom:6px}
   #turnHint{display:none}
   @media (orientation:portrait){
     body>*:not(#turnHint):not(#overlay){display:none!important}
@@ -127,6 +127,7 @@
   #stageCard[data-theme=desert]{background:rgba(255,176,80,.1);border-color:rgba(255,176,80,.3)}
   #stageCard[data-theme=ice]{background:rgba(150,220,255,.1);border-color:rgba(150,220,255,.3)}
   #stageCard[data-theme=fire]{background:rgba(255,118,64,.1);border-color:rgba(255,118,64,.3)}
+  #stageCard[data-theme=sticky]{background:rgba(255,190,60,.1);border-color:rgba(255,190,60,.3)}
   #stageCard[data-theme=space]{background:rgba(180,150,255,.1);border-color:rgba(180,150,255,.3)}
   #stageCard[data-theme=meadow]{background:rgba(140,230,150,.08);border-color:rgba(140,230,150,.25)}
   /* レイアウト: 大きいリング（アイコン＋名前） */
@@ -143,7 +144,7 @@
   body.lay-tiles #ctrlR #rotBtn{position:static!important;grid-column:1 / -1;justify-self:end;order:99;margin-top:4px}
   body.lay-tiles #ctrlR .item{min-width:0}
   @media (max-height:500px){                                     /* iPhone の横向きなど、背が低い画面 */
-    #hudL{max-height:calc(100dvh - var(--ad) - var(--b)*2.6 - 30px);overflow:hidden} #stageCard .sc-pts li:nth-child(n+4){display:none} #status{display:none}
+   
     #stageCard{padding:4px 8px;margin-top:4px} #stageCard .sc-name{font-size:14px} #stageCard .sc-pts{font-size:11.5px;line-height:1.35;margin-top:2px} #stageCard .sc-fx{font-size:11.5px}
     body.lay-tiles #ctrlR{gap:4px}
     body.lay-tiles #ctrlR .item{height:29px!important;border-radius:10px}
@@ -421,6 +422,7 @@ const THEMES = [
   {k:"fire", pts:["重力が弱く、ゆっくり落ちる","6秒ごとに火の粉が粒を1つ溶かす","爆弾ぷにが多め"],   ic:"🔥", name:"炎",   sub:"重力が弱い・火の粉が粒を溶かす", fs:1,    fk:1,   g:0.7,  e:1,   bg:["#2c1310","#170907"], floor:"255,118,64",  more:["bomb"], ev:"ember"},
   {k:"bouncy", pts:["壁でボヨンと跳ね返り、なかなか止まらない","粒どうしもよくはずむ","風船ぷにが多め"], ic:"🏀", name:"トランポリン", sub:"壁に当たるとボヨンと跳ね返る", fs:0.3, fk:0.2, g:1, e:10, wallE:0.97, maxE:0.85, bg:["#2c1426","#170a14"], floor:"255,120,200", more:["balloon"]},
   {k:"space", pts:["重力がとても弱く、ふわふわ","よくはずむ","風船ぷに・磁石ぷにが多め"],  ic:"🌌", name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
+  {k:"sticky", pts:["べたべたぷにがたくさん出る","色がちがってもくっついて、かたまりで動く","ねばねばで止まりやすい・はずまない"], ic:"🍯", name:"べたべた", sub:"べたべたぷにがたくさん・ねばねば", fs:1.5, fk:1.4, g:1, e:0.2, bg:["#33260a","#181004"], floor:"255,190,60", more:["sticky","sticky","sticky","sticky"], force:["sticky"], spRate:0.7},
 ];
 function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
 // ===== 盤面の形（ステージごとに 四角 → 丸 → 六角形 → 八角形 …） =====
@@ -566,6 +568,15 @@ function drawThemeDecor(TH, W, s, now){
     for(let i=0;i<40;i++){ const x=rnd(i,1)*W, y=rnd(i,2)*W; ctx.globalAlpha=0.25+0.35*Math.abs(Math.sin(now/(600+rnd(i,3)*900)+i));
       ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x,y,s*(0.02+rnd(i,4)*0.04),0,Math.PI*2); ctx.fill(); }
     ctx.globalAlpha=0.08; ctx.fillStyle="#c9a8ff"; ctx.beginPath(); ctx.arc(W*0.8,W*0.22,s*1.6,0,Math.PI*2); ctx.fill();   // 遠くの星
+  }else if(TH.k==="sticky"){                                  // べたべた: はちの巣の模様と、上からたれるはちみつ
+    ctx.strokeStyle="rgba(255,200,90,.09)"; ctx.lineWidth=Math.max(1,s*0.05);
+    const hr=s*0.9, hw=hr*Math.sqrt(3);
+    for(let row=0; row*hr*1.5<W+hr; row++) for(let col=0; col*hw<W+hw; col++){
+      const cx=col*hw+(row%2?hw/2:0), cy=row*hr*1.5; ctx.beginPath();
+      for(let a=0;a<6;a++){ const an=Math.PI/6+a*Math.PI/3, x=cx+Math.cos(an)*hr, y=cy+Math.sin(an)*hr; a?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.stroke(); }
+    ctx.fillStyle="rgba(255,185,50,.2)";
+    for(let i=0;i<9;i++){ const x=(0.06+rnd(i,1)*0.88)*W, w=s*(0.22+rnd(i,2)*0.2), L=s*(0.5+rnd(i,3)*1.4)*(0.85+0.15*Math.sin(now/900+i));
+      ctx.beginPath(); ctx.moveTo(x-w,0); ctx.lineTo(x+w,0); ctx.lineTo(x+w*0.55,L); ctx.arc(x,L,w*0.55,0,Math.PI); ctx.closePath(); ctx.fill(); }
   }
   ctx.restore();
 }
@@ -677,18 +688,21 @@ const SHAPES = [
 function newPair(){
   let t=Math.random()*SHAPES.reduce((a,b)=>a+b.w,0), sh=SHAPES[0];
   for(const x of SHAPES){ t-=x.w; if(t<=0){ sh=x; break; } }
-  const ca=randColor(), cb=randColor();                        // 1つの組は2色まで
-  const cols=sh.o.map((_,i)=> i===0 ? ca : (Math.random()<0.5?ca:cb));
+  const ca=randColor(); let cb=randColor(); while(cb===ca) cb=randColor();   // 1つの組は必ず2色（同じ色は2個まで。3個の組は2個+1個）
+  const cols=sh.o.map((_,i)=> i%2 ? cb : ca); if(Math.random()<0.5) cols.reverse();
+  for(let i=cols.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [cols[i],cols[j]]=[cols[j],cols[i]]; }
   const gp=Math.min(0.35, 0.08+0.04*(level||1));               // レベルが上がるとお邪魔が混ざりやすい
   if(unlocked("garbage") && Math.random()<gp) cols[1+(Math.random()*(cols.length-1)|0)]=GARBAGE;
   // 特殊ぷに: 解禁ずみのものから1つ、ときどき混ざる
   const fl=cols.map(()=>null), k=Math.random()*cols.length|0;
   const pool=SPECIALS.filter(a=>a.k!=="garbage" && unlocked(a.k));
-  for(const k of theme().more){ const a=SPECIALS.find(x=>x.k===k); if(a && unlocked(k)) pool.push(a,a); }   // ステージの属性で多めに出る
-  if(pool.length && cols[k]!==GARBAGE && Math.random()<0.32){
+  const TH=theme();
+  for(const k of TH.more){ const a=SPECIALS.find(x=>x.k===k); if(a && (unlocked(k) || (TH.force||[]).includes(k))) pool.push(a,a); }   // ステージの属性で多めに出る
+  if(pool.length && cols[k]!==GARBAGE && Math.random()<(TH.spRate||0.32)){
     const sp=pool[Math.random()*pool.length|0].k;
     if(sp==="rainbow") cols[k]=RAINBOW; else fl[k]=sp;
   }
+  if(TH.k==="sticky") for(let i=0;i<cols.length;i++) if(!fl[i] && cols[i]<5 && Math.random()<0.45) fl[i]="sticky";   // べたべたステージ: 半分近くがべたべたぷに
   if(cols.includes(GARBAGE)) zkMark("garbage");
   if(cols.includes(RAINBOW)) zkMark("rainbow");
   for(const f of fl) zkMark(f);
@@ -742,7 +756,7 @@ function tickTimers(dt){
 function dropBonds(keep){ bonds=bonds.filter(bd=>keep(bd[0])&&keep(bd[1])); bondKeys=new Set(bonds.map(bd=>bd[2])); }
 function reset(){
   balls=[]; bonds=[]; bondKeys=new Set(); grav = grav ?? 0;
-  score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=4; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
+  score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=5; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
@@ -960,12 +974,15 @@ function physicsStep(dt){
       let fs = (L&&o.frozen) ? 0 : ((L&&o.heavy) ? f.s*3 : f.s);       // 氷はつるつる、重りは動きにくい
       if(o.slip>0 || (magLeft>0 && !o.live)) fs*=0.15;           // 消えた場所のまわりと、マグネット中はすべりやすい
       if(!o.live) fs*=fsK;                                        // 逆さまにした直後は引っかからない
-      if(sp<0.03 && !ex && !ey && sin<=fs*cos && !o.live) { o.vx=o.vy=0; continue; }
+      const air = L && o.sup===false;                              // 宙に浮いている
+      if(sp<0.03 && !ex && !ey && sin<=fs*cos && !o.live && !air) { o.vx=o.vy=0; continue; }
       const sg = (L&&o.balloon) ? -1 : 1;                           // 風船は重力と逆に浮く
-      const gk=o.live?1:gK; o.vx+=(ax*sg*gk+ex)*h; o.vy+=(ay*sg*gk+ey)*h;
+      const gk=o.live?1:gK*(air && sin>1e-3 && sin<0.34 ? 0.34/sin : 1);   // 浮いている粒は、傾きが小さくても20°ぶんの強さで落ちる
+      o.vx+=(ax*sg*gk+ex)*h; o.vy+=(ay*sg*gk+ey)*h;
       if(o.live && gu){ const va=o.vx*gu[0]+o.vy*gu[1];              // 落ちてくる組は、傾きが小さくても最低この速さで落ちる（テンポ用）
         if(va<vmin){ const dv=Math.min(vmin-va, 90*h); o.vx+=gu[0]*dv; o.vy+=gu[1]*dv; } }
     }
+    let vPre=0; if(TH.wallE!=null) for(const o of balls){ const v=Math.hypot(o.vx,o.vy); if(v>vPre) vPre=v; }   // はずむステージ: ぶつかる前のいちばん速い粒の速さ
     // 2) 接触を集める（近い粒だけ調べる）
     const bk=new Map();
     for(let i=0;i<balls.length;i++){ const o=balls[i], k=bucketKey(o.x,o.y); let a=bk.get(k); if(!a){a=[];bk.set(k,a);} a.push(i); }
@@ -980,6 +997,17 @@ function physicsStep(dt){
         }
       }
     }
+    // 支えられているか: 重力の先に壁があるか、支えられた粒の上に乗っているか、支えられた粒とくっついているか。
+    // 宙に浮いた粒（ジャンプやシャッフルで飛んだあとなど）は、摩擦で止まらずに必ず落ちてくる
+    if(gu){
+      const below=o=>{ const x=o.x+gu[0]*0.06, y=o.y+gu[1]*0.06; return x<R||x>N-R||y<R||y>N-R||!insideArena(x,y,0.001); };
+      for(const o of balls) o.sup = o.pop || o.balloon || (o.live&&hovering) || below(o);
+      for(let pass=0; pass<3; pass++){ let ch=false;
+        for(const [o,p,nx,ny] of cts){ const d=nx*gu[0]+ny*gu[1];
+          if(d>0.2 && p.sup && !o.sup && !p.live){ o.sup=true; ch=true; } else if(d<-0.2 && o.sup && !p.sup && !o.live){ p.sup=true; ch=true; } }
+        for(const [a,b] of bonds){ if(a.sup!==b.sup){ a.sup=b.sup=true; ch=true; } }
+        if(!ch) break; }
+    }else for(const o of balls) o.sup=true;
     // 粒がどれだけ「動かない」か（消える途中の粒と、浮いている組は動かない壁あつかい）
     const inv=o=> (o.pop || (o.live&&hovering)) ? 0 : ((o.heavy&&!o.live) ? 0.2 : 1);   // 重りは5倍の重さ
     // 3) 速度の拘束: 近づく向きの速度を消す（壁・粒・組のつなぎ棒）
@@ -1025,11 +1053,13 @@ function physicsStep(dt){
         a.vx-=j*nx; a.vy-=j*ny; b.vx+=j*nx; b.vy+=j*ny;
       }
     }
+    // はずむステージ: ぶつかり合いで、ぶつかる前のいちばん速い粒より速くなることはない（壁と粒にはさまれて弾け飛ぶのを防ぐ）
+    if(TH.wallE!=null){ const lim=vPre+0.5; for(const o of balls){ if(o.live) continue; const v=Math.hypot(o.vx,o.vy); if(v>lim){ o.vx*=lim/v; o.vy*=lim/v; } } }
     // 4) 盤面の摩擦（速度と逆向きに μk・g・cosθ）と、落ちてくる組の最高速度
     const fr=gc*f.k*cos*h;
     for(const o of balls){
       const sp=Math.hypot(o.vx,o.vy); if(sp===0) continue;
-      const fo = o.live ? fr : fr*fkK*(o.frozen ? 0 : (o.heavy ? 3 : 1))*((o.slip>0 || magLeft>0) ? 0.15 : 1);
+      const fo = o.live ? fr : fr*fkK*(o.sup===false?0.3:1)*(o.frozen ? 0 : (o.heavy ? 3 : 1))*((o.slip>0 || magLeft>0) ? 0.15 : 1);
       let k = sp<=fo ? 0 : (sp-fo)/sp;
       if(o.live && sp*k>vmax) k=vmax/sp;
       o.vx*=k; o.vy*=k;
@@ -1114,7 +1144,7 @@ function findPops(now){
   score += gain;
   popped += pops.length;
   if(!boss){ stagePop += pops.length; if(stagePop>=stageNeed(level)){ level++; stagePop=0; } }
-  colorsN = level>=5 ? 5 : 4;
+  colorsN = 5;
   // となりで消えた粒があるお邪魔は巻き込まれて消える（くっついたお邪魔のかたまりごとではなく、触れている粒だけ）
   const gb=list.filter(o=>o.c===GARBAGE && !pops.includes(o) && pops.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<=TOUCH));
   pops.push(...gb); score += gb.length*20;
@@ -1414,7 +1444,7 @@ function update(dt, now){
   }
   if(!piece){
     // 次の組: 前の組が出てから一定時間（ふつう1秒）たったら、積み山が動いていても出す
-    if(!popping && !over && stopLeft<=0 && !(stageTrans && now-stageTrans.t<STAGE_PAUSE) && now-releaseT>=120 && now-spawnT>=LEVELS[levelKey].every) spawn(now);
+    if(!popping && !over && stopLeft<=0 && !(stageTrans && now-stageTrans.t<STAGE_PAUSE) && now-releaseT>=120 && now-spawnT>=LEVELS[levelKey].every*Math.max(0.6, 1-0.04*((level||1)-1))) spawn(now);   // ステージが進むと出てくる間隔が短くなる（最大で4割短く）
     return;
   }
   pieceStep(dt);
@@ -1987,7 +2017,7 @@ function updateHud(){
     const need=stageNeed(level), left=Math.max(0,need-stagePop);
     document.getElementById("scBar").style.width=(boss?100:Math.min(100,stagePop/need*100))+"%";
     document.getElementById("scNext").textContent = boss ? "ボス戦中" : `次のステージまで あと${left}個`;
-    document.getElementById("stageCard").dataset.theme=th.k; }
+    document.getElementById("stageCard").dataset.theme=th.k; fitHud(); fitHudSoon(); }
   const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
   if(st){
     document.getElementById("nStop").textContent=items.stop; document.getElementById("nShuf").textContent=items.shuf;
@@ -2002,6 +2032,21 @@ function updateHud(){
   }
 }
 function updatePad(){}
+let fitHudT=0;
+function fitHudSoon(){ cancelAnimationFrame(fitHudT); fitHudT=requestAnimationFrame(()=>requestAnimationFrame(fitHud)); }
+if(window.ResizeObserver){ const ro=new ResizeObserver(fitHudSoon); ro.observe(document.getElementById("ctrlL")); ro.observe(document.body); }
+// 左上の情報が、左下のボタン（とその上のアイテムスロット）に重ならないよう、高さを収める。入りきらない箇条書きは下から隠す
+function fitHud(){
+  const h=document.getElementById("hudL"), c=document.getElementById("ctrlL"); if(!h||!c) return;
+  h.style.maxHeight="";
+  const lis=[...document.querySelectorAll("#scPts li")]; for(const li of lis) li.style.display="";
+  const st=document.getElementById("status"); if(st) st.style.display="";
+  const limit=c.getBoundingClientRect().top-4;
+  const over=()=>h.getBoundingClientRect().bottom>limit;
+  if(over() && st) st.style.display="none";
+  for(let i=lis.length-1;i>=1 && over();i--) lis[i].style.display="none";
+  h.style.maxHeight = over() ? Math.max(60, limit-h.getBoundingClientRect().top)+"px" : ""; h.style.overflow="hidden";
+}
 
 // ===== 画面の向き =====
 // 盤面は常に「画面に見えている向き」のまま（CSSで回さない）。
@@ -2019,7 +2064,7 @@ const angle=0;   // 盤面の回転（常に0）。タッチ座標変換用
 function applyOrientation(){ updatePad(); updateCtrl(); }
 window.addEventListener("orientationchange",()=>setTimeout(applyOrientation,50));
 if(screen.orientation) screen.orientation.addEventListener("change",applyOrientation);
-window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); layoutItems(); });
+window.addEventListener("resize",()=>{ applyOrientation(); drawNext(); layoutItems(); fitHud(); });
 // ===== 画面レイアウト（アイテムボタンの置き方） =====
 const LAYOUTS=[{k:"ringL",name:"大きいリング"},{k:"tiles",name:"タイル"},{k:"ring",name:"小さいリング"}];
 let layoutKey=store.get("layout","ringL"); if(!LAYOUTS.some(l=>l.k===layoutKey)) layoutKey="ringL";
@@ -2536,7 +2581,7 @@ function showMenu(kind, back){
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
         <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝6秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う ／ <b>ブースター</b>＝15秒間、連鎖の受付時間が2倍。3連鎖や50個消すごとに増える</li>
         <li>遊ぶと<b>コイン</b>がたまる（消した数・連鎖・記録・ボス撃破）。<b>ショップ</b>でアイテムを買うと、次のゲームに持っていける</li>
-        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ トランポリン（壁でボヨンと跳ね返る）→ 宇宙（ふわふわ・よくはずむ）→ また草原…。盤面の形も 四角 → 丸 → 六角形 → 八角形 と変わる</li>
+        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ トランポリン（壁でボヨンと跳ね返る）→ 宇宙（ふわふわ・よくはずむ）→ べたべた（べたべたぷにがたくさん）→ また草原…。盤面の形も 四角 → 丸 → 六角形 → 八角形 と変わる</li>
         <li>ステージ5・10・15…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
@@ -2746,7 +2791,7 @@ function gameOver(){
 
 // ===== 起動 =====
 grav=0;
-colorsN=4; balls=[]; nextPairs=[newPair(),newPair()]; particles=[];
+colorsN=5; balls=[]; nextPairs=[newPair(),newPair()]; particles=[];
 running=false; paused=false; over=false;
 applyOrientation(); updatePad(); setStatus(); drawNext(); showMenu("title");
 requestAnimationFrame(frame);
