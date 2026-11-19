@@ -812,6 +812,7 @@ let zkSeen = new Set(store.get("zkSeen",["normal"]));
 function zkMark(k){ if(k && !zkSeen.has(k)){ zkSeen.add(k); store.set("zkSeen",[...zkSeen]); } }
 // 組の軸の粒が真ん中に出る。形は「重力の向き = 下」として置く
 let spawnT=-1e9, releaseT=-1e9, blockedT=0;
+const BLOCK_MS=3000;            // 出口がふさがってからゲームオーバーまでの猶予（この間にどかせば続けられる）
 function spawn(now=performance.now()){
   const nx = nextPairs[0];
   const u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
@@ -829,10 +830,10 @@ function spawn(now=performance.now()){
       if(fits({o:o2},cx,cy)){ nx.o=o2; base=[cx,cy]; rest=bases.filter(q=>q!==b); break outer; }
     }
   }
-  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まって1.5秒たっても空かなければおしまい
+  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まって3秒たっても空かなければおしまい
     if(quietT<400){ blockedT=0; return; }
     if(!blockedT){ blockedT=now; return; }
-    if(now-blockedT<1500) return;
+    if(now-blockedT<BLOCK_MS) return;
     blockedT=0; piece=null; gameOver(); return;
   }
   blockedT=0;
@@ -1416,7 +1417,7 @@ function frame(now){
   if(paused && shuffle) shuffle.t+=dt;
   if(running && !paused && !over && PORTRAIT.matches){ paused=true; showMenu("pause"); }   // 縦向きにしたら一時停止
   if(running && !paused && !over) update(dt, now);
-  stepFx(dt); syncStopSound();
+  stepFx(dt); syncStopSound(); warnStep(dt);
   draw(now); takeChainSnap(now);
   requestAnimationFrame(frame);
 }
@@ -1470,13 +1471,25 @@ function update(dt, now){
   pieceStep(dt);
 }
 // 大逆転: 出口（真ん中）のすぐそばまで積もったピンチから、まわりをすっきり空けたら
-let dangerT=0;
+let dangerT=0, warnBeepT=0;
+const DANGER_R=2.2*2*R;         // 出口からこの距離の中に、止まったぷにがあると「注意」
+// 警告音: 出口の近くまで積もったらゆっくり「ピッ…ピッ…」、出口がふさがったら速く「ピピピピ」
+function warnStep(dt){
+  if(!running||paused||over){ warnBeepT=0; return; }
+  const blocked=blockedT>0, near=dangerT>=400;
+  if(!blocked && !near){ warnBeepT=0; return; }
+  warnBeepT-=dt;
+  if(warnBeepT<=0){
+    if(blocked){ warnBeepT=260; tone(1250,1250,0.09,"square",0.11); shake=Math.max(shake,3); }
+    else{ warnBeepT=850; tone(740,740,0.11,"sine",0.14); }
+  }
+}
 function checkDanger(){
   // 止まっている粒だけで判断する（落ちていく途中の粒が真ん中を通っただけではピンチにしない）。1秒続いたらピンチ
   const c=N/2; let near=Infinity, nearAny=Infinity;
   for(const o of balls){ if(o.live||o.pop) continue; const d=Math.hypot(o.x-c,o.y-c); nearAny=Math.min(nearAny,d);
     if(Math.hypot(o.vx,o.vy)<0.4) near=Math.min(near,d); }
-  dangerT = near<2.2*2*R ? dangerT+80 : 0;
+  dangerT = near<DANGER_R ? dangerT+80 : 0;
   if(dangerT>=1000) danger=true;
   if(danger && nearAny>4.5*2*R){ danger=false; rec.comeback++; praise("大逆転！", "ピンチを切り抜けた", "#9dffb0"); }
 }
@@ -1762,6 +1775,22 @@ function draw(now){
   const c=N/2;
   ctx.strokeStyle="rgba(255,255,255,.18)"; ctx.lineWidth=Math.max(1,s*0.04); ctx.setLineDash([s*0.12,s*0.12]);
   ctx.beginPath(); ctx.arc(c*s,c*s,s*0.5,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  // 出口の警告: 近くまで積もったら黄色い輪（注意）。ふさがったら赤い輪がちぢんでいき、なくなるとゲームオーバー
+  if(running && !over){
+    const blocked=blockedT>0, near=dangerT>=400;
+    if(blocked){
+      const k=Math.max(0,1-(now-blockedT)/BLOCK_MS), pl=0.5+0.5*Math.sin(now/70);
+      const vg=ctx.createRadialGradient(W/2,W/2,W*0.3,W/2,W/2,W*0.75); vg.addColorStop(0,"rgba(255,40,40,0)"); vg.addColorStop(1,`rgba(255,40,40,${(0.25+0.2*pl).toFixed(3)})`);
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
+      ctx.fillStyle=`rgba(255,60,60,${(0.12+0.1*pl).toFixed(3)})`; ctx.beginPath(); ctx.arc(c*s,c*s,s*DANGER_R,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle="#ff5a5a"; ctx.lineWidth=Math.max(3,u*0.14); ctx.beginPath(); ctx.arc(c*s,c*s,s*DANGER_R,-Math.PI/2,-Math.PI/2+Math.PI*2*k); ctx.stroke();
+    }else if(near){
+      const pl=0.5+0.5*Math.sin(now/220);
+      ctx.fillStyle=`rgba(255,207,90,${(0.05+0.06*pl).toFixed(3)})`; ctx.beginPath(); ctx.arc(c*s,c*s,s*DANGER_R,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=`rgba(255,207,90,${(0.45+0.4*pl).toFixed(3)})`; ctx.lineWidth=Math.max(2,u*0.08); ctx.setLineDash([u*0.2,u*0.15]);
+      ctx.beginPath(); ctx.arc(c*s,c*s,s*DANGER_R,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
   // 重力の矢印
   ctx.save(); ctx.translate(W/2,W/2); ctx.rotate(Math.atan2(dy,dx)-Math.PI/2);
   ctx.fillStyle=`rgba(255,207,90,${(0.2+0.3*Math.min(1,tiltK/2)).toFixed(3)})`; const a=s*(0.35+0.25*Math.min(1.4,tiltK)/1.4);
@@ -2004,6 +2033,22 @@ function draw(now){
       ctx.fillStyle="#bfe9ff"; ctx.fillText(itemFx.text,0,0);
       ctx.restore();
     }
+  }
+  if(running && !over && !paused && (blockedT>0 || dangerT>=400)){   // 警告の文字（ぷにの上に重ねる）
+    ctx.save(); ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
+    if(blockedT>0){
+      const left=Math.max(0,BLOCK_MS-(now-blockedT)), n=Math.ceil(left/1000), f=1-(left%1000)/1000;
+      ctx.font=`900 ${u*(2.2-0.5*f)}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.3; ctx.strokeStyle="rgba(0,0,0,.75)"; ctx.fillStyle="#ff5a5a";
+      ctx.strokeText(n,W/2,W/2); ctx.fillText(n,W/2,W/2);
+      ctx.font=`900 ${u*0.62}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.16; ctx.fillStyle="#fff";
+      ctx.strokeText("出口がふさがった！ 傾けてどかそう",W/2,W/2+u*1.9); ctx.fillText("出口がふさがった！ 傾けてどかそう",W/2,W/2+u*1.9);
+    }else{
+      ctx.globalAlpha=0.6+0.4*Math.sin(now/220);
+      ctx.font=`800 ${u*0.5}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.14; ctx.strokeStyle="rgba(0,0,0,.7)"; ctx.fillStyle="#ffcf5a";
+      const y=W/2-s*DANGER_R-u*0.45;
+      ctx.strokeText("⚠ 出口の近くまで積もっている",W/2,y); ctx.fillText("⚠ 出口の近くまで積もっている",W/2,y);
+    }
+    ctx.restore();
   }
   if(paused && running && !over && !slotEdit){
     ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(0,0,W,W);
@@ -2591,6 +2636,7 @@ function showMenu(kind, back){
       <p>端末を傾けると、ぷにが本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
+        <li><b>ゲームオーバー</b>: 次の組が真ん中の出口から出られなくなると警告が鳴り、<b>3秒</b>以内にどかせないとおしまい。出口の近くまで積もると黄色い輪と「ピッ…ピッ…」という音で知らせる</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
         <li>同じ色は<b>一度くっつくと離れない</b>。かたまりごと転がるよ</li>
         <li>ふしぎな力をもった<b>特殊なぷに</b>（爆弾・お邪魔・感染・風船・重り・虹・氷・磁石・時限・べたべた）がステージを進むごとに増えていく。くわしくは<b>図鑑</b>で</li>
