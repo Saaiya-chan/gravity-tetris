@@ -107,7 +107,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
 
     // MARK: - バナー（画面のいちばん下・全幅の帯）
 
-    /// 画面の下端に全幅の帯を敷き、その中に広告を置く。帯はホームバーの下まで伸ばし、広告そのものは安全な範囲の中に収める。
+    /// 画面の下端に全幅の帯を敷き、その中に広告を置く。広告は画面のいちばん下にぴったり付ける。
     private func showBanner() {
         guard banner == nil, !adFree, let wv = webView, let vc = controller else { return }
         let safeWidth = wv.bounds.inset(by: wv.safeAreaInsets).width
@@ -129,7 +129,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
             bar.bottomAnchor.constraint(equalTo: wv.bottomAnchor),
             bar.topAnchor.constraint(equalTo: b.topAnchor),
             b.centerXAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.centerXAnchor),
-            b.bottomAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.bottomAnchor),
+            b.bottomAnchor.constraint(equalTo: wv.bottomAnchor),          // 画面のいちばん下にぴったり付ける（下にすき間を作らない）
         ])
         banner = b
         adBar = bar
