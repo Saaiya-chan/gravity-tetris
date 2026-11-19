@@ -536,8 +536,10 @@
     box-shadow:0 0 0 2.5px rgba(255,255,255,.95), 0 0 0 4.5px rgba(23,48,110,.55);transform:scaleX(-1)}
   .item.timing svg{opacity:.35} .item.timing .lbl{opacity:.6}
   /* ショップ: いまのアバターは、スクロールしても上に残る */
-  .sk-grid{min-width:min(660px,84vw)}
-  .av-now{position:sticky;top:0;z-index:5;display:block;width:max-content;margin:0 auto 6px 0;padding:0;background:none;border:0;box-shadow:none;border-radius:0} .av-now .av{box-shadow:0 0 0 3px #fff,0 6px 10px rgba(0,0,40,.45)}
+  .shop-2col{display:flex;gap:12px;align-items:flex-start} .shop-main{flex:1;min-width:min(600px,70vw)}
+  .av-now{position:sticky;top:4px;z-index:5;flex:none;display:block;margin:0;padding:0;background:none;border:0;box-shadow:none;border-radius:0} .av-now .av{box-shadow:0 0 0 3px #fff,0 6px 10px rgba(0,0,40,.45)}
+  .sheet.wide:has(.shop-2col){max-width:min(900px,97vw)}
+  @media (max-width:900px){ .av-now .av.lg{width:74px} .shop-2col{gap:8px} }
 </style>
 </head>
 <body>
@@ -3299,10 +3301,10 @@ function showShop(back){
         <div style="flex:1"><h3>${it.name}</h3><p>${it.desc}</p><p>次のゲームに持っていく: <b>${carry[it.k]||0}</b></p>
         ${itemOpen(it.k)?`<button class="buy" data-k="${it.k}" ${coins<it.price||(carry[it.k]||0)>=5?"disabled":""}>${ICON.coin} ${it.price} で買う</button>`:`<p class="shop-lock">${ICON.lock} ぷに研究所で研究すると使える</p>`}</div></div>`).join("")}
     </div>`
-    : shopTab==="frame" ? `<div class="av-now">${avatarHtml({},profile.frame,"lg")}</div>${grid("f",FRAMES)}`
-    : `<div class="av-now">${avatarHtml({},profile.frame,"lg")}</div>
+    : shopTab==="frame" ? `<div class="shop-2col"><div class="av-now">${avatarHtml({},profile.frame,"lg")}</div><div class="shop-main">${grid("f",FRAMES)}</div></div>`
+    : `<div class="shop-2col"><div class="av-now">${avatarHtml({},profile.frame,"lg")}</div><div class="shop-main">
     <h3 class="sk-h">からだ</h3>${grid("a",AVATARS)}
-    ${DECO_SLOTS.map(([sl,n])=>`<h3 class="sk-h">${n}</h3>${grid("d",DECOS.filter(d=>d.s===sl))}`).join("")}`;
+    ${DECO_SLOTS.map(([sl,n])=>`<h3 class="sk-h">${n}</h3>${grid("d",DECOS.filter(d=>d.s===sl))}`).join("")}</div></div>`;
   sheet.innerHTML=`<h1>ショップ</h1>
     <div class="shop-top"><div class="tabs">${[["item","アイテム"],["avatar","アバター"],["frame","フレーム"]].map(([k,n])=>`<button data-tab="${k}" class="${shopTab===k?"on":""}">${n}</button>`).join("")}</div>
       <span class="home-pill">${ICON.coin}<b>${coins}</b></span></div>
