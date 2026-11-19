@@ -18,7 +18,7 @@
     --side: clamp(170px, 20vw, 240px);                     /* 左右の列幅 */
     --b: clamp(46px, min(calc((var(--side) - 28px)/3.25), calc(13dvh)), 84px);   /* 操作ボタンの大きさ */
     --ad: 0px;                                                                   /* 下のバナー広告の高さ（アプリが教えてくれる） */
-    --s: min(calc(100dvh - 20px - var(--ad)), calc(100vw - 2*var(--side) - 44px));          /* 盤面の一辺 */
+    --s: min(calc(100dvh - max(10px,env(safe-area-inset-top)) - max(10px,env(safe-area-inset-bottom)) - 38px - var(--ad)), calc(100vw - 2*var(--side) - 44px));          /* 盤面の一辺（上下に、金の枠と影のぶん 38px の余白を残す。広告の帯に枠がかからないように） */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
@@ -3030,7 +3030,15 @@ function decorateSheet(){
   const t=["backBtn","zkBack","shopBack","resumeBtn","introOk"].map(id=>document.getElementById(id)).find(Boolean); if(!t||menuKind==="clear") return;
   const x=document.createElement("button"); x.className="x-close"; x.setAttribute("aria-label","とじる"); x.innerHTML=ICON.close; x.onclick=()=>t.click(); sheet.appendChild(x);
 }
-new MutationObserver(()=>decorateSheet()).observe(document.getElementById("sheet"),{childList:true});
+// 小画面が画面（広告の帯の上まで）に入りきらないときは、全体を少し縮めて収める。長い一覧（あそびかた・ショップなど）はそのままスクロール
+function fitSheet(){
+  sheet.style.zoom="";
+  if(overlay.classList.contains("hidden")||sheet.classList.contains("home")||sheet.classList.contains("wide")) return;
+  const z0=parseFloat(getComputedStyle(sheet).zoom)||1, top=overlay.getBoundingClientRect().top, av=overlay.clientHeight-10; let z=z0;
+  for(let i=0;i<3;i++){ const ext=sheet.getBoundingClientRect().bottom-top+overlay.scrollTop; if(ext<=av) break; z*=av/ext*0.995; if(z<z0*0.62){ sheet.style.zoom=""; return; } sheet.style.zoom=z; }
+}
+new MutationObserver(()=>{ decorateSheet(); fitSheet(); }).observe(document.getElementById("sheet"),{childList:true});
+window.addEventListener("resize",()=>fitSheet());
 let menuBack="title", noadsBack="title";
 function showMenu(kind, back){
   if(back) menuBack=back;

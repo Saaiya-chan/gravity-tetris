@@ -37,6 +37,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
     weak var webView: WKWebView?
 
     private var banner: BannerView?
+    private var adBar: UIView?
     private var bannerHeight: CGFloat = 0
     private var adFree = UserDefaults.standard.bool(forKey: "adFree")
     private var product: Product?
@@ -104,34 +105,37 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
         loadRewarded()
     }
 
-    // MARK: - バナー（盤面の下・真ん中）
+    // MARK: - バナー（画面のいちばん下・全幅の帯）
 
+    /// 画面の下端に全幅の帯を敷き、その中に広告を置く。帯はホームバーの下まで伸ばし、広告そのものは安全な範囲の中に収める。
     private func showBanner() {
         guard banner == nil, !adFree, let wv = webView, let vc = controller else { return }
-        let size = currentOrientationAnchoredAdaptiveBanner(width: bannerWidth(in: wv.bounds.size))
+        let safeWidth = wv.bounds.inset(by: wv.safeAreaInsets).width
+        let size = currentOrientationAnchoredAdaptiveBanner(width: max(320, floor(safeWidth)))
+        let bar = UIView()
+        bar.backgroundColor = UIColor(red: 0.09, green: 0.19, blue: 0.43, alpha: 1)   // ゲームの紺色 #17306e
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        bar.isHidden = true                                    // 広告が届くまでは場所を空けない
         let b = BannerView(adSize: size)
         b.adUnitID = AdConfig.bannerUnitID
         b.rootViewController = vc
         b.delegate = self
         b.translatesAutoresizingMaskIntoConstraints = false
-        b.isHidden = true                                      // 広告が届くまでは場所を空けない
-        wv.addSubview(b)
+        wv.addSubview(bar)
+        bar.addSubview(b)
         NSLayoutConstraint.activate([
-            b.centerXAnchor.constraint(equalTo: wv.centerXAnchor),
-            b.bottomAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+            bar.leadingAnchor.constraint(equalTo: wv.leadingAnchor),
+            bar.trailingAnchor.constraint(equalTo: wv.trailingAnchor),
+            bar.bottomAnchor.constraint(equalTo: wv.bottomAnchor),
+            bar.topAnchor.constraint(equalTo: b.topAnchor),
+            b.centerXAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.centerXAnchor),
+            b.bottomAnchor.constraint(equalTo: wv.safeAreaLayoutGuide.bottomAnchor),
         ])
         banner = b
+        adBar = bar
         b.load(Request())
     }
 
-    /// 広告の幅は、広告がないときの盤面の一辺くらい（左右のボタンの列にかからない幅）にする。
-    /// ページの CSS と同じ計算: 列の幅 = 170〜240px（画面幅の20%）、盤面 = min(高さ-20, 幅-列×2-44)
-    private func bannerWidth(in size: CGSize) -> CGFloat {
-        let w = max(size.width, size.height), h = min(size.width, size.height)
-        let side = min(240, max(170, w * 0.2))
-        let board = min(h - 20, w - side * 2 - 44)
-        return max(320, floor(board))
-    }
 
     // MARK: - リワード広告（動画を見るとコイン）
     // ページ → アプリ: {action: "reward"}。見終わったら window.__rewardDone(true)、見られなかったら false。
@@ -181,7 +185,8 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
     }
 
     private func hideBanner() {
-        banner?.removeFromSuperview()
+        adBar?.removeFromSuperview()
+        adBar = nil
         banner = nil
         setAdHeight(0)
     }
@@ -192,18 +197,18 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, 
     }
 
     func bannerViewDidReceiveAd(_ bannerView: BannerView) {
-        bannerView.isHidden = false
-        setAdHeight(bannerView.adSize.size.height + 8)
+        adBar?.isHidden = false
+        setAdHeight(bannerView.adSize.size.height)       // ページ側はこの高さ＋ホームバーの分だけ下を空ける
     }
 
     func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
-        bannerView.isHidden = true
+        adBar?.isHidden = true
         setAdHeight(0)                                         // 広告が来ないときは盤面を大きく戻す
     }
 
     /// ページを読み込み直したときに、今の状態をもう一度教える
     func pageDidLoad() {
-        setAdHeight(banner?.isHidden == false ? bannerHeight : 0)
+        setAdHeight(adBar?.isHidden == false ? bannerHeight : 0)
         pushState()
     }
 
