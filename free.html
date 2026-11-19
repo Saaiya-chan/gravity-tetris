@@ -495,7 +495,7 @@ const THEMES = [
   {k:"bouncy", pts:["壁でボヨンと跳ね返り、なかなか止まらない","粒どうしもよくはずむ","風船ぷにが多め"], ic:"🏀", name:"トランポリン", sub:"壁に当たるとボヨンと跳ね返る", fs:0.3, fk:0.2, g:1, e:10, wallE:0.97, maxE:0.85, bg:["#2c1426","#170a14"], floor:"255,120,200", more:["balloon"]},
   {k:"space", pts:["重力がとても弱く、ふわふわ","よくはずむ","風船ぷに・磁石ぷにが多め"],  ic:"🌌", name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
   {k:"sticky", pts:["べたべたぷにがたくさん出る","色がちがってもくっついて、かたまりで動く","ねばねばで止まりやすい・はずまない"], ic:"🍯", name:"べたべた", sub:"べたべたぷにがたくさん・ねばねば", fs:1.5, fk:1.4, g:1, e:0.2, bg:["#33260a","#181004"], floor:"255,190,60", more:["sticky","sticky","sticky","sticky"], force:["sticky"], spRate:0.7},
-  {k:"popcorn", pts:["ぷにがときどきポンッと弾けて飛ぶ","いつ・どれが弾けるかはわからない","少しはずみやすい"], ic:"🍿", name:"ポップコーン", sub:"ぷにがときどきポンッと弾ける", fs:1, fk:0.9, g:1, e:3, bg:["#2e1518","#170a0c"], floor:"255,236,170", more:[], ev:"popcorn"},
+  {k:"popcorn", pts:["壁に触れているぷにがポンッと弾け飛ぶ","上に乗ったぷにも、つながったぷにも一緒に飛ぶ","少しはずみやすい"], ic:"🍿", name:"ポップコーン", sub:"壁に触れたぷにが弾け飛ぶ", fs:1, fk:0.9, g:1, e:3, bg:["#2e1518","#170a0c"], floor:"255,236,170", more:[], ev:"popcorn"},
 ];
 // ===== 遊び方は2つ =====
 // ワールド: 1つのワールド（草原・砂漠…）を5面つづけて遊ぶ。5面目にボスが出て、倒すとワールドクリア。途中でゲームオーバーになるとワールドの最初から。
@@ -586,17 +586,28 @@ function themeStep(now, dt){
     const pick = (gb.length && Math.random()<0.7) ? gb[Math.random()*gb.length|0] : list[Math.random()*list.length|0];
     if(pick){ balls=balls.filter(o=>o!==pick); dropBonds(o=>o!==pick); for(let i=0;i<2;i++) burst(pick.x-0.5,pick.y-0.5,0); score+=10; sfx("lock"); }
   }
-  if(th.ev==="popcorn" && themeEvT>popcornAt && !popping && !shuffle){   // ポップコーン: 0.6〜2.6秒おきに、止まっているぷにが1〜3個、重力と逆のほうへポンッと弾け飛ぶ
+  if(th.ev==="popcorn" && themeEvT>popcornAt && !popping && !shuffle){   // ポップコーン: 0.6〜2.6秒おきに、壁（熱いなべ）に触れているぷにが1〜3個、壁から離れる向きへポンッと弾け飛ぶ
     themeEvT=0; popcornAt=600+Math.random()*2000;
-    const list=balls.filter(o=>!o.live&&!o.pop&&!o.frozen), u=gDir()||[0,1], a=Math.max(15, G/cellM*Math.hypot(gN.x,gN.y));
+    // 触れている壁の、外向きの法線（触れていなければ null）
+    const wallN=o=>{ const A=arena().k, c=N/2, e=0.05;
+      if(A==="square"){ if(o.y>=N-R-e) return [0,1]; if(o.y<=R+e) return [0,-1]; if(o.x>=N-R-e) return [1,0]; if(o.x<=R+e) return [-1,0]; return null; }
+      if(A==="circle"){ const dx=o.x-c, dy=o.y-c, d=Math.hypot(dx,dy)||1; return d>=c-R-e ? [dx/d,dy/d] : null; }
+      for(const [nx,ny,a] of arenaEdges(A)) if((o.x-c)*nx+(o.y-c)*ny >= a-R-e) return [nx,ny]; return null; };
+    const list=balls.filter(o=>!o.live&&!o.pop&&!o.frozen&&wallN(o)), a=Math.max(15, G/cellM*Math.hypot(gN.x,gN.y));
     const n=Math.min(list.length, 1+(Math.random()<0.35?1:0)+(Math.random()<0.15?1:0));
     for(let i=0;i<n;i++){
-      const o=list.splice(Math.random()*list.length|0,1)[0];
-      const H=2.5+Math.random()*4.5, v=Math.sqrt(2*a*H)*(o.heavy?0.4:1), ang=(Math.random()-0.5)*1.5, c=Math.cos(ang), sn=Math.sin(ang);
-      o.vx=(-u[0]*c+u[1]*sn)*v; o.vy=(-u[1]*c-u[0]*sn)*v; o.wv=(o.wv||0)+0.02; o.slip=400;
-      for(let j=0;j<2;j++) burst(o.x-0.5,o.y-0.5,3);
+      const o=list.splice(Math.random()*list.length|0,1)[0], wn=wallN(o);
+      const H=3+Math.random()*4.5, v=Math.sqrt(2*a*H)*(o.heavy?0.5:1), ang=(Math.random()-0.5)*0.9, c=Math.cos(ang), sn=Math.sin(ang);
+      const dx=-wn[0]*c+wn[1]*sn, dy=-wn[1]*c-wn[0]*sn;         // 壁から離れる向き（少しばらつく）
+      // つながっているぷにも、上に乗っているぷにも、まとめて飛ばす
+      const go=new Map([[o,1]]);
+      const q=[o]; while(q.length && go.size<14){ const b=q.pop(); for(const [p1,p2] of bonds){ const t=p1===b?p2:p2===b?p1:null; if(t && !go.has(t) && !t.live && !t.pop){ go.set(t,0.9); q.push(t); } } }
+      for(const b of balls){ if(go.has(b)||b.live||b.pop) continue; const rx=b.x-o.x, ry=b.y-o.y, al=rx*dx+ry*dy, lat=Math.abs(rx*dy-ry*dx); if(al>0 && al<7 && lat<2*R*0.95) go.set(b,0.92); }
+      for(const [b,k] of go){ b.vx=dx*v*k; b.vy=dy*v*k; b.slip=500; }
+      o.wv=(o.wv||0)+0.02;
+      for(let j=0;j<3;j++) burst(o.x-0.5+wn[0]*0.4,o.y-0.5+wn[1]*0.4,3);
     }
-    if(n){ tone(900,1500,0.05,"square",0.07); tone(300,160,0.09,"sine",0.16,0.01); shake=Math.max(shake,2); }
+    if(n){ tone(900,1500,0.05,"square",0.07); tone(300,160,0.09,"sine",0.16,0.01); shake=Math.max(shake,3); }
   }
 }
 // ===== ボス戦 =====
