@@ -779,6 +779,7 @@ function reset(){
   score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=5; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
+  blockedT=0; blockedAcc=0; blockedLast=0;
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec(); chainSnap=null; chainSnapAt=0;
   items={stop:1, shuf:1, jump:1, mag:1, boost:1}; boostLeft=0; bossShots=[];
@@ -811,7 +812,7 @@ const ZUKAN = [
 let zkSeen = new Set(store.get("zkSeen",["normal"]));
 function zkMark(k){ if(k && !zkSeen.has(k)){ zkSeen.add(k); store.set("zkSeen",[...zkSeen]); } }
 // 組の軸の粒が真ん中に出る。形は「重力の向き = 下」として置く
-let spawnT=-1e9, releaseT=-1e9, blockedT=0;
+let spawnT=-1e9, releaseT=-1e9, blockedT=0, blockedAcc=0, blockedLast=0;
 const BLOCK_MS=3000;            // 出口がふさがってからゲームオーバーまでの猶予（この間にどかせば続けられる）
 function spawn(now=performance.now()){
   const nx = nextPairs[0];
@@ -830,13 +831,16 @@ function spawn(now=performance.now()){
       if(fits({o:o2},cx,cy)){ nx.o=o2; base=[cx,cy]; rest=bases.filter(q=>q!==b); break outer; }
     }
   }
-  if(!base){                                                   // 出口が全部ふさがっている: 山が動いている間は待つ。止まって3秒たっても空かなければおしまい
-    if(quietT<400){ blockedT=0; return; }
-    if(!blockedT){ blockedT=now; return; }
-    if(now-blockedT<BLOCK_MS) return;
-    blockedT=0; piece=null; gameOver(); return;
+  if(!base){                                                   // 出口が全部ふさがっている: 次の組が出られるまでカウントが進み、3秒ぶんたまるとおしまい
+    // カウントは、次の組が実際に出られるまで戻らない（少し傾けて山をゆらすだけでは延命できない）。
+    // 山が動いている間はゆっくり（3分の1の速さで）進む
+    const d=blockedLast ? Math.min(100, now-blockedLast) : 0; blockedLast=now;
+    if(!blockedT) blockedT=now;
+    blockedAcc += quietT>=400 ? d : d*0.35;
+    if(blockedAcc<BLOCK_MS) return;
+    blockedT=0; blockedAcc=0; blockedLast=0; piece=null; gameOver(); return;
   }
-  blockedT=0;
+  blockedT=0; blockedAcc=0; blockedLast=0;
   const [cx,cy]=base;
   nextPairs.shift(); nextPairs.push(newPair()); spawnT=now;
   if(boss) for(const [ex,ey] of rest){                         // 同時に落ちてくる組（操作はできない）
@@ -1779,7 +1783,7 @@ function draw(now){
   if(running && !over){
     const blocked=blockedT>0, near=dangerT>=400;
     if(blocked){
-      const k=Math.max(0,1-(now-blockedT)/BLOCK_MS), pl=0.5+0.5*Math.sin(now/70);
+      const k=Math.max(0,1-blockedAcc/BLOCK_MS), pl=0.5+0.5*Math.sin(now/70);
       const vg=ctx.createRadialGradient(W/2,W/2,W*0.3,W/2,W/2,W*0.75); vg.addColorStop(0,"rgba(255,40,40,0)"); vg.addColorStop(1,`rgba(255,40,40,${(0.25+0.2*pl).toFixed(3)})`);
       ctx.fillStyle=vg; ctx.fillRect(0,0,W,W);
       ctx.fillStyle=`rgba(255,60,60,${(0.12+0.1*pl).toFixed(3)})`; ctx.beginPath(); ctx.arc(c*s,c*s,s*DANGER_R,0,Math.PI*2); ctx.fill();
@@ -2037,7 +2041,7 @@ function draw(now){
   if(running && !over && !paused && (blockedT>0 || dangerT>=400)){   // 警告の文字（ぷにの上に重ねる）
     ctx.save(); ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
     if(blockedT>0){
-      const left=Math.max(0,BLOCK_MS-(now-blockedT)), n=Math.ceil(left/1000), f=1-(left%1000)/1000;
+      const left=Math.max(0,BLOCK_MS-blockedAcc), n=Math.ceil(left/1000), f=1-(left%1000)/1000;
       ctx.font=`900 ${u*(2.2-0.5*f)}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.3; ctx.strokeStyle="rgba(0,0,0,.75)"; ctx.fillStyle="#ff5a5a";
       ctx.strokeText(n,W/2,W/2); ctx.fillText(n,W/2,W/2);
       ctx.font=`900 ${u*0.62}px -apple-system,"Hiragino Sans",sans-serif`; ctx.lineWidth=u*0.16; ctx.fillStyle="#fff";
@@ -2636,7 +2640,7 @@ function showMenu(kind, back){
       <p>端末を傾けると、ぷにが本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
-        <li><b>ゲームオーバー</b>: 次の組が真ん中の出口から出られなくなると警告が鳴り、<b>3秒</b>以内にどかせないとおしまい。出口の近くまで積もると黄色い輪と「ピッ…ピッ…」という音で知らせる</li>
+        <li><b>ゲームオーバー</b>: 次の組が真ん中の出口から出られなくなると警告が鳴り、<b>3秒</b>以内に出口を空けられないとおしまい（山をゆらすだけではカウントは戻らない）。出口の近くまで積もると黄色い輪と「ピッ…ピッ…」という音で知らせる</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
         <li>同じ色は<b>一度くっつくと離れない</b>。かたまりごと転がるよ</li>
         <li>ふしぎな力をもった<b>特殊なぷに</b>（爆弾・お邪魔・感染・風船・重り・虹・氷・磁石・時限・べたべた）がステージを進むごとに増えていく。くわしくは<b>図鑑</b>で</li>
