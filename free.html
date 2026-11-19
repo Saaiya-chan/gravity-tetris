@@ -530,6 +530,11 @@
   .cl-gems{display:flex;gap:10px;justify-content:center;margin:8px 0 2px} .cl-gem{display:inline-flex;align-items:center;gap:6px;background:#17306e;border-radius:14px;padding:5px 14px;font-size:22px} .cl-gem small{font-size:12.5px;line-height:1.25;text-align:left} .cl-gem .gem{width:1.5em;height:1.5em} .cl-gem.rb{box-shadow:0 0 0 3px #ffd76a;animation:clPop .6s cubic-bezier(.2,1.5,.4,1)} .cl-gem.off{opacity:.7}
   .sheet .wl{grid-template-rows:auto;gap:1px} .wl-ab{font-size:12px;line-height:1.3;opacity:.95} .wl-vs{font-size:12px;color:#ffe9a8} .wl-vs.ok{color:#9dffb0} .wl-st .gem{width:1.2em;height:1.2em}
   .sheet.intro button.cl-x2 small .gem{width:1.2em;height:1.2em}
+  /* アイテムの残り時間: 白い扇形が、時計まわりに減っていく */
+  .item.timing::after{content:"";position:absolute;inset:9%;border-radius:50%;pointer-events:none;
+    background:conic-gradient(rgba(255,255,255,.82) calc(var(--left,0)*360deg), rgba(255,255,255,0) 0);
+    box-shadow:0 0 0 2.5px rgba(255,255,255,.95), 0 0 0 4.5px rgba(23,48,110,.55);transform:scaleX(-1)}
+  .item.timing svg{opacity:.35} .item.timing .lbl{opacity:.6}
 </style>
 </head>
 <body>
@@ -1246,7 +1251,36 @@ function hitBoss(n, now, from=[]){
   if(boss.hp<=0) boss.dying=true;                              // 体当たりが全部当たってから倒れる
 }
 function bossTarget(){ const W=N, bw=W*0.62, bx=(W-bw)/2, by=0.6*N/N0; return [bx + bw*Math.max(0,(boss&&boss.disp!=null?boss.disp:0)/(boss?boss.maxHp:1)), by]; }
+const BOSS_DEATH_MS=2400;      // 倒れるときの演出: ボスのまん中から光があふれて、最後に真っ白にはじける
+let deathFlash=0;
+function bossFinish(now){
+  boss.disp=0; rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
+  praise("ボス撃破！", `${boss.name}をたおした  +${5000*boss.n}点`, "#ffcf5a");
+  lastCrownBroken = boss.crown<=0; lastBossK = boss.k;
+  bossFx={t:now, text:"", win:true}; boss=null; shake=22; sfx("bosswin"); deathFlash=now; updateHud();
+  for(let i=0;i<14;i++) burst(N/2-0.5+(Math.random()-0.5)*6, N/2-0.5+(Math.random()-0.5)*6, i%5);
+  if(mode==="world") worldClear();
+}
+function drawBossDeath(now, W){
+  if(deathFlash){ const f=(now-deathFlash)/700; if(f>=1) deathFlash=0; else{ ctx.save(); ctx.globalAlpha=(1-f)*(1-f); ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,W); ctx.restore(); } }
+  if(!boss || !boss.deathT) return;
+  const t=Math.min(1,(now-boss.deathT)/BOSS_DEATH_MS), cx=W/2, cy=W*0.5, n=Math.floor(3+t*15);
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  for(let i=0;i<n;i++){                                         // 光のすじ: だんだん増えて、太く長くなる
+    const born=i/18, k=Math.min(1,(t-born)/0.25); if(k<=0) continue;
+    const a=i*2.399+now/1400*(i%2?1:-1), len=W*(0.25+0.95*k)*(0.8+0.2*Math.sin(now/90+i)), wd=(0.035+0.11*t)*(0.6+0.4*Math.sin(i*7.3));
+    const g=ctx.createLinearGradient(cx,cy,cx+Math.cos(a)*len,cy+Math.sin(a)*len); g.addColorStop(0,`rgba(255,255,235,${0.85*k})`); g.addColorStop(0.5,`rgba(255,225,130,${0.5*k})`); g.addColorStop(1,"rgba(255,200,80,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a-wd)*len,cy+Math.sin(a-wd)*len); ctx.lineTo(cx+Math.cos(a+wd)*len,cy+Math.sin(a+wd)*len); ctx.closePath(); ctx.fill();
+  }
+  const rr=W*(0.04+0.5*t*t), cg=ctx.createRadialGradient(cx,cy,0,cx,cy,rr);                   // まん中の光の玉がふくらむ
+  cg.addColorStop(0,"rgba(255,255,255,1)"); cg.addColorStop(0.4,`rgba(255,245,190,${0.6+0.4*t})`); cg.addColorStop(1,"rgba(255,220,120,0)");
+  ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  if(t>0.82){ ctx.save(); ctx.globalAlpha=(t-0.82)/0.18; ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,W); ctx.restore(); }   // 最後は真っ白に
+}
 function stepBossShots(now){
+  if(boss && boss.deathT){ shake=Math.max(shake,3+8*(now-boss.deathT)/BOSS_DEATH_MS); if(now-boss.deathT>=BOSS_DEATH_MS) bossFinish(now); return; }
+  if(boss && boss.dying && !bossShots.length){ boss.deathT=now; boss.disp=0; boss.warn=0; beam=null; sfx("mag"); return; }
   if(!bossShots.length) return;
   const keep=[];
   for(const sh of bossShots){
@@ -1256,13 +1290,6 @@ function stepBossShots(now){
     const [tx,ty]=bossTarget(); burst(tx-0.5,ty-0.5,sh.c); shake=Math.max(shake,4); sfx("lock");
   }
   bossShots=keep;
-  if(boss && boss.dying && !bossShots.length){
-    boss.disp=0; rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
-    praise("ボス撃破！", `${boss.name}をたおした  +${5000*boss.n}点`, "#ffcf5a");
-    lastCrownBroken = boss.crown<=0; lastBossK = boss.k;
-    bossFx={t:now, text:"", win:true}; boss=null; shake=18; sfx("bosswin"); updateHud();
-    if(mode==="world") worldClear();
-  }
 }
 function drawBossShots(now, s){
   if(!bossShots.length) return;
@@ -1860,6 +1887,13 @@ function burst(x,y,c){
 // アイテムを取ったときの演出: 盤面の真ん中にアイコンが大きく飛び出し、「○○ GET!」と出てから、そのアイテムのボタンへ飛んでいく
 const ITEM_BTN={stop:"itemStop",shuf:"itemShuf",jump:"itemJump",mag:"itemMag",boost:"itemBoost",hand:"itemHand"};
 // アイテムを使ったときの演出: 盤面の真ん中にアイコンがぱっと大きく出て、ふくらみながら消える（遊びは止めない）
+// 効果が続くアイテムは、ボタンの上に「残り時間」を白い扇形で出す（時計の針のように減っていく）
+const itemTot={stop:1,mag:1,boost:1,hand:1};
+function itemClock(){
+  const left={stop:stopLeft,mag:magLeft,boost:boostLeft,hand:handLeft};
+  for(const k in left){ const e=document.getElementById(ITEM_BTN[k]); if(!e) continue; const f=left[k]>0?Math.min(1,left[k]/itemTot[k]):0;
+    if(e._f!==f){ e._f=f; e.style.setProperty("--left",f); e.classList.toggle("timing",f>0); } }
+}
 function showItemUse(k){
   bossCounter(k, performance.now());
   const btn=document.getElementById(ITEM_BTN[k]), st=document.getElementById("stage");
@@ -1929,14 +1963,14 @@ function useJump(){
 // マグネット: しばらくのあいだ、同じ色どうしが引き合う
 function useMag(){
   if(!running||paused||over||items.mag<=0||magLeft>0) return;
-  items.mag--; magLeft=skillOwned("magLong")?9000:MAG_MS; jiggleAll(0.008); shake=6;
+  items.mag--; magLeft=itemTot.mag=skillOwned("magLong")?9000:MAG_MS; jiggleAll(0.008); shake=6;
   showItemUse("mag");
   sfx("mag"); updateHud();
 }
 // 魔法の手: 5秒間、盤面のぷにを指でつかんで好きな場所へ運べる（つながっている仲間もいっしょに付いてくる）
 function useHand(){
   if(!running||paused||over||items.hand<=0||handLeft>0) return;
-  items.hand--; handLeft=skillOwned("handLong")?7000:HAND_MS; handGrab=null;
+  items.hand--; handLeft=itemTot.hand=skillOwned("handLong")?7000:HAND_MS; handGrab=null;
   showItemUse("hand");
   sfx("mag"); updateHud();
 }
@@ -1945,14 +1979,14 @@ function boardPos(cx,cy){ const r=stage.getBoundingClientRect(), cell=r.width/N;
 // ブースター: 15秒間、連鎖の受付時間が2倍（連鎖がつながりやすい）
 function useBoost(){
   if(!running||paused||over||items.boost<=0||boostLeft>0) return;
-  items.boost--; boostLeft=BOOST_MS;
+  items.boost--; boostLeft=itemTot.boost=BOOST_MS;
   if(cascade && chainUntil<Infinity && chainUntil>performance.now()){ chainWinLen*=2; chainUntil=performance.now()+chainWinLen; }  // いまの受付もすぐ延ばす
   showItemUse("boost");
   sfx("boost"); updateHud();
 }
 function useStop(){
   if(!running||paused||over||items.stop<=0||stopLeft>0) return;
-  items.stop--; stopLeft=STOP_MS;
+  items.stop--; stopLeft=itemTot.stop=STOP_MS;
   showItemUse("stop");
   updateHud();                                                 // 効果音は syncStopSound が鳴らす（ストップの間ずっと時計の音）
 }
@@ -2087,6 +2121,7 @@ function update(dt, now){
     }
     return;
   }
+  itemClock();
   if(stopLeft>0){ stopLeft=Math.max(0,stopLeft-dt); if(stopLeft===0) updateHud(); }
   if(stopLeft<=0){ if(!(boss&&boss.dying)) bossStep(now); themeStep(now, dt); idleStep(now, dt); }           // ストップ中はボスとステージの出来事も止まる
   if(boostLeft>0){ boostLeft=Math.max(0,boostLeft-dt); if(boostLeft===0) updateHud(); }
@@ -2682,6 +2717,7 @@ function draw(now){
   drawBossShots(now, s);
   drawEmber(now, s);
   drawPetals(now, W);
+  drawBossDeath(now, W);
   if(overFx){
     const t=(now-overFx.t-700)/600;
     if(t>0){
