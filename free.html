@@ -203,6 +203,20 @@
   #overlay.hidden{display:none}
   .sheet{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;text-align:center}
   .sheet h1{margin:0 0 4px;font-size:28px}
+  /* はじめて出てきたものの紹介カード */
+  .sheet.intro{max-width:420px;padding:0 24px 20px;background:linear-gradient(180deg,#27345c,#161b2c);border:2px solid #ffcf5a;overflow:visible;margin-top:26px}
+  .in-head{display:inline-block;transform:translateY(-50%);background:linear-gradient(180deg,#ffe08a,#ffb93c);color:#3a2600;font-weight:900;font-size:19px;padding:8px 30px;border-radius:999px;box-shadow:0 4px 0 #a87400;letter-spacing:.06em}
+  .in-pic{position:relative;height:170px;border-radius:18px;background:linear-gradient(180deg,rgba(150,200,255,.22),rgba(255,236,170,.16));display:grid;place-items:center;overflow:hidden;margin-top:-6px}
+  .in-pic canvas{width:150px;height:150px;position:relative}
+  .in-rays{position:absolute;left:50%;top:50%;width:420px;height:420px;margin:-210px;border-radius:50%;background:repeating-conic-gradient(rgba(255,240,180,.22) 0 10deg, transparent 10deg 30deg);animation:inSpin 14s linear infinite;
+    -webkit-mask:radial-gradient(circle,#000 0 25%,transparent 62%);mask:radial-gradient(circle,#000 0 25%,transparent 62%)}
+  @keyframes inSpin{to{transform:rotate(360deg)}}
+  .in-item{position:relative;width:108px;height:108px;border-radius:28%;border:3px solid;display:grid;place-items:center;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 8px 20px rgba(0,0,0,.45)}
+  .in-item svg{width:58%;height:58%}
+  .in-name{margin:14px 0 4px;font-size:26px;font-weight:900}
+  .in-desc{margin:0 0 16px;font-size:16px;line-height:1.6;color:var(--text)}
+  .sheet.intro button.big{min-width:150px;font-size:22px;padding:12px 30px;background:linear-gradient(180deg,#b6f36a,#6fcf3a);color:#143200;box-shadow:0 4px 0 #3c8a17}
+  @media (max-height:500px){ .in-pic{height:104px} .in-pic canvas{width:96px;height:96px} .in-item{width:76px;height:76px} .in-name{font-size:20px;margin-top:8px} .in-desc{font-size:13.5px;margin-bottom:10px} .sheet.intro button.big{font-size:18px;padding:8px 26px} .in-head{font-size:15px;padding:5px 22px} }
   /* ホーム画面 */
   .sheet.home{max-width:520px;padding:20px 26px 18px;background:linear-gradient(180deg,#1c2238,#141826);border-color:#2f3856}
   #homeArt{width:300px;height:92px;max-width:100%;display:block;margin:0 auto}
@@ -779,6 +793,7 @@ function reset(){
   score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=5; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
   stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
   nextPairs=[newPair(), newPair()];
+  introQ=[];
   blockedT=0; blockedAcc=0; blockedLast=0;
   piece=null; lockTimer=0; dirty=false; popping=null; chain=0; quietT=0; cascade=false; chainUntil=0; lastPopG=null;
   particles=[]; chainFx=null; shake=0; paused=false; over=false; resetRec(); chainSnap=null; chainSnapAt=0;
@@ -850,7 +865,7 @@ function spawn(now=performance.now()){
       o.vx=u[0]*4; o.vy=u[1]*4; balls.push(o); });
   }
   const bs=nx.o.map(([x,y],i)=>{ const b=newBall(cx+(p[0]*x+u[0]*y)*D, cy+(p[1]*x+u[1]*y)*D, nx.c[i]); b.live=true;
-    applyFlag(b, nx.f[i]); return b; });
+    applyFlag(b, nx.f[i]); if(nx.f[i]) introAdd("puni",nx.f[i]); else if(nx.c[i]===GARBAGE) introAdd("puni","garbage"); return b; });
   const links=[];
   for(let i=0;i<bs.length;i++) for(let j=i+1;j<bs.length;j++) links.push([bs[i],bs[j],Math.hypot(bs[i].x-bs[j].x,bs[i].y-bs[j].y)]);
   piece={balls:bs, links, hover:LEVELS[levelKey].hover, hover0:LEVELS[levelKey].hover, ox:0, oy:0};
@@ -1261,7 +1276,7 @@ function playItemGet(k){
 function grantItem(now){
   const ks=["stop","shuf","jump","mag","boost"], k=ks[Math.random()*ks.length|0];
   items[k]=Math.min(9,items[k]+1);
-  showItemGet(k);
+  showItemGet(k); introAdd("item",k,1700);                   // はじめてのアイテムは、取った演出のあとに紹介する
   sfx("get"); updateHud();
 }
 // ジャンプ: 床（重力の向きの辺）から突き上げて、全部の粒を跳ね上げる。落ちてくるときに少し混ざる
@@ -1421,7 +1436,7 @@ function frame(now){
   if(paused && shuffle) shuffle.t+=dt;
   if(running && !paused && !over && PORTRAIT.matches){ paused=true; showMenu("pause"); }   // 縦向きにしたら一時停止
   if(running && !paused && !over) update(dt, now);
-  stepFx(dt); syncStopSound(); warnStep(dt);
+  stepFx(dt); syncStopSound(); warnStep(dt); introStep();
   draw(now); takeChainSnap(now);
   requestAnimationFrame(frame);
 }
@@ -2608,7 +2623,7 @@ function drawHomeArt(){
 let menuBack="title";
 function showMenu(kind, back){
   if(back) menuBack=back;
-  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home"); cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
+  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home","intro"); introOpen=false; cancelAnimationFrame(introAnim); cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
   const secure = window.isSecureContext;
   if(kind==="title"){                                          // ホーム画面
     sheet.classList.add("home");
@@ -2751,6 +2766,50 @@ function shareX(withImage){
   try{ navigator.clipboard && navigator.clipboard.writeText(text+"\n"+url).then(()=>{ if(msg) msg.textContent+=" ／ 投稿文をコピーしました"; }).catch(()=>{}); }catch(e){}
 }
 function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
+// ===== はじめて出てきたぷに・アイテムの紹介カード =====
+// 新しい種類のぷにがはじめて出口から出てきたとき、アイテムをはじめて手に入れたときに、遊びを止めて1回だけ紹介する
+let introSeen=new Set(store.get("introSeen",[])), introQ=[], introOpen=false, introAnim=0;
+function introAdd(type,k,delay=0){
+  const id=type+":"+k; if(introSeen.has(id)||introQ.some(q=>q.id===id)) return;
+  introQ.push({id,type,k,at:performance.now()+delay});
+}
+function introStep(){
+  if(introOpen||!introQ.length||!running||paused||over||popping||shuffle||slotEdit) return;
+  const i=introQ.findIndex(q=>performance.now()>=q.at); if(i<0) return;
+  showIntro(introQ.splice(i,1)[0]);
+}
+function showIntro(q){
+  introOpen=true; paused=true; introSeen.add(q.id); store.set("introSeen",[...introSeen]);
+  menuKind="intro"; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home"); sheet.classList.add("intro");
+  cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
+  let pic, name, desc, head;
+  if(q.type==="puni"){
+    const z=ZUKAN.find(z=>z.k===q.k)||ZUKAN[0]; head="あたらしいぷに"; name=z.name; desc=z.desc; pic=`<canvas id="introCv"></canvas>`;
+  }else{
+    const it=SHOP.find(x=>x.k===q.k), btn=document.getElementById(ITEM_BTN[q.k]), cs=getComputedStyle(btn);
+    head="あたらしいアイテム"; name=it.name; desc=it.desc+"。ボタンを押すと使える";
+    pic=`<div class="in-item" style="background:${cs.backgroundImage};border-color:${cs.borderTopColor};color:${cs.color}">${btn.querySelector("svg")?.outerHTML||""}</div>`;
+  }
+  sheet.innerHTML=`<div class="in-head">${head}</div>
+    <div class="in-pic"><div class="in-rays"></div>${pic}</div>
+    <h2 class="in-name">${name}</h2><p class="in-desc">${desc}</p>
+    <button class="big" id="introOk">OK</button>`;
+  overlay.scrollTop=0; sfx("get");
+  const c=document.getElementById("introCv");
+  if(c){
+    const z=ZUKAN.find(z=>z.k===q.k), dpr=Math.min(3,window.devicePixelRatio||1), W=Math.round(150*dpr); c.width=c.height=W; const g=c.getContext("2d");
+    const draw=now=>{ if(!c.isConnected) return; g.clearRect(0,0,W,W);
+      const fx=Object.assign({},z.fx||{}); if(fx.timer) fx.timer=30000-((now/1000)%30)*1000;
+      const br=1+0.04*Math.sin(now/300), blink=((now/1000)%3.2)<0.12, yy=z.k==="balloon" ? W*(0.5+0.05*Math.sin(now/600)) : W*0.52;
+      blob(g,W/2,yy,W*0.32*br,z.c,1,{face:true,blink,g:[0,1],fx,t:now}); introAnim=requestAnimationFrame(draw); };
+    cancelAnimationFrame(introAnim); introAnim=requestAnimationFrame(draw);
+  }
+  document.getElementById("introOk").onclick=()=>{
+    cancelAnimationFrame(introAnim); sheet.classList.remove("intro"); introOpen=false;
+    const i=introQ.findIndex(q=>performance.now()>=q.at);
+    if(i>=0) showIntro(introQ.splice(i,1)[0]); else { paused=false; hideOverlay(); }
+  };
+}
 async function start(){
   initAudio();
   await enableSensor();
