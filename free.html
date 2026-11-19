@@ -217,23 +217,35 @@
   .in-desc{margin:0 0 16px;font-size:16px;line-height:1.6;color:var(--text)}
   .sheet.intro button.big{min-width:150px;font-size:22px;padding:12px 30px;background:linear-gradient(180deg,#b6f36a,#6fcf3a);color:#143200;box-shadow:0 4px 0 #3c8a17}
   @media (max-height:500px){ .in-pic{height:104px} .in-pic canvas{width:96px;height:96px} .in-item{width:76px;height:76px} .in-name{font-size:20px;margin-top:8px} .in-desc{font-size:13.5px;margin-bottom:10px} .sheet.intro button.big{font-size:18px;padding:8px 26px} .in-head{font-size:15px;padding:5px 22px} }
-  /* ホーム画面 */
-  .sheet.home{max-width:520px;padding:20px 26px 18px;background:linear-gradient(180deg,#1c2238,#141826);border-color:#2f3856}
-  #homeArt{width:300px;height:92px;max-width:100%;display:block;margin:0 auto}
-  .home-title{font-size:34px!important;font-weight:900;letter-spacing:.04em;background:linear-gradient(180deg,#fff,#ffd978);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .home-tag{margin:2px 0 8px;color:var(--dim);font-size:14px}
-  .home-stats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--dim)}
-  .home-stats span{background:rgba(255,255,255,.06);border-radius:999px;padding:4px 12px}
-  .home-stats b{color:var(--text);font-size:15px;margin-left:3px}
-  .sheet button.home-start{display:block;width:100%;margin:14px 0 4px;padding:16px;font-size:24px;border-radius:16px;box-shadow:0 5px 0 #a87400}
-  .sheet button.home-start:active{transform:translateY(4px);box-shadow:0 1px 0 #a87400}
-  .home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
-  .home-grid button{padding:10px 2px;font-size:12px;border-radius:12px;display:grid;gap:3px;justify-items:center;line-height:1.2}
-  .home-grid button i{font-style:normal;font-size:24px}
-  @media (min-height:600px) and (min-width:900px){ .sheet.home{max-width:640px;padding:30px 40px 26px} #homeArt{width:390px;height:120px} .home-title{font-size:46px!important} .home-tag{font-size:17px;margin-bottom:12px}
-    .home-stats{font-size:15px} .home-stats b{font-size:18px} .sheet button.home-start{padding:22px;font-size:30px;margin-top:20px} .home-grid{gap:12px;margin-top:16px} .home-grid button{padding:14px 4px;font-size:14px} .home-grid button i{font-size:32px} }
-  @media (max-height:500px){ #homeArt{height:60px;width:196px} .home-title{font-size:24px!important} .home-tag{display:none} .sheet.home{padding:10px 20px}
-    .sheet button.home-start{padding:9px;font-size:19px;margin:8px 0 2px} .home-grid{margin-top:8px} .home-grid button{padding:6px 2px;font-size:11px} .home-grid button i{font-size:18px} }
+  /* ホーム画面（画面いっぱい。上に記録とコイン、左右に丸いボタン、真ん中にぷにとスタート） */
+  #overlay.homeBg{padding:0;background:radial-gradient(ellipse at 50% 108%,rgba(255,207,90,.22),transparent 55%),radial-gradient(ellipse at 15% 0%,rgba(110,170,255,.28),transparent 50%),radial-gradient(ellipse at 90% 10%,rgba(190,120,255,.22),transparent 45%),linear-gradient(180deg,#16204a,#231d52 55%,#2c1f4a);box-shadow:0 var(--ad) 0 #2c1f4a}
+  .sheet.home{--hb:clamp(50px,12.5vh,88px);width:100%;height:100%;max-width:none;margin:0;border:0;border-radius:0;background:none;box-shadow:none;
+    padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));
+    display:grid;grid-template:"top top top" auto "left mid right" minmax(0,1fr) / auto minmax(0,1fr) auto;gap:6px 10px;align-items:center}
+  #overlay .sheet.home{margin:0;flex:1;height:auto;min-height:100%;box-sizing:border-box}
+  .home-top{grid-area:top;display:flex;align-items:center;gap:10px;justify-content:space-between}
+  .home-title{margin:0!important;font-size:clamp(20px,4.6vh,34px)!important;font-weight:900;letter-spacing:.04em;text-align:left;white-space:nowrap;background:linear-gradient(180deg,#fff,#ffd978);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .home-pills{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
+  .home-pill{background:rgba(8,10,24,.55);border:1.5px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 14px;font-size:clamp(11px,2.3vh,14px);color:#b9c2dc;white-space:nowrap}
+  .home-pill b{color:#fff;font-size:1.25em;margin-left:5px;font-variant-numeric:tabular-nums}
+  .sheet.home button.home-pill{cursor:pointer;margin:0;background:rgba(8,10,24,.55);border:1.5px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px 5px 14px} .home-pill .plus{display:inline-grid;place-items:center;width:1.3em;height:1.3em;border-radius:50%;background:#6fcf3a;color:#143200;font-weight:900;margin-left:6px}
+  .sheet.home button.home-gear{width:calc(var(--hb)*.72);height:calc(var(--hb)*.72);min-width:38px;min-height:38px;border-radius:50%;padding:0;margin:0;font-size:calc(var(--hb)*.36);background:rgba(8,10,24,.55);border:1.5px solid rgba(255,255,255,.16)}
+  .home-side{display:grid;gap:clamp(6px,2.4vh,18px);justify-items:center;align-content:center}
+  .home-side.l{grid-area:left} .home-side.r{grid-area:right}
+  .sheet.home button.home-round{position:relative;width:var(--hb);height:var(--hb);border-radius:50%;padding:0;margin:0 6px calc(var(--hb)*.2);font-size:calc(var(--hb)*.46);line-height:1;
+    background:linear-gradient(180deg,#3a4a8c,#232c5e);border:2.5px solid #7f93e6;box-shadow:0 4px 0 #151a3d,0 0 18px rgba(120,150,255,.25);display:grid;place-items:center}
+  .sheet.home button.home-round:active{transform:translateY(3px);box-shadow:0 1px 0 #151a3d}
+  .home-round span{position:absolute;left:50%;bottom:calc(var(--hb)*-.2);transform:translateX(-50%);background:#151a3d;border:1.5px solid #7f93e6;border-radius:999px;padding:1px 9px;font-size:clamp(10px,2.2vh,13px);font-weight:800;color:#fff;white-space:nowrap}
+  .sheet.home button.home-round.noad{background:linear-gradient(180deg,#8c3a4a,#5e2330);border-color:#ff9db0} .home-round.noad span{border-color:#ff9db0;background:#3d1520}
+  .home-mid{grid-area:mid;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;align-content:center;gap:clamp(4px,1.6vh,14px);min-height:0}
+  #homeArt{width:min(600px,52vw,calc((100dvh - var(--ad))*.82));aspect-ratio:520/200;display:block}
+  .home-tag{margin:0;color:#c9d2ee;font-size:clamp(11px,2.4vh,16px)}
+  .sheet.home button.home-start{margin:0;padding:clamp(8px,2.6vh,20px) clamp(40px,9vw,96px);font-size:clamp(20px,5vh,36px);font-weight:900;border-radius:20px;letter-spacing:.08em;
+    background:linear-gradient(180deg,#b6f36a,#6fcf3a);color:#143200;border:3px solid #e9ffd0;box-shadow:0 6px 0 #3c8a17,0 10px 24px rgba(0,0,0,.4)}
+  .sheet.home button.home-start:active{transform:translateY(5px);box-shadow:0 1px 0 #3c8a17}
+  .home-foot{display:flex;gap:10px;align-items:center;justify-content:center;min-height:1em;font-size:12px;color:#b9c2dc}
+  .sheet.home .home-foot button{padding:3px 10px;font-size:12px;margin:0;background:none;border:0;color:#9fd3ff;text-decoration:underline}
+  @media (max-width:760px){ .home-pill.opt{display:none} }
   .sheet p{color:var(--dim);font-size:14px;line-height:1.7;margin:8px 0}
   #slotBar button{color:var(--text);background:#232937;border:1px solid #333b4d;border-radius:10px;padding:8px 14px;font-size:15px;margin:0 4px}
   #slotBar .big{font-size:18px;padding:10px 32px;background:var(--accent);color:#1a1a1a;border:none;font-weight:800}
@@ -2533,7 +2545,7 @@ function bindIap(){
 if(IAP_MH) setTimeout(()=>iapSend("state"),0);
 // ショップの画面
 function showShop(back){
-  sheet.classList.add("wide");
+  leaveHome(); sheet.classList.add("wide");
   const icon=k=>document.querySelector(`#item${{stop:"Stop",mag:"Mag",shuf:"Shuf",jump:"Jump",boost:"Boost"}[k]} svg`)?.outerHTML||"";
   sheet.innerHTML=`<h1>🛒 ショップ</h1>
     <div class="zk-count">持っているコイン <b style="color:#ffcf5a;font-size:20px">🪙 ${coins}</b></div>
@@ -2558,6 +2570,7 @@ function showShop(back){
 // 図鑑の画面（見つけたぷにだけ姿と説明が出る。開発版で全部出す設定のときは全部見られる）
 let zkAnim=0;
 function showZukan(back){
+  leaveHome();
   sheet.classList.add("wide");
   const known=z=>zkSeen.has(z.k)||devAll;
   const n=ZUKAN.filter(known).length;
@@ -2607,47 +2620,57 @@ function goHome(){                                              // 遊ぶのを�
 let homeAnim=0;
 function drawHomeArt(){
   const c=document.getElementById("homeArt"); if(!c) return;
-  const dpr=Math.min(3,window.devicePixelRatio||1), W=300, H=92; c.width=W*dpr; c.height=H*dpr;
+  const dpr=Math.min(3,window.devicePixelRatio||1), W=520, H=200; c.width=W*dpr; c.height=H*dpr;
   const g=c.getContext("2d");
+  const P=[[78,34,3],[170,40,1],[262,50,0],[356,40,2],[446,34,4]];            // x, 半径, 色（真ん中がいちばん大きい）
   const draw=now=>{
     if(!c.isConnected) return;
     g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
-    for(let j=0;j<5;j++){
-      const ph=now/380+j*1.3, r=24+(j===2?5:0), y=H-r-6-Math.max(0,Math.sin(ph))*12, blink=((now/1000+j*0.7)%4)<0.12;
-      blob(g, 36+j*57, y, r*(1+0.03*Math.sin(ph*2)), j, 1, {face:true, blink, g:[0,1], t:now});
-    }
+    P.forEach(([x,r,ci],j)=>{
+      const ph=now/420+j*1.25, up=Math.max(0,Math.sin(ph)), y=H-r-14-up*(j===2?34:24), blink=((now/1000+j*0.7)%4)<0.12;
+      g.fillStyle=`rgba(0,0,0,${0.28-0.14*up})`; g.beginPath(); g.ellipse(x,H-10,r*(0.9-0.25*up),r*0.16,0,0,Math.PI*2); g.fill();
+      blob(g, x, y, r*(1+0.04*Math.sin(ph*2)), ci, 1, {face:true, blink, g:[0,1], t:now});
+    });
     homeAnim=requestAnimationFrame(draw);
   };
   cancelAnimationFrame(homeAnim); homeAnim=requestAnimationFrame(draw);
 }
+function leaveHome(){ sheet.classList.remove("home"); overlay.classList.remove("homeBg"); cancelAnimationFrame(homeAnim); }
 let menuBack="title";
 function showMenu(kind, back){
   if(back) menuBack=back;
-  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home","intro"); introOpen=false; cancelAnimationFrame(introAnim); cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
+  menuKind=kind; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home","intro"); overlay.classList.remove("homeBg"); introOpen=false; cancelAnimationFrame(introAnim); cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
   const secure = window.isSecureContext;
   if(kind==="title"){                                          // ホーム画面
-    sheet.classList.add("home");
-    sheet.innerHTML=`<canvas id="homeArt"></canvas>
-      <h1 class="home-title">グラビティ・ポップ${RELEASE?"":` <span style="font-size:.5em;color:#ffcf5a">フリー</span>`}</h1>
-      <p class="home-tag">傾けて、ころがして、まとめて消そう</p>
-      <div class="home-stats"><span>ベスト <b>${best||0}</b></span><span>最大連鎖 <b>${bestRec.maxChain||0}</b></span><span>🪙 <b>${coins}</b></span></div>
-      ${secure?"":'<p class="warn">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
-      <button class="big home-start" id="startBtn">▶ スタート</button>
-      <div class="home-grid">
-        <button id="helpBtn"><i>❓</i>あそびかた</button>
-        <button id="zkBtn"><i>📖</i>ぷに図鑑</button>
-        <button id="shopBtn"><i>🛒</i>ショップ</button>
-        <button id="slotBtn"><i>🎛</i>アイテム配置</button>
-        <button id="setBtn"><i>⚙️</i>設定</button>
+    sheet.classList.add("home"); overlay.classList.add("homeBg");
+    const noAd = IAP_MH && !iap.adFree;
+    sheet.innerHTML=`<div class="home-top">
+        <h1 class="home-title">グラビティ・ポップ${RELEASE?"":` <span style="font-size:.5em;-webkit-text-fill-color:#ffcf5a">フリー</span>`}</h1>
+        <div class="home-pills"><span class="home-pill">ベスト<b>${best||0}</b></span><span class="home-pill opt">最大連鎖<b>${bestRec.maxChain||0}</b></span>
+          <button class="home-pill" id="coinBtn">🪙<b>${coins}</b><i class="plus">+</i></button><button class="home-gear" id="setBtn" aria-label="設定">⚙️</button></div>
       </div>
-      ${iapRow()}
-      ${RELEASE||IAP_MH?"":`<p style="margin-top:10px"><a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a></p>`}`;
+      <div class="home-side l">
+        <button class="home-round" id="zkBtn">📖<span>ぷに図鑑</span></button>
+        <button class="home-round" id="slotBtn">🎛<span>アイテム配置</span></button>
+        <button class="home-round" id="helpBtn">❓<span>あそびかた</span></button>
+      </div>
+      <div class="home-mid">
+        <canvas id="homeArt"></canvas>
+        <p class="home-tag">傾けて、ころがして、まとめて消そう</p>
+        ${secure?"":'<p class="warn" style="margin:0">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
+        <button class="big home-start" id="startBtn">スタート</button>
+        <div class="home-foot">${IAP_MH ? (iap.adFree?`<span style="color:#9dffb0">✓ 広告なし版</span>`:`${iap.price?`<span>広告を消す: ${iap.price}（買い切り）</span>`:""}<button id="restoreBtn"${iap.busy?" disabled":""}>購入を復元</button>`)+(iap.privacyOptions?`<button id="privBtn">プライバシー設定</button>`:"")+`<span id="iapMsg"></span>` : (RELEASE?"":`<a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a>`)}</div>
+      </div>
+      <div class="home-side r">
+        <button class="home-round" id="shopBtn">🛒<span>ショップ</span></button>
+        ${noAd?`<button class="home-round noad" id="noAdBtn"${iap.busy?" disabled":""}>🚫<span>広告を消す</span></button>`:""}
+      </div>`;
     bindIap(); drawHomeArt();
     document.getElementById("startBtn").onclick=start;
     document.getElementById("helpBtn").onclick=()=>showMenu("help","title");
     document.getElementById("setBtn").onclick=()=>showMenu("settings","title");
     document.getElementById("zkBtn").onclick=()=>showZukan("title");
-    document.getElementById("shopBtn").onclick=()=>showShop("title");
+    document.getElementById("shopBtn").onclick=document.getElementById("coinBtn").onclick=()=>showShop("title");
     document.getElementById("slotBtn").onclick=()=>enterSlotEdit("title");
   }else if(kind==="help"){
     sheet.classList.add("wide");
@@ -2765,7 +2788,7 @@ function shareX(withImage){
   // 開けなかったときのために、投稿する文をコピーしておく（X に貼り付けられる）
   try{ navigator.clipboard && navigator.clipboard.writeText(text+"\n"+url).then(()=>{ if(msg) msg.textContent+=" ／ 投稿文をコピーしました"; }).catch(()=>{}); }catch(e){}
 }
-function hideOverlay(){ overlay.classList.add("hidden"); last=performance.now(); }
+function hideOverlay(){ overlay.classList.add("hidden"); overlay.classList.remove("homeBg"); last=performance.now(); }
 // ===== はじめて出てきたぷに・アイテムの紹介カード =====
 // 新しい種類のぷにがはじめて出口から出てきたとき、アイテムをはじめて手に入れたときに、遊びを止めて1回だけ紹介する
 let introSeen=new Set(store.get("introSeen",[])), introQ=[], introOpen=false, introAnim=0;
@@ -2780,7 +2803,7 @@ function introStep(){
 }
 function showIntro(q){
   introOpen=true; paused=true; introSeen.add(q.id); store.set("introSeen",[...introSeen]);
-  menuKind="intro"; overlay.classList.remove("hidden"); sheet.classList.remove("wide","home"); sheet.classList.add("intro");
+  menuKind="intro"; overlay.classList.remove("hidden"); leaveHome(); sheet.classList.remove("wide"); sheet.classList.add("intro");
   cancelAnimationFrame(zkAnim); cancelAnimationFrame(homeAnim);
   let pic, name, desc, head;
   if(q.type==="puni"){
