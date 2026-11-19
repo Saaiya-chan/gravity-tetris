@@ -127,6 +127,7 @@
   #stageCard[data-theme=desert]{background:rgba(255,176,80,.1);border-color:rgba(255,176,80,.3)}
   #stageCard[data-theme=ice]{background:rgba(150,220,255,.1);border-color:rgba(150,220,255,.3)}
   #stageCard[data-theme=fire]{background:rgba(255,118,64,.1);border-color:rgba(255,118,64,.3)}
+  #stageCard[data-theme=popcorn]{background:rgba(255,236,170,.1);border-color:rgba(255,236,170,.3)}
   #stageCard[data-theme=sticky]{background:rgba(255,190,60,.1);border-color:rgba(255,190,60,.3)}
   #stageCard[data-theme=space]{background:rgba(180,150,255,.1);border-color:rgba(180,150,255,.3)}
   #stageCard[data-theme=meadow]{background:rgba(140,230,150,.08);border-color:rgba(140,230,150,.25)}
@@ -423,6 +424,7 @@ const THEMES = [
   {k:"bouncy", pts:["壁でボヨンと跳ね返り、なかなか止まらない","粒どうしもよくはずむ","風船ぷにが多め"], ic:"🏀", name:"トランポリン", sub:"壁に当たるとボヨンと跳ね返る", fs:0.3, fk:0.2, g:1, e:10, wallE:0.97, maxE:0.85, bg:["#2c1426","#170a14"], floor:"255,120,200", more:["balloon"]},
   {k:"space", pts:["重力がとても弱く、ふわふわ","よくはずむ","風船ぷに・磁石ぷにが多め"],  ic:"🌌", name:"宇宙", sub:"ふわふわ浮いて、よくはずむ",     fs:0.6,  fk:0.5, g:0.45, e:4,   bg:["#15112c","#06050e"], floor:"180,150,255", more:["balloon","magnet"]},
   {k:"sticky", pts:["べたべたぷにがたくさん出る","色がちがってもくっついて、かたまりで動く","ねばねばで止まりやすい・はずまない"], ic:"🍯", name:"べたべた", sub:"べたべたぷにがたくさん・ねばねば", fs:1.5, fk:1.4, g:1, e:0.2, bg:["#33260a","#181004"], floor:"255,190,60", more:["sticky","sticky","sticky","sticky"], force:["sticky"], spRate:0.7},
+  {k:"popcorn", pts:["ぷにがときどきポンッと弾けて飛ぶ","いつ・どれが弾けるかはわからない","少しはずみやすい"], ic:"🍿", name:"ポップコーン", sub:"ぷにがときどきポンッと弾ける", fs:1, fk:0.9, g:1, e:3, bg:["#2e1518","#170a0c"], floor:"255,236,170", more:[], ev:"popcorn"},
 ];
 function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
 // ===== 盤面の形（ステージごとに 四角 → 丸 → 六角形 → 八角形 …） =====
@@ -488,7 +490,7 @@ function arenaPath(g,s,append=false){
     i?g.lineTo(c+x*s,c+y*s):g.moveTo(c+x*s,c+y*s); }
   g.closePath();
 }
-let themeEvT=0, sandFx=null, stageTrans=null;
+let themeEvT=0, sandFx=null, stageTrans=null, popcornAt=1500;
 const TRANS_MS=1400, STAGE_PAUSE=2200;    // 背景が切り替わる時間 / 新しい組を出さずに待つ時間
 function themeStep(now, dt){
   const th=theme(); if(!th.ev) return;
@@ -503,6 +505,18 @@ function themeStep(now, dt){
     const list=balls.filter(o=>!o.live&&!o.pop), gb=list.filter(o=>o.c===GARBAGE);
     const pick = (gb.length && Math.random()<0.7) ? gb[Math.random()*gb.length|0] : list[Math.random()*list.length|0];
     if(pick){ balls=balls.filter(o=>o!==pick); dropBonds(o=>o!==pick); for(let i=0;i<2;i++) burst(pick.x-0.5,pick.y-0.5,0); score+=10; sfx("lock"); }
+  }
+  if(th.ev==="popcorn" && themeEvT>popcornAt && !popping && !shuffle){   // ポップコーン: 0.6〜2.6秒おきに、止まっているぷにが1〜3個、重力と逆のほうへポンッと弾け飛ぶ
+    themeEvT=0; popcornAt=600+Math.random()*2000;
+    const list=balls.filter(o=>!o.live&&!o.pop&&!o.frozen), u=gDir()||[0,1], a=Math.max(15, G/cellM*Math.hypot(gN.x,gN.y));
+    const n=Math.min(list.length, 1+(Math.random()<0.35?1:0)+(Math.random()<0.15?1:0));
+    for(let i=0;i<n;i++){
+      const o=list.splice(Math.random()*list.length|0,1)[0];
+      const H=2.5+Math.random()*4.5, v=Math.sqrt(2*a*H)*(o.heavy?0.4:1), ang=(Math.random()-0.5)*1.5, c=Math.cos(ang), sn=Math.sin(ang);
+      o.vx=(-u[0]*c+u[1]*sn)*v; o.vy=(-u[1]*c-u[0]*sn)*v; o.wv=(o.wv||0)+0.02; o.slip=400;
+      for(let j=0;j<2;j++) burst(o.x-0.5,o.y-0.5,3);
+    }
+    if(n){ tone(900,1500,0.05,"square",0.07); tone(300,160,0.09,"sine",0.16,0.01); shake=Math.max(shake,2); }
   }
 }
 // ===== ボス戦 =====
@@ -568,6 +582,12 @@ function drawThemeDecor(TH, W, s, now){
     for(let i=0;i<40;i++){ const x=rnd(i,1)*W, y=rnd(i,2)*W; ctx.globalAlpha=0.25+0.35*Math.abs(Math.sin(now/(600+rnd(i,3)*900)+i));
       ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x,y,s*(0.02+rnd(i,4)*0.04),0,Math.PI*2); ctx.fill(); }
     ctx.globalAlpha=0.08; ctx.fillStyle="#c9a8ff"; ctx.beginPath(); ctx.arc(W*0.8,W*0.22,s*1.6,0,Math.PI*2); ctx.fill();   // 遠くの星
+  }else if(TH.k==="popcorn"){                                 // ポップコーン: 赤白のしま模様と、ちらばったポップコーン
+    ctx.fillStyle="rgba(255,255,255,.035)"; const sw=W/9;
+    for(let i=0;i<9;i+=2) ctx.fillRect(i*sw,0,sw,W);
+    for(let i=0;i<16;i++){ const x=rnd(i,1)*W, y=rnd(i,2)*W, r=s*(0.16+rnd(i,3)*0.14), bob=Math.sin(now/800+i)*s*0.04;
+      ctx.globalAlpha=0.13; ctx.fillStyle=i%4?"#fff3c4":"#ffe08a";
+      for(const [dx,dy,k] of [[-0.5,0.1,0.75],[0.45,0.15,0.8],[0,-0.4,0.85],[0,0.3,0.7]]){ ctx.beginPath(); ctx.arc(x+dx*r,y+dy*r+bob,r*k,0,Math.PI*2); ctx.fill(); } }
   }else if(TH.k==="sticky"){                                  // べたべた: はちの巣の模様と、上からたれるはちみつ
     ctx.strokeStyle="rgba(255,200,90,.09)"; ctx.lineWidth=Math.max(1,s*0.05);
     const hr=s*0.9, hw=hr*Math.sqrt(3);
@@ -2581,7 +2601,7 @@ function showMenu(kind, back){
         <li>ボタン: 移動 ／ 回転 ⟳ ／ 一気に落とす</li>
         <li>アイテム（回転ボタンのまわり）: <b>ストップ</b>＝6秒間新しい組が出ない ／ <b>シャッフル</b>＝全部の粒を中央に吸い込んでばらまく ／ <b>ジャンプ</b>＝床から突き上げて全部を跳ねさせ、少し混ぜる ／ <b>マグネット</b>＝6秒間、同じ色どうしが引き合う ／ <b>ブースター</b>＝15秒間、連鎖の受付時間が2倍。3連鎖や50個消すごとに増える</li>
         <li>遊ぶと<b>コイン</b>がたまる（消した数・連鎖・記録・ボス撃破）。<b>ショップ</b>でアイテムを買うと、次のゲームに持っていける</li>
-        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ トランポリン（壁でボヨンと跳ね返る）→ 宇宙（ふわふわ・よくはずむ）→ べたべた（べたべたぷにがたくさん）→ また草原…。盤面の形も 四角 → 丸 → 六角形 → 八角形 と変わる</li>
+        <li>ステージごとに<b>属性</b>が変わる: 草原 → 砂漠（ざらざら・砂嵐）→ 氷（つるつる）→ 炎（重力が弱い・火の粉が粒を溶かす）→ トランポリン（壁でボヨンと跳ね返る）→ 宇宙（ふわふわ・よくはずむ）→ べたべた（べたべたぷにがたくさん）→ ポップコーン（ぷにがときどき弾ける）→ また草原…。盤面の形も 四角 → 丸 → 六角形 → 八角形 と変わる</li>
         <li>ステージ5・10・15…で<b>ボス</b>が出る。ボス戦の間は出口が3つになり、ランダムな出口から出るうえ、ほかの出口からも同時に組が落ちてくる。ボスはときどき左右の出口からお邪魔ぷにを降らせる（赤く光ったら合図）。粒を消すとダメージ、連鎖するほど大きい</li>
         <li><b>横向き</b>で遊ぶ。左手で ← 落とす →、右手で回転とアイテム。画面の回転ロックをONにすると遊びやすい</li>
       </ul>
