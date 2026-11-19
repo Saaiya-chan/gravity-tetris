@@ -475,6 +475,11 @@
   @media (min-width:1000px) and (min-height:650px){ .sheet.home button.home-start{font-size:32px;padding:14px 76px 17px} .sheet.home{--hb:96px} }
   /* スタートボタンの主役はワールド名。「スタート」は小さく添える */
   .home-start .hs-w{display:block;white-space:nowrap} .sheet.home .home-start small{display:block;font-size:.56em;margin:3px 0 0;letter-spacing:.1em;color:#fffbd6;-webkit-text-stroke:.2em #2a6a10} .home-start small .ic{width:.95em;height:.95em;vertical-align:-.12em}
+  /* ボタン同士の間をあける */
+  .home-modes{gap:clamp(14px,2.4vw,28px)} .sheet.home button.home-start{margin-bottom:clamp(10px,3vh,26px)}
+  .home-side{gap:clamp(8px,3.4vh,30px)} .home-pills{gap:clamp(8px,1.4vw,16px)!important}
+  .sheet .row{gap:16px 18px;margin-top:16px}
+  @media (max-height:500px){ .sheet .row{gap:10px 14px;margin-top:10px} }
 </style>
 </head>
 <body>
