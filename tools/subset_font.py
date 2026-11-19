@@ -14,7 +14,7 @@ chars |= set("、。・「」（）！？ー〜…：％＋－×÷＝→←↑�
 opts = subset.Options(); opts.layout_features = ["*"]; opts.flavor = "woff"; opts.with_zopfli = False; opts.name_IDs = [1, 2]; opts.notdef_outline = True
 font = TTFont(src); sub = subset.Subsetter(opts); sub.populate(text="".join(sorted(chars))); sub.subset(font)
 buf = io.BytesIO(); font.flavor = "woff"; font.save(buf); b64 = base64.b64encode(buf.getvalue()).decode()
-new = re.sub(r"/\*FONT64\*/.*?/\*END64\*/", lambda m: "/*FONT64*/" + b64 + "/*END64*/", html, flags=re.S)
+new = re.sub(r"/\*FONT64\*/.*?/\*END64\*/", lambda m: '/*FONT64*/url(data:font/woff;base64,' + b64 + ') format("woff")/*END64*/' , html, flags=re.S)
 assert new != html or b64 in html, "free.html に /*FONT64*/…/*END64*/ の目印がありません"
 open(html_path, "w", encoding="utf-8").write(new)
 print(f"{len(chars)} 文字, woff {len(buf.getvalue())//1024} KB")
