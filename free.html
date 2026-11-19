@@ -2015,6 +2015,19 @@ function fitCanvas(c){
 }
 // つやのある丸い粒（顔なし）
 // ぷるぷるの粒。o.w = つぶれ具合（+でつぶれる / -で伸びる）、o.g = 重力の向き
+// ぷにの輪郭（丸＋耳）。中心が原点。白いふちも同じ形を使う
+function blobPath(g,r,ears){
+  g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.closePath();
+  if(ears) for(const sx of [-1,1]){                       // 耳: 先の丸い小さな三角。左右に離して付ける
+    const a=-Math.PI/2+sx*0.84, w=0.4, P=(t,k)=>[Math.cos(t)*r*k, Math.sin(t)*r*k], A=P(a-w,0.86), T=P(a,1.3), B=P(a+w,0.86);
+    g.moveTo(A[0],A[1]); g.arcTo(T[0],T[1],B[0],B[1],r*0.09); g.lineTo(B[0],B[1]); g.closePath();
+  }
+}
+// ぷにのつぶれ（重力の向きに w だけつぶれる）。blob と白いふちで同じ変形を使う
+function blobSquash(g,cx,cy,r,w,gx,gy){
+  g.translate(cx+gx*r*w*0.85, cy+gy*r*w*0.85);
+  const ga=Math.atan2(gy,gx)-Math.PI/2; g.rotate(ga); g.scale(1+w*0.8, 1-w); g.rotate(-ga);
+}
 function blob(g,cx,cy,r,ci,alpha=1,o={}){
   const p=PALETTE[ci], w=Math.max(-0.35,Math.min(0.45,o.w||0)), [gx,gy]=o.g||[0,1];
   const along=1-w, across=1+w*0.8;
@@ -2025,12 +2038,7 @@ function blob(g,cx,cy,r,ci,alpha=1,o={}){
   const ears=r>5 && !o.noEar;                             // ねこ型: 丸と耳をひとつの輪郭にして、同じ色の流れで塗る
   const grd=g.createRadialGradient(-r*0.3,-r*0.38,r*0.1,0,0,r*(ears?1.3:1.02));
   grd.addColorStop(0,p.hi); grd.addColorStop(ears?0.42:0.5,p.base); grd.addColorStop(1,p.dark);
-  g.fillStyle=grd; g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.closePath();
-  if(ears) for(const sx of [-1,1]){                       // 耳: 先の丸い小さな三角。左右に離して付ける
-    const a=-Math.PI/2+sx*0.84, w=0.4, P=(t,k)=>[Math.cos(t)*r*k, Math.sin(t)*r*k], A=P(a-w,0.86), T=P(a,1.3), B=P(a+w,0.86);
-    g.moveTo(A[0],A[1]); g.arcTo(T[0],T[1],B[0],B[1],r*0.09); g.lineTo(B[0],B[1]); g.closePath();
-  }
-  g.fill();
+  g.fillStyle=grd; blobPath(g,r,ears); g.fill();
   // 底のほうの照り返し
   g.fillStyle="rgba(255,255,255,.12)";
   g.beginPath(); g.ellipse(r*0.1,r*0.55,r*0.5,r*0.18,0,0,Math.PI*2); g.fill();
@@ -2216,9 +2224,12 @@ function bondOver(g,x1,y1,x2,y2,r,ci,t){
   }
 }
 // シール: つながったかたまり全体を白いふちで囲む（粒より先に描く）
-function stickerBack(g,group,s,r){
-  g.fillStyle="#ffffff"; g.strokeStyle="#ffffff";
-  for(const o of group){ g.beginPath(); g.arc(o.x*s,o.y*s,r*1.17,0,Math.PI*2); g.fill(); }
+function stickerBack(g,group,s,r,G=[0,1],now=null){                 // 白いふち: ぷにと同じ形（耳・つぶれ・息づかい）で、ひとまわり太く
+  g.fillStyle="#ffffff"; g.strokeStyle="#ffffff"; g.lineJoin="round";
+  for(const o of group){
+    const w=Math.max(-0.35,Math.min(0.45,o.w||0)), rr=r*(now!=null && o.seed!=null && !o.pop ? 1+0.022*Math.sin(now/650+o.c*311+o.seed) : 1);
+    g.save(); blobSquash(g,o.x*s,o.y*s,rr,w,G[0],G[1]); blobPath(g,rr,rr>5); g.lineWidth=rr*0.34; g.fill(); g.stroke(); g.restore();
+  }
 }
 function draw(now){
   fitCanvas(cv);
@@ -2294,7 +2305,7 @@ function draw(now){
     } }
   if(bondStyle==="sticker"){
     const inP=new Set(); for(const [a1,b1] of pairs){ inP.add(a1); inP.add(b1); }
-    stickerBack(ctx,inP,s,r);
+    stickerBack(ctx,inP,s,r,gDir()||[0,1],now);
     ctx.strokeStyle="#ffffff"; ctx.lineCap="round"; ctx.lineWidth=r*1.5;
     for(const [a1,b1] of pairs){ ctx.beginPath(); ctx.moveTo(a1.x*s,a1.y*s); ctx.lineTo(b1.x*s,b1.y*s); ctx.stroke(); }
     for(const [a1,b1] of pairs) neck(ctx,a1.x*s,a1.y*s,b1.x*s,b1.y*s,r*0.98,0.9,0.4,PALETTE[a1.c].base);
