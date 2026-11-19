@@ -49,3 +49,4 @@ AdMob の ID は設定済みです（アプリ ID は `Info.plist`、バナー�
 ## クレジット
 
 - 効果音（ストップの時計の音）: OtoLogic (https://otologic.jp) CC BY 4.0。「Timer02-1」の後ろ6秒を切り出し、音量を上げて `free.html` に埋め込んでいます。
+- 文字: M PLUS Rounded 1c ExtraBold（SIL Open Font License 1.1、© 2016 The Rounded M+ Project Authors）。使う文字だけを `free.html` に埋め込んでいます。文言を変えたら `python3 tools/subset_font.py <MPLUSRounded1c-ExtraBold.ttf>` で作り直します（入っていない字は端末の文字で表示されます）。
