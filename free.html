@@ -536,7 +536,8 @@
     box-shadow:0 0 0 2.5px rgba(255,255,255,.95), 0 0 0 4.5px rgba(23,48,110,.55);transform:scaleX(-1)}
   .item.timing svg{opacity:.35} .item.timing .lbl{opacity:.6}
   /* ショップ: いまのアバターは、スクロールしても上に残る */
-  .av-now{position:sticky;top:0;z-index:5;box-shadow:0 6px 0 rgba(23,48,110,.35)} .av-now b{font-size:1.1em}
+  .sk-grid{min-width:min(660px,84vw)}
+  .av-now{position:sticky;top:0;z-index:5;display:block;width:max-content;margin:0 auto 6px 0;padding:0;background:none;border:0;box-shadow:none;border-radius:0} .av-now .av{box-shadow:0 0 0 3px #fff,0 6px 10px rgba(0,0,40,.45)}
 </style>
 </head>
 <body>
@@ -3298,8 +3299,8 @@ function showShop(back){
         <div style="flex:1"><h3>${it.name}</h3><p>${it.desc}</p><p>次のゲームに持っていく: <b>${carry[it.k]||0}</b></p>
         ${itemOpen(it.k)?`<button class="buy" data-k="${it.k}" ${coins<it.price||(carry[it.k]||0)>=5?"disabled":""}>${ICON.coin} ${it.price} で買う</button>`:`<p class="shop-lock">${ICON.lock} ぷに研究所で研究すると使える</p>`}</div></div>`).join("")}
     </div>`
-    : shopTab==="frame" ? `<div class="av-now">${avatarHtml({},profile.frame,"lg")}<p><b>いまのアバター</b><br>アバターのまわりの枠。一度買えばずっと使えます</p></div>${grid("f",FRAMES)}`
-    : `<div class="av-now">${avatarHtml({},profile.frame,"lg")}<p><b>いまのアバター</b><br>商品の絵は、その飾りだけをつけた見本です。あたま・かお・とくせい を1つずつ重ねられます</p></div>
+    : shopTab==="frame" ? `<div class="av-now">${avatarHtml({},profile.frame,"lg")}</div>${grid("f",FRAMES)}`
+    : `<div class="av-now">${avatarHtml({},profile.frame,"lg")}</div>
     <h3 class="sk-h">からだ</h3>${grid("a",AVATARS)}
     ${DECO_SLOTS.map(([sl,n])=>`<h3 class="sk-h">${n}</h3>${grid("d",DECOS.filter(d=>d.s===sl))}`).join("")}`;
   sheet.innerHTML=`<h1>ショップ</h1>
