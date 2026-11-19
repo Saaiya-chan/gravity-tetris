@@ -39,3 +39,9 @@
 
 AdMob の ID は設定済みです（アプリ ID は `Info.plist`、バナーのユニット ID は `Monetization.swift`。Debug ビルドでは Google のテスト広告が出ます）。
 残り: App Store Connect で App 内課金「非消耗型」を作る（製品 ID は上と同じ）。
+
+## リワード広告（動画を見るとコイン）
+
+- ワールドクリアのコイン2倍と、デイリーボーナスの「動画を見てコイン」で使います。ユニット ID は `Monetization.swift` の `AdConfig.rewardedUnitID`（本番は AdMob「コイン報酬リワード」、Debug は Google のテスト用）。
+- ページ → アプリ `{action:"reward"}`、アプリ → ページ `window.__rewardDone(true/false)`。準備できているかは `__iapState` の `rewardReady`。
+- 「広告を消す」を買った人は、動画なしで2倍・おまけを受け取れます。

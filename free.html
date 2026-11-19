@@ -243,6 +243,38 @@
   .sheet.home button.home-start{margin:0;padding:clamp(8px,2.6vh,20px) clamp(40px,9vw,96px);font-size:clamp(20px,5vh,36px);font-weight:900;border-radius:20px;letter-spacing:.08em;
     background:linear-gradient(180deg,#b6f36a,#6fcf3a);color:#143200;border:3px solid #e9ffd0;box-shadow:0 6px 0 #3c8a17,0 10px 24px rgba(0,0,0,.4)}
   .sheet.home button.home-start:active{transform:translateY(5px);box-shadow:0 1px 0 #3c8a17}
+  .home-start small{display:block;font-size:.42em;letter-spacing:.02em;font-weight:800;opacity:.8;margin-bottom:2px}
+  .home-modes{display:flex;gap:10px;justify-content:center}
+  .sheet.home .home-modes button{margin:0;padding:clamp(5px,1.5vh,10px) clamp(12px,2vw,22px);font-size:clamp(12px,2.6vh,17px);font-weight:800;border-radius:999px;background:rgba(8,10,24,.55);border:1.5px solid rgba(255,255,255,.28);color:#fff}
+  @media (max-height:500px){ .sheet.home .home-tag{display:none} }
+  /* デイリーボーナス */
+  .sheet.home button.dl-pill{padding:5px 12px;position:relative} .sheet.home button.dl-pill b{margin-left:4px;font-size:1em}
+  .sheet.home button.dl-pill.on{border-color:#ffcf5a;background:rgba(255,207,90,.18)}
+  .bang{position:absolute;right:-5px;top:-7px;width:18px;height:18px;border-radius:50%;background:#ff4d6d;color:#fff;font-style:normal;font-weight:900;font-size:13px;display:grid;place-items:center;animation:clPop .5s ease-out}
+  .dl-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:8px 0 12px}
+  .dl{position:relative;border-radius:12px;background:#1a2036;border:2px solid #2f3856;overflow:hidden}
+  .dl-day{background:#2f3a66;font-size:11px;font-weight:800;padding:3px 0}
+  .dl-rw{display:grid;gap:2px;justify-items:center;padding:8px 2px;font-size:22px;line-height:1.1} .dl-rw b{font-size:12px;margin-left:2px}
+  .dl.now{border-color:#ffcf5a;box-shadow:0 0 14px rgba(255,207,90,.5)} .dl.now .dl-day{background:#ffcf5a;color:#3a2600}
+  .dl.big7{border-color:#d9a43a} .dl.big7 .dl-day{background:linear-gradient(90deg,#d9a43a,#fff1b0,#d9a43a);color:#3a2600}
+  .dl.got{opacity:.5} .dl-ck{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;color:#9dffb0;background:rgba(10,14,24,.45)}
+  .dl-ads{margin:12px auto 0;max-width:420px;background:#151a2c;border:1px solid #2f3856;border-radius:14px;padding:10px 12px}
+  .dl-adt{font-size:13px;font-weight:800;margin-bottom:6px;color:#c9d2ee}
+  .dl-ad{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;font-size:17px} .dl-ad.got{opacity:.5}
+  .sheet .dl-ad button{margin:0;min-width:130px;font-weight:800} .sheet .dl-ad button:not([disabled]){background:linear-gradient(180deg,#8fc4ff,#4a8fe0);color:#06203f;border-color:#cfe6ff}
+  @media (max-width:700px){ .dl-grid{grid-template-columns:repeat(4,1fr)} }
+  /* ワールドをえらぶ */
+  .wl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;margin:8px 0 14px}
+  .sheet button.wl{display:grid;justify-items:center;gap:2px;padding:10px 6px;border-radius:14px;margin:0;background:linear-gradient(180deg,rgba(var(--wc),.28),rgba(var(--wc),.08));border:2px solid rgba(var(--wc),.6)}
+  .sheet button.wl.lock{opacity:.45;filter:grayscale(1)}
+  .wl-no{font-size:11px;color:var(--dim)} .wl-ic{font-size:34px;line-height:1.1} .wl-name{font-weight:900;font-size:16px} .wl-st{font-size:11px;color:#9dffb0;min-height:1.2em}
+  /* ワールドクリア */
+  .cl-coin{position:relative;font-size:84px;line-height:1;animation:clPop .6s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes clPop{from{transform:scale(.2)}to{transform:scale(1)}}
+  .cl-num{font-size:1.7em;color:#ffcf5a}
+  .sheet.intro button.cl-x2{background:linear-gradient(180deg,#b6f36a,#6fcf3a);line-height:1.2} .sheet.intro button.cl-x2 small{font-size:.7em}
+  .sheet.intro #clOk{background:linear-gradient(180deg,#8fc4ff,#4a8fe0);color:#06203f;box-shadow:0 4px 0 #24579a}
+  @media (max-height:500px){ .cl-coin{font-size:56px} }
   .home-foot{display:flex;gap:10px;align-items:center;justify-content:center;min-height:1em;font-size:12px;color:#b9c2dc}
   .sheet.home .home-foot button{padding:3px 10px;font-size:12px;margin:0;background:none;border:0;color:#9fd3ff;text-decoration:underline}
   @media (max-width:760px){ .home-pill.opt{display:none} }
@@ -270,6 +302,7 @@
   i.new{font-style:normal;color:#ff6b9a;font-weight:900;font-size:12px}
   .xbtn{background:#000!important;color:#fff!important;border:1px solid #555!important}
   .zk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0;text-align:left}
+  .zk-item{flex:none;width:60px;height:60px;border-radius:28%;border:2px solid;display:grid;place-items:center} .zk-item svg{width:58%;height:58%}
   .zk{display:flex;gap:10px;align-items:flex-start;background:#1a1f2b;border:1px solid #2c3446;border-radius:12px;padding:10px}
   .zk canvas{flex:none;width:76px;height:76px;border-radius:10px;background:radial-gradient(circle at 50% 40%,#232a3a,#141822)}
   .zk h3{margin:0 0 2px;font-size:15px;color:var(--text)}
@@ -414,7 +447,7 @@ let balls, piece, nextPairs, grav, score, maxChain, popped, level, colorsN;
 // ステージは「そのステージで消した数」で進む。先のステージほどたくさん消す必要がある（60, 75, 90 … 最大150個）。
 // ボス戦の間は数えない（ボスを倒してから次のステージへ）。まとめて消しても一度に進むのは1ステージだけ。
 let stagePop=0;
-function stageNeed(lv){ return Math.min(150, 60+15*((lv||1)-1)); }
+function stageNeed(lv){ return mode==="world" ? Math.min(90, 40+8*worldNo) : Math.min(150, 60+15*((lv||1)-1)); }   // ワールドは1面40個から（先のワールドほど多い）
 let lockTimer, dirty, popping, popT, chain, running, paused, over;
 let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
 let particles=[], chainFx=null, shake=0;
@@ -433,6 +466,18 @@ const SHOP = [
 ];
 let coins = store.get("coins", 0), carry = store.get("carry", {}), lastCoins=0;
 function saveShop(){ store.set("coins", coins); store.set("carry", carry); }
+// ===== デイリーボーナス =====
+// 1日1回、無料で受け取れる（7日でひとまわり。間があいても続きから）。7日目は豪華。
+// そのほかに、動画を見るとコインがもらえる段が1日3つある（広告なし版は動画なしで受け取れる）
+const DAILY=[{c:30},{i:["stop"]},{c:50},{i:["jump"]},{c:80},{i:["mag"]},{c:150,i:["boost","shuf"]}];
+const DAILY_AD=[50,100,150];
+let daily=store.get("daily",{last:"",day:0,adDate:"",ad:0});
+function today(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function dailyReady(){ return daily.last!==today(); }
+function dailyAdStep(){ return daily.adDate===today() ? daily.ad : 0; }
+function giveReward(r){ if(r.c) coins+=r.c; for(const k of (r.i||[])) carry[k]=Math.min(9,(carry[k]||0)+1); saveShop(); }
+function rewardHtml(r){ return (r.c?`<span>🪙<b>${r.c}</b></span>`:"")+(r.i||[]).map(k=>`<span>${ITEM_EMOJI[k]}<b>×1</b></span>`).join(""); }
+const ITEM_EMOJI={stop:"⏳",mag:"🧲",shuf:"🌀",jump:"⏫",boost:"🚀"};
 // 1ゲームで手に入るコイン
 function coinsForGame(){
   let c = Math.floor(popped/4) + maxChain*5 + Math.floor(score/2000);
@@ -452,7 +497,16 @@ const THEMES = [
   {k:"sticky", pts:["べたべたぷにがたくさん出る","色がちがってもくっついて、かたまりで動く","ねばねばで止まりやすい・はずまない"], ic:"🍯", name:"べたべた", sub:"べたべたぷにがたくさん・ねばねば", fs:1.5, fk:1.4, g:1, e:0.2, bg:["#33260a","#181004"], floor:"255,190,60", more:["sticky","sticky","sticky","sticky"], force:["sticky"], spRate:0.7},
   {k:"popcorn", pts:["ぷにがときどきポンッと弾けて飛ぶ","いつ・どれが弾けるかはわからない","少しはずみやすい"], ic:"🍿", name:"ポップコーン", sub:"ぷにがときどきポンッと弾ける", fs:1, fk:0.9, g:1, e:3, bg:["#2e1518","#170a0c"], floor:"255,236,170", more:[], ev:"popcorn"},
 ];
-function theme(){ return THEMES[((level||1)-1)%THEMES.length]; }
+// ===== 遊び方は2つ =====
+// ワールド: 1つのワールド（草原・砂漠…）を5面つづけて遊ぶ。5面目にボスが出て、倒すとワールドクリア。途中でゲームオーバーになるとワールドの最初から。
+//           全部のワールドをクリアしたあとは、ランダムなワールドが続く。クリア済みのワールドはホームから選んで遊び直せる。
+// エンドレス: ステージごとに属性が順番に変わっていく、終わりのないスコアアタック。
+const WORLD_STAGES=5;
+let mode="endless", worldNo=0, worldTheme=0, worldDone=false, worldsCleared=store.get("worldsCleared",0);
+function worldLabel(){ return `${worldNo+1}-${(((level||1)-1)%WORLD_STAGES)+1}`; }
+function stageLabel(){ return mode==="world" ? worldLabel() : `${level||1}`; }
+function randomTheme(){ let i; do{ i=Math.random()*THEMES.length|0; }while(i===worldTheme && THEMES.length>1); return i; }
+function theme(){ return mode==="world" ? THEMES[worldTheme%THEMES.length] : THEMES[((level||1)-1)%THEMES.length]; }
 // ===== 盤面の形（ステージごとに 四角 → 丸 → 六角形 → 八角形 …） =====
 const ARENAS=[{k:"square",name:"四角"},{k:"circle",name:"丸"},{k:"hex",name:"六角形"},{k:"oct",name:"八角形"},{k:"square",name:"広い四角（ぷにが小さく）",n:19}];
 // 盤面の大きさをステージに合わせる。広くなるときは粒を真ん中へ寄せたまま広げ、狭くなるときにはみ出した粒はボーナスで消える
@@ -681,6 +735,7 @@ function stepBossShots(now){
     boss.disp=0; rec.boss++; score+=5000*boss.n; grantItem(now); grantItem(now);
     praise("ボス撃破！", `${boss.name}をたおした  +${5000*boss.n}点`, "#ffcf5a");
     bossFx={t:now, text:"", win:true}; boss=null; shake=18; sfx("bosswin"); updateHud();
+    if(mode==="world") worldClear();
   }
 }
 function drawBossShots(now, s){
@@ -802,8 +857,8 @@ function tickTimers(dt){
 function dropBonds(keep){ bonds=bonds.filter(bd=>keep(bd[0])&&keep(bd[1])); bondKeys=new Set(bonds.map(bd=>bd[2])); }
 function reset(){
   balls=[]; bonds=[]; bondKeys=new Set(); grav = grav ?? 0;
-  score=0; maxChain=0; popped=0; stagePop=0; level=1; colorsN=5; themeEvT=0; sandFx=null; N=N0; stageTrans=null;
-  stageFx={n:1, t:performance.now(), theme:`${THEMES[0].name}ステージ — ${THEMES[0].sub}`, text:""};
+  score=0; maxChain=0; popped=0; stagePop=0; level = mode==="world" ? worldNo*WORLD_STAGES+1 : 1; colorsN=5; themeEvT=0; sandFx=null; N=N0; stageTrans=null; worldDone=false;
+  stageFx={n:stageLabel(), t:performance.now(), theme:`${theme().name}ステージ — ${theme().sub}`, text: mode==="world" ? `${WORLD_STAGES}面目のボスを倒すとクリア` : ""};
   nextPairs=[newPair(), newPair()];
   introQ=[];
   blockedT=0; blockedAcc=0; blockedLast=0;
@@ -842,6 +897,7 @@ function zkMark(k){ if(k && !zkSeen.has(k)){ zkSeen.add(k); store.set("zkSeen",[
 let spawnT=-1e9, releaseT=-1e9, blockedT=0, blockedAcc=0, blockedLast=0;
 const BLOCK_MS=3000;            // 出口がふさがってからゲームオーバーまでの猶予（この間にどかせば続けられる）
 function spawn(now=performance.now()){
+  if(worldDone) return;                                        // ワールドクリアの演出中は新しい組を出さない
   const nx = nextPairs[0];
   const u=gDir()||[0,1], p=[u[1],-u[0]], D=2*R;
   // 出口（ボス戦中は3か所）。ボス戦中はランダムな出口から出て、ほかの出口からも同時に組が落ちてくることがある
@@ -1195,7 +1251,7 @@ function findPops(now){
   if(gu) lastPopG=gu;
   score += gain;
   popped += pops.length;
-  if(!boss){ stagePop += pops.length; if(stagePop>=stageNeed(level)){ level++; stagePop=0; } }
+  if(!boss){ stagePop += pops.length; if(stagePop>=stageNeed(level) && !(mode==="world" && level%WORLD_STAGES===0)){ level++; stagePop=0; } }   // ワールドの5面目はボスを倒すまで
   colorsN = 5;
   // となりで消えた粒があるお邪魔は巻き込まれて消える（くっついたお邪魔のかたまりごとではなく、触れている粒だけ）
   const gb=list.filter(o=>o.c===GARBAGE && !pops.includes(o) && pops.some(p=>Math.hypot(p.x-o.x,p.y-o.y)<=TOUCH));
@@ -1218,10 +1274,10 @@ function findPops(now){
   hitBoss(total, now, pops);
   if(level>lv0){                                               // ステージアップ
     const nw=SPECIALS.filter(a=>a.st===level);
-    stageTrans={t:now, from:THEMES[((lv0||1)-1)%THEMES.length]};   // 切り替わりの演出（前のステージの背景が円形に開いて新しいステージが現れる）
+    stageTrans={t:now, from: mode==="world" ? theme() : THEMES[((lv0||1)-1)%THEMES.length]};   // 切り替わりの演出（前のステージの背景が円形に開いて新しいステージが現れる）
     applyArenaSize();
     const th=theme(); themeEvT=0;
-    stageFx={n:level, t:now, theme:`${th.name}ステージ（${arena().name}） — ${th.sub}`, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
+    stageFx={n:stageLabel(), t:now, theme:`${th.name}ステージ（${arena().name}） — ${th.sub}`, text: (!devAll && nw.length) ? "NEW "+nw.map(a=>a.name).join("・") : ""};
     if(level%BOSS_EVERY===0 && !boss) setTimeout(()=>{ if(running&&!over) startBoss(performance.now()); }, 1900);
   }
   popping=pops; popT=now;
@@ -2104,7 +2160,7 @@ function drawNext(){
 function updateHud(){
   document.getElementById("score").textContent=score;
   document.getElementById("lines").textContent=maxChain;
-  const sn=document.getElementById("stageN"); if(sn) sn.textContent=`${level||1}`;
+  const sn=document.getElementById("stageN"); if(sn) sn.textContent=stageLabel();
   const th=theme(), scN=document.getElementById("scName");
   if(scN){ scN.textContent=`${th.ic} ${th.name}ステージ`;
     document.getElementById("scPts").innerHTML=[`盤面: ${arena().name}`, ...th.pts].map(t=>`<li>${t}</li>`).join("");
@@ -2112,7 +2168,7 @@ function updateHud(){
     document.getElementById("scFx").textContent=fx.join("　");
     const need=stageNeed(level), left=Math.max(0,need-stagePop);
     document.getElementById("scBar").style.width=(boss?100:Math.min(100,stagePop/need*100))+"%";
-    document.getElementById("scNext").textContent = boss ? "ボス戦中" : `次のステージまで あと${left}個`;
+    document.getElementById("scNext").textContent = mode==="world" && (level%WORLD_STAGES===0) ? "ボスを倒すとワールドクリア" : boss ? "ボス戦中" : `次のステージまで あと${left}個`;
     document.getElementById("stageCard").dataset.theme=th.k; fitHud(); fitHudSoon(); }
   const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
   if(st){
@@ -2520,12 +2576,14 @@ let menuKind="title";
 function refreshMenu(){ showMenu(menuKind); }
 // ===== 広告と「広告を消す」買い切り（iOS アプリのときだけ。Web 版は広告なし） =====
 const IAP_MH = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.iap;
-let iap = {adFree:false, price:null, privacyOptions:false, busy:false, canBuy:false};
+let iap = {adFree:false, price:null, privacyOptions:false, busy:false, canBuy:false, rewardReady:false};
+let rewardCb=null;
+window.__rewardDone = ok => { const f=rewardCb; rewardCb=null; if(f) f(!!ok); };   // 動画広告を最後まで見たら true
 window.__setAd = px => { document.documentElement.style.setProperty("--ad", (px|0)+"px"); window.dispatchEvent(new Event("resize")); };
 window.__iapState = st => {
   iap = Object.assign(iap, st);
   if(st.message){ const m=document.getElementById("iapMsg"); if(m) m.textContent=st.message; }
-  if(!overlay.classList.contains("hidden") && (menuKind==="title"||menuKind==="pause")){
+  if(!overlay.classList.contains("hidden") && (menuKind==="title"||menuKind==="pause"||((menuKind==="clear"||menuKind==="daily") && !rewardCb))){
     const msg=st.message; refreshMenu(); const m=document.getElementById("iapMsg"); if(m && msg) m.textContent=msg;
   }
 };
@@ -2580,6 +2638,9 @@ function showZukan(back){
       ? `<div class="zk"><canvas data-i="${i}"></canvas><div><div class="no">No.${String(i+1).padStart(2,"0")}・ステージ${z.st}から</div><h3>${z.name}</h3><p>${z.desc}</p><p class="flv">${z.flv}</p></div></div>`
       : `<div class="zk lock"><canvas data-i="${i}" data-lock="1"></canvas><div><div class="no">No.${String(i+1).padStart(2,"0")}</div><h3>？？？</h3><p>ステージ${z.st}で出会えるかも。</p></div></div>`).join("")}
     </div>
+    <h1 style="margin-top:18px">アイテム図鑑</h1>
+    <div class="zk-grid">${SHOP.map(it=>{ const btn=document.getElementById(ITEM_BTN[it.k]), cs=getComputedStyle(btn);
+      return `<div class="zk"><div class="zk-item" style="background:${cs.backgroundImage};border-color:${cs.borderTopColor};color:${cs.color}">${btn.querySelector("svg")?.outerHTML||""}</div><div><h3>${it.name}</h3><p>${it.desc}</p><p class="flv">連鎖や消した数でもらえる。ショップでも買える（🪙${it.price}）</p></div></div>`; }).join("")}</div>
     <button class="big" id="zkBack">もどる</button>`;
   document.getElementById("zkBack").onclick=()=>{ cancelAnimationFrame(zkAnim); sheet.classList.remove("wide"); showMenu(back); };
   const cvs=[...sheet.querySelectorAll(".zk canvas")], dpr=Math.min(3,window.devicePixelRatio||1);
@@ -2612,8 +2673,8 @@ function showZukan(back){
 }
 function goHome(){                                              // 遊ぶのをやめてホームへ（盤面を空にする）
   running=false; paused=false; over=false; overFx=null; piece=null; balls=[]; bonds=[]; bondKeys=new Set(); particles=[];
-  boss=null; bossFx=null; bossShots=[]; stageFx=null; stageTrans=null; chainFx=null; popping=null; chain=0; stopLeft=0; magLeft=0; boostLeft=0; shuffle=null;
-  score=0; maxChain=0; popped=0; stagePop=0; level=1; N=N0; applyArenaSize(); updateHud();
+  worldDone=false; boss=null; bossFx=null; bossShots=[]; stageFx=null; stageTrans=null; chainFx=null; popping=null; chain=0; stopLeft=0; magLeft=0; boostLeft=0; shuffle=null;
+  score=0; maxChain=0; popped=0; stagePop=0; mode="endless"; level=1; N=N0; applyArenaSize(); updateHud();
   showMenu("title");
 }
 // ホームの絵: 5色のぷにが並んでゆれる
@@ -2646,7 +2707,7 @@ function showMenu(kind, back){
     const noAd = IAP_MH && !iap.adFree;
     sheet.innerHTML=`<div class="home-top">
         <h1 class="home-title">グラビティ・ポップ${RELEASE?"":` <span style="font-size:.5em;-webkit-text-fill-color:#ffcf5a">フリー</span>`}</h1>
-        <div class="home-pills"><span class="home-pill">ベスト<b>${best||0}</b></span><span class="home-pill opt">最大連鎖<b>${bestRec.maxChain||0}</b></span>
+        <div class="home-pills"><button class="home-pill dl-pill${dailyReady()?" on":""}" id="dailyBtn">🎁<b>デイリー</b>${dailyReady()?`<i class="bang">!</i>`:""}</button><span class="home-pill">クリア<b>${worldsCleared}</b></span><span class="home-pill opt">ベスト<b>${best||0}</b></span>
           <button class="home-pill" id="coinBtn">🪙<b>${coins}</b><i class="plus">+</i></button><button class="home-gear" id="setBtn" aria-label="設定">⚙️</button></div>
       </div>
       <div class="home-side l">
@@ -2658,26 +2719,96 @@ function showMenu(kind, back){
         <canvas id="homeArt"></canvas>
         <p class="home-tag">傾けて、ころがして、まとめて消そう</p>
         ${secure?"":'<p class="warn" style="margin:0">傾きセンサーは HTTPS で開いたときだけ使えます。</p>'}
-        <button class="big home-start" id="startBtn">スタート</button>
+        <button class="big home-start" id="startBtn"><small>${worldsCleared<THEMES.length ? `ワールド ${worldsCleared+1}　${THEMES[worldsCleared].ic} ${THEMES[worldsCleared].name}` : `ワールド ${worldsCleared+1}　🎲 ランダム`}</small>スタート</button>
+        <div class="home-modes"><button id="worldsBtn">🗺 ワールドをえらぶ</button><button id="endlessBtn">♾ エンドレス</button></div>
         <div class="home-foot">${IAP_MH ? (iap.adFree?`<span style="color:#9dffb0">✓ 広告なし版</span>`:`${iap.price?`<span>広告を消す: ${iap.price}（買い切り）</span>`:""}<button id="restoreBtn"${iap.busy?" disabled":""}>購入を復元</button>`)+(iap.privacyOptions?`<button id="privBtn">プライバシー設定</button>`:"")+`<span id="iapMsg"></span>` : (RELEASE?"":`<a href="./" style="color:#9fd3ff">← マス目版で遊ぶ</a>`)}</div>
       </div>
       <div class="home-side r">
         <button class="home-round" id="shopBtn">🛒<span>ショップ</span></button>
+        <button class="home-round" id="recBtn">🏆<span>きろく</span></button>
         ${noAd?`<button class="home-round noad" id="noAdBtn"${iap.busy?" disabled":""}>🚫<span>広告を消す</span></button>`:""}
       </div>`;
     bindIap(); drawHomeArt();
-    document.getElementById("startBtn").onclick=start;
+    document.getElementById("startBtn").onclick=()=>start("world");
+    document.getElementById("endlessBtn").onclick=()=>start("endless");
+    document.getElementById("worldsBtn").onclick=()=>showMenu("worlds");
+    document.getElementById("recBtn").onclick=()=>showMenu("records");
+    document.getElementById("dailyBtn").onclick=()=>showMenu("daily");
     document.getElementById("helpBtn").onclick=()=>showMenu("help","title");
     document.getElementById("setBtn").onclick=()=>showMenu("settings","title");
     document.getElementById("zkBtn").onclick=()=>showZukan("title");
     document.getElementById("shopBtn").onclick=document.getElementById("coinBtn").onclick=()=>showShop("title");
     document.getElementById("slotBtn").onclick=()=>enterSlotEdit("title");
+  }else if(kind==="clear"){                                    // ワールドクリア: コインの受け取り（動画を見ると2倍）
+    const th=theme(), canAd = IAP_MH && iap.rewardReady && !iap.adFree && !clearDoubled;
+    sheet.classList.add("intro");
+    sheet.innerHTML=`<div class="in-head">ワールド ${worldNo+1} クリア！</div>
+      <div class="in-pic"><div class="in-rays"></div><div class="cl-coin">🪙</div></div>
+      <h2 class="in-name">${th.ic} ${th.name}ワールド</h2>
+      <p class="in-desc">スコア ${score}　最大 ${maxChain} 連鎖<br><b class="cl-num" id="clNum">🪙 +${clearDoubled?lastCoins*2:lastCoins}</b>${clearDoubled?` <span style="color:#9dffb0">2倍！</span>`:""}<br><span style="font-size:.8em;color:var(--dim)">クリアボーナス ${clearBonus} をふくむ</span></p>
+      <div class="row">${canAd?`<button class="big cl-x2" id="x2Btn">▶ 動画を見て 2倍<br><small>🪙 +${lastCoins*2}</small></button>`:""}<button class="big" id="clOk">${canAd?"このまま受け取る":"受け取る"}</button></div>
+      <p id="clMsg" style="font-size:12px;margin:4px 0 0;color:var(--dim);min-height:1em"></p>`;
+    overlay.scrollTop=0;
+    document.getElementById("clOk").onclick=goHome;
+    if(canAd) document.getElementById("x2Btn").onclick=()=>{
+      document.getElementById("x2Btn").disabled=true; document.getElementById("clMsg").textContent="動画を読み込んでいます…";
+      rewardCb=ok=>{
+        if(ok){ coins+=lastCoins; clearDoubled=true; saveShop(); sfx("get"); showMenu("clear"); }
+        else{ const m=document.getElementById("clMsg"); if(m) m.textContent="動画を最後まで見られませんでした"; const b=document.getElementById("x2Btn"); if(b) b.disabled=false; }
+      };
+      iapSend("reward");
+    };
+  }else if(kind==="daily"){                                    // デイリーボーナス
+    sheet.classList.add("wide");
+    const ready=dailyReady(), cur=daily.day%7, step=dailyAdStep(), adOk=IAP_MH && (iap.adFree || iap.rewardReady);
+    sheet.innerHTML=`<h1>🎁 デイリーボーナス</h1>
+      <div class="dl-grid">${DAILY.map((r,i)=>`<div class="dl${i===6?" big7":""}${i<cur||(i===cur&&!ready&&false)?" got":""}${i===cur&&ready?" now":""}"><div class="dl-day">${i+1}日目</div><div class="dl-rw">${rewardHtml(r)}</div>${i<cur?`<div class="dl-ck">✓</div>`:""}</div>`).join("")}</div>
+      <div class="row"><button class="big" id="dlClaim"${ready?"":" disabled"}>${ready?"受け取る":"また明日！"}</button></div>
+      ${IAP_MH?`<div class="dl-ads"><div class="dl-adt">${iap.adFree?"広告なし版のおまけ（1日3回）":"▶ 動画を見てコインをもらう（1日3回）"}</div>
+        ${DAILY_AD.map((c,i)=>`<div class="dl-ad${i<step?" got":""}"><span>🪙 <b>${c}</b></span><button data-i="${i}"${i===step&&adOk?"":" disabled"}>${i<step?"✓ 受け取り済み":i>step?"🔒":iap.adFree?"受け取る":"▶ 見てもらう"}</button></div>`).join("")}
+        <p id="dlMsg" style="font-size:12px;margin:4px 0 0;color:var(--dim);min-height:1em">${adOk||step>=DAILY_AD.length?"":"動画の準備中です。少し待ってからもう一度ひらいてください"}</p></div>`:""}
+      <p style="font-size:12px;color:var(--dim);margin:6px 0">アイテムは次のゲームに持っていけます</p>
+      <button id="backBtn">とじる</button>`;
+    document.getElementById("backBtn").onclick=()=>showMenu("title");
+    document.getElementById("dlClaim").onclick=()=>{ if(!dailyReady()) return; giveReward(DAILY[daily.day%7]); daily.day++; daily.last=today(); store.set("daily",daily); sfx("get"); showMenu("daily"); };
+    for(const b of sheet.querySelectorAll(".dl-ad button:not([disabled])")) b.onclick=()=>{
+      const give=()=>{ coins+=DAILY_AD[step]; saveShop(); daily.adDate=today(); daily.ad=step+1; store.set("daily",daily); sfx("get"); showMenu("daily"); };
+      if(iap.adFree){ give(); return; }
+      b.disabled=true; document.getElementById("dlMsg").textContent="動画を読み込んでいます…";
+      rewardCb=ok=>{ if(ok) give(); else { const m=document.getElementById("dlMsg"); if(m) m.textContent="動画を最後まで見られませんでした"; b.disabled=false; } };
+      iapSend("reward");
+    };
+    overlay.scrollTop=0;
+  }else if(kind==="worlds"){                                   // ワールドをえらぶ: クリア済みと次のワールドが遊べる
+    sheet.classList.add("wide");
+    const open=i=> !RELEASE || i<=worldsCleared, all=worldsCleared>=THEMES.length;
+    sheet.innerHTML=`<h1>🗺 ワールドをえらぶ</h1>
+      <p style="margin:0 0 8px;color:var(--dim)">1つのワールドは ${WORLD_STAGES} 面。最後の面でボスを倒すとクリア${RELEASE?"":"（開発版: 全部えらべる）"}</p>
+      <div class="wl-grid">${THEMES.map((t,i)=>`<button class="wl${open(i)?"":" lock"}${i<worldsCleared?" done":""}" data-w="${i}"${open(i)?"":" disabled"} style="--wc:${t.floor}">
+        <span class="wl-no">ワールド ${i+1}</span><span class="wl-ic">${open(i)?t.ic:"🔒"}</span><span class="wl-name">${open(i)?t.name:"？？？"}</span><span class="wl-st">${i<worldsCleared?"✓ クリア":i===worldsCleared?"つぎはここ":""}</span></button>`).join("")}
+        <button class="wl${all||!RELEASE?"":" lock"}" data-w="-1"${all||!RELEASE?"":" disabled"} style="--wc:200,200,255"><span class="wl-no">クリア後</span><span class="wl-ic">${all||!RELEASE?"🎲":"🔒"}</span><span class="wl-name">ランダム</span><span class="wl-st">${all?"":"全部クリアで開く"}</span></button>
+      </div>
+      <button class="big" id="backBtn">もどる</button>`;
+    for(const b of sheet.querySelectorAll(".wl:not([disabled])")) b.onclick=()=>{ const w=+b.dataset.w; start("world", w<0 ? Math.max(worldsCleared,THEMES.length) : w); };
+    document.getElementById("backBtn").onclick=()=>showMenu("title");
+    overlay.scrollTop=0;
+  }else if(kind==="records"){                                  // きろく（アチーブメント）
+    sheet.classList.add("wide");
+    const rows=REC_DEFS.map(([k,label,unit])=>`<div class="rec-row"><span>${label}</span><b>${bestRec[k]?bestRec[k]+unit:"—"}</b></div>`).join("");
+    sheet.innerHTML=`<h1>🏆 きろく</h1>
+      <div class="rec-list"><div class="rec-row"><span>クリアしたワールド</span><b>${worldsCleared}</b></div><div class="rec-row"><span>エンドレスのベスト</span><b>${best||0}点</b></div>${rows}
+        <div class="rec-row"><span>見つけたぷに</span><b>${ZUKAN.filter(z=>zkSeen.has(z.k)).length} / ${ZUKAN.length}</b></div><div class="rec-row"><span>コイン</span><b>🪙 ${coins}</b></div></div>
+      <button class="big" id="backBtn">もどる</button>`;
+    document.getElementById("backBtn").onclick=()=>showMenu("title");
+    overlay.scrollTop=0;
   }else if(kind==="help"){
     sheet.classList.add("wide");
     sheet.innerHTML=`<h1>❓ あそびかた</h1>
       <p>端末を傾けると、ぷにが本当の「下」に向かってころがり落ちます。</p>
       <ul class="help">
         <li>2〜4個1組のぷにが盤面の<b>真ん中</b>から出現。白い輪がなくなるまでは<b>浮いて待つ</b>ので、その間に傾きや向きを決めよう（「一気に落とす」ですぐ落とせる）</li>
+        <li><b>ワールド</b>: 1つのワールドは5面。ぷにを消していくと次の面へ進み、5面目に出てくるボスを倒すとクリア。途中でゲームオーバーになるとそのワールドの最初から。クリアするとコインがもらえて、次のワールドが開く。クリア済みのワールドは「ワールドをえらぶ」から何度でも遊べる</li>
+        <li><b>エンドレス</b>: ステージごとに属性が変わっていく、終わりのないスコアアタック</li>
         <li><b>ゲームオーバー</b>: 次の組が真ん中の出口から出られなくなると警告が鳴り、<b>3秒</b>以内に出口を空けられないとおしまい（山をゆらすだけではカウントは戻らない）。出口の近くまで積もると黄色い輪と「ピッ…ピッ…」という音で知らせる</li>
         <li><b>同じ色が4つ以上くっつくと消える</b>（ななめにくっついてもOK）</li>
         <li>同じ色は<b>一度くっつくと離れない</b>。かたまりごと転がるよ</li>
@@ -2720,6 +2851,7 @@ function showMenu(kind, back){
     const rows=REC_DEFS.filter(([k])=>rec[k]>0).map(([k,label,unit])=>
       `<div class="rec-row"><span>${label}</span><b>${rec[k]}${unit}${lastNew.includes(k)?' <i class="new">NEW!</i>':''}</b></div>`).join("");
     sheet.innerHTML=`<h1>ゲームオーバー</h1>
+      ${mode==="world"?`<p style="margin:0;color:#ffcf5a">ワールド ${worldLabel()}（${theme().ic} ${theme().name}）　もう一度はワールドの最初から</p>`:""}
       <p style="font-size:22px;color:var(--text);margin:4px 0">SCORE ${score}${lastNew.includes("score")?' <i class="new">ベスト更新!</i>':''}</p>
       <p style="margin:2px 0">ベスト: ${best}　／　<b style="color:#ffcf5a">🪙 +${lastCoins}</b>（${coins}）</p>
       <div class="rec-list">${rows}</div>
@@ -2833,7 +2965,13 @@ function showIntro(q){
     if(i>=0) showIntro(introQ.splice(i,1)[0]); else { paused=false; hideOverlay(); }
   };
 }
-async function start(){
+async function start(m, w){
+  if(typeof m!=="string") m="endless";
+  mode=m;
+  if(m==="world"){                                             // w: えらんだワールド（0〜）。なければ次のワールド。全部クリアしたあとはランダム
+    worldNo = (typeof w==="number") ? w : worldsCleared;
+    worldTheme = worldNo<THEMES.length ? worldNo : randomTheme();
+  }
   initAudio();
   await enableSensor();
   setStatus();
@@ -2926,6 +3064,7 @@ function makeShareCard(style=cardStyle){
   return c;
 }
 function gameOver(){
+  if(worldDone) return;
   over=true; piece=null;
   // ゲームオーバーの演出: 出口から近い順に灰色になって、そのあと下へこぼれ落ちる
   const now=performance.now(), c=N/2;
@@ -2933,12 +3072,30 @@ function gameOver(){
   overFx={t:now}; shake=10; sfx("over");
   try{ boardSnap=document.createElement("canvas"); boardSnap.width=cv.width; boardSnap.height=cv.height; boardSnap.getContext("2d").drawImage(cv,0,0); }catch(e){ boardSnap=null; }
   rec.stage=level; rec.maxChain=Math.max(rec.maxChain,maxChain);
-  lastNew=[];
-  if(score>best){ if(best>0) lastNew.push("score"); best=score; store.set("bestFree",best); }
-  for(const [k] of REC_DEFS) if(rec[k]>(bestRec[k]||0)){ if(bestRec[k]) lastNew.push(k); bestRec[k]=rec[k]; }
-  store.set("bestRecFree",bestRec);
+  saveRecords();
   lastCoins=coinsForGame(); coins+=lastCoins; saveShop();
   setTimeout(()=>{ if(over) showMenu("over"); },2600);
+}
+// 記録を残す（ベストスコアと到達ステージはエンドレスだけ）
+function saveRecords(){
+  lastNew=[];
+  if(mode==="endless" && score>best){ if(best>0) lastNew.push("score"); best=score; store.set("bestFree",best); }
+  for(const [k] of REC_DEFS){ if(k==="stage" && mode!=="endless") continue; if(rec[k]>(bestRec[k]||0)){ if(bestRec[k]) lastNew.push(k); bestRec[k]=rec[k]; } }
+  store.set("bestRecFree",bestRec);
+}
+// ワールドクリア: ボスを倒したら、少し余韻を見せてからコインの画面へ
+let clearBonus=0, clearDoubled=false;
+function worldClear(){
+  worldDone=true; piece=null; balls=balls.filter(o=>!o.live); stopLeft=0;
+  setTimeout(()=>{
+    if(!worldDone||!running) return;
+    running=false; rec.stage=level; rec.maxChain=Math.max(rec.maxChain,maxChain); saveRecords();
+    clearBonus=50+10*worldNo; lastCoins=coinsForGame()+clearBonus; clearDoubled=false;
+    coins+=lastCoins;
+    if(IAP_MH && iap.adFree){ coins+=lastCoins; clearDoubled=true; }       // 広告なし版は、動画なしでいつも2倍
+    if(worldNo===worldsCleared){ worldsCleared++; store.set("worldsCleared",worldsCleared); }
+    saveShop(); sfx("praise"); showMenu("clear");
+  }, 2600);
 }
 
 // ===== 起動 =====
@@ -2946,6 +3103,7 @@ grav=0;
 colorsN=5; balls=[]; nextPairs=[newPair(),newPair()]; particles=[];
 running=false; paused=false; over=false;
 applyOrientation(); updatePad(); setStatus(); drawNext(); showMenu("title");
+if(dailyReady()) showMenu("daily");                             // その日はじめて開いたら、デイリーボーナスを見せる
 requestAnimationFrame(frame);
 </script>
 </body>

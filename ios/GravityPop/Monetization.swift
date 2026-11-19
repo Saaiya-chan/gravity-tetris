@@ -16,6 +16,13 @@ enum AdConfig {
     static let bannerUnitID = "ca-app-pub-1305362296318691/2739880720"   // 本番: AdMob「プレイ画面バナー」
     #endif
 
+    /// リワード広告（動画を最後まで見るとコインがもらえる）のユニット ID。開発中は Google のテスト用 ID
+    #if DEBUG
+    static let rewardedUnitID = "ca-app-pub-3940256099942544/1712485313"
+    #else
+    static let rewardedUnitID = "ca-app-pub-1305362296318691/3438487363"   // 本番: AdMob「コイン報酬リワード」
+    #endif
+
     /// App Store Connect で作る「非消耗型」App 内課金の製品 ID
     static let removeAdsProductID = "com.saaiya.gravitypop.removeads"
 }
@@ -25,7 +32,7 @@ enum AdConfig {
 /// ページとのやりとり:
 /// - ページ → アプリ: `window.webkit.messageHandlers.iap.postMessage({action: "buy" | "restore" | "privacy" | "state"})`
 /// - アプリ → ページ: `window.__iapState({adFree, price, privacyOptions, busy, message})`、`window.__setAd(高さpx)`
-final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
+final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate, FullScreenContentDelegate {
     weak var controller: UIViewController?
     weak var webView: WKWebView?
 
@@ -36,6 +43,9 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
     private var updatesTask: Task<Void, Never>?
     private var adsStarted = false
     private var busy = false
+    private var rewarded: RewardedAd?
+    private var rewardLoading = false
+    private var rewardEarned = false
 
     deinit { updatesTask?.cancel() }
 
@@ -91,6 +101,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
         adsStarted = true
         MobileAds.shared.start(completionHandler: nil)
         showBanner()
+        loadRewarded()
     }
 
     // MARK: - バナー（盤面の下・真ん中）
@@ -120,6 +131,53 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
         let side = min(240, max(170, w * 0.2))
         let board = min(h - 20, w - side * 2 - 44)
         return max(320, floor(board))
+    }
+
+    // MARK: - リワード広告（動画を見るとコイン）
+    // ページ → アプリ: {action: "reward"}。見終わったら window.__rewardDone(true)、見られなかったら false。
+    // 準備ができているかは __iapState の rewardReady で知らせる
+
+    private func loadRewarded() {
+        guard rewarded == nil, !rewardLoading, !adFree, adsStarted else { return }
+        rewardLoading = true
+        RewardedAd.load(with: AdConfig.rewardedUnitID, request: Request()) { [weak self] ad, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.rewardLoading = false
+                self.rewarded = ad
+                ad?.fullScreenContentDelegate = self
+                self.pushState()
+                if ad == nil {                                 // 読み込めなかったら、少し待ってもう一度
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.loadRewarded() }
+                }
+            }
+        }
+    }
+
+    private func showRewarded() {
+        guard let ad = rewarded, let vc = controller else { rewardDone(false); loadRewarded(); return }
+        rewardEarned = false
+        ad.present(from: vc) { [weak self] in self?.rewardEarned = true }
+    }
+
+    private func rewardDone(_ ok: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript("window.__rewardDone && window.__rewardDone(\(ok ? "true" : "false"))")
+        }
+    }
+
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        rewarded = nil
+        rewardDone(rewardEarned)
+        pushState()
+        loadRewarded()                                         // 次の分を用意しておく
+    }
+
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+        rewarded = nil
+        rewardDone(false)
+        pushState()
+        loadRewarded()
     }
 
     private func hideBanner() {
@@ -156,6 +214,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
         switch action {
         case "buy": Task { await buy() }
         case "restore": Task { await restore() }
+        case "reward": showRewarded()
         case "privacy":
             guard let vc = controller else { return }
             UMPConsentForm.presentPrivacyOptionsForm(from: vc) { [weak self] _ in self?.pushState() }
@@ -214,7 +273,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
         let was = adFree
         adFree = v
         UserDefaults.standard.set(v, forKey: "adFree")
-        if v { hideBanner() } else if was && !v { gatherConsentAndStartAds() }
+        if v { hideBanner(); rewarded = nil } else if was && !v { gatherConsentAndStartAds() }
         pushState()
     }
 
@@ -226,7 +285,7 @@ final class Monetization: NSObject, WKScriptMessageHandler, BannerViewDelegate {
 
     private func pushState(message: String? = nil) {
         let privacy = UMPConsentInformation.sharedInstance.privacyOptionsRequirementStatus == .required
-        var d: [String: Any] = ["adFree": adFree, "privacyOptions": privacy, "busy": busy, "canBuy": product != nil]
+        var d: [String: Any] = ["adFree": adFree, "privacyOptions": privacy, "busy": busy, "canBuy": product != nil, "rewardReady": rewarded != nil]
         if let p = product { d["price"] = p.displayPrice }
         if let m = message { d["message"] = m }
         guard let data = try? JSONSerialization.data(withJSONObject: d), let json = String(data: data, encoding: .utf8) else { return }
