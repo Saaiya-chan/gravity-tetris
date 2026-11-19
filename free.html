@@ -480,6 +480,9 @@
   .home-side{gap:clamp(8px,3.4vh,30px)} .home-pills{gap:clamp(8px,1.4vw,16px)!important}
   .sheet .row{gap:16px 18px;margin-top:16px}
   @media (max-height:500px){ .sheet .row{gap:10px 14px;margin-top:10px} }
+  /* ホームの左右の丸ボタン: 4つ並んでも広告の帯にかからない大きさに（画面の高さから逆算） */
+  .home-side{gap:clamp(6px,2.4vh,22px)}
+  @media (min-width:1000px) and (min-height:650px){ .sheet.home{--hb:min(96px, calc((100dvh - var(--ad) - env(safe-area-inset-bottom) - 3*clamp(6px,2.4vh,22px) - 150px)/4.9))} }
 </style>
 </head>
 <body>
