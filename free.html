@@ -1980,8 +1980,8 @@ function blob(g,cx,cy,r,ci,alpha=1,o={}){
   grd.addColorStop(0,p.hi); grd.addColorStop(ears?0.42:0.5,p.base); grd.addColorStop(1,p.dark);
   g.fillStyle=grd; g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.closePath();
   if(ears) for(const sx of [-1,1]){                       // 耳: 先の丸い小さな三角。左右に離して付ける
-    const a=-Math.PI/2+sx*0.84, w=0.4, P=(t,k)=>[Math.cos(t)*r*k, Math.sin(t)*r*k], A=P(a-w,0.86), T=P(a,1.36), B=P(a+w,0.86);
-    g.moveTo(A[0],A[1]); g.arcTo(T[0],T[1],B[0],B[1],r*0.2); g.lineTo(B[0],B[1]); g.closePath();
+    const a=-Math.PI/2+sx*0.84, w=0.4, P=(t,k)=>[Math.cos(t)*r*k, Math.sin(t)*r*k], A=P(a-w,0.86), T=P(a,1.42), B=P(a+w,0.86);
+    g.moveTo(A[0],A[1]); g.arcTo(T[0],T[1],B[0],B[1],r*0.09); g.lineTo(B[0],B[1]); g.closePath();
   }
   g.fill();
   // 底のほうの照り返し
