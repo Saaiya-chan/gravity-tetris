@@ -437,6 +437,31 @@
   #score{-webkit-text-stroke:.16em var(--ink);paint-order:stroke fill;text-shadow:0 .1em 0 var(--ink)}
   #stageCard{background:#1f56b8!important;border:2.5px solid var(--ink)!important;box-shadow:inset 0 3px 0 rgba(0,0,40,.25)}
   #status{color:#e2f0ff}
+
+  /* ===== 大きさの調整: 文字と絵を大きく。iPad では小画面ごと拡大する ===== */
+  .sheet p{font-size:16px;line-height:1.6} .sheet button{font-size:16px} .sheet h1,.in-head{font-size:28px;padding:8px 40px 10px}
+  .zk h3{font-size:18px} .zk p{font-size:14.5px} .zk .no{font-size:12px} .zk-count{font-size:15px}
+  .rec-list{font-size:16px} .sk-name{font-size:15px} .sk .av{width:84px} .sheet .sk button{font-size:15px;padding:6px 14px} .sk-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+  .pf-l{font-size:13.5px} .pf-v{font-size:28px} .pf-ic .ic{width:48px;height:48px} .pf-ic{top:-25px} .pf-t{padding-top:26px}
+  .dl-day{font-size:13px} .dl-rw{font-size:26px} .dl-rw b{font-size:15px} .dl-rw .ic{width:38px;height:38px} .dl-adt{font-size:15px} .dl-ad{font-size:20px}
+  .wl-no{font-size:13px} .wl-ic{font-size:44px} .wl-name{font-size:19px} .wl-st{font-size:13px} .wl-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  ul.help{font-size:15px;line-height:1.75}
+  .in-name{font-size:30px} .in-desc{font-size:18px} .in-pic{height:190px} .in-pic canvas{width:170px;height:170px} .in-item{width:124px;height:124px}
+  .nl-hearts .ic{width:56px;height:56px}
+  .shop-ic.item{width:64px;height:64px}
+  @media (max-height:500px){ .sheet p{font-size:14px} .sheet h1,.in-head{font-size:22px;padding:6px 30px 8px} .in-pic{height:110px} .in-pic canvas{width:100px;height:100px} .in-item{width:80px;height:80px} .in-name{font-size:22px} .in-desc{font-size:15px}
+    .dl-rw{font-size:20px} .dl-rw .ic{width:28px;height:28px} .pf-v{font-size:22px} ul.help{font-size:13px} .wl-ic{font-size:32px} }
+  @media (min-width:1000px) and (min-height:650px){
+    .sheet:not(.home){zoom:1.22}
+    .sheet.home{--hb:104px}
+    .home-pill, .sheet.home button.home-pill{font-size:19px;padding:5px 14px 6px 10px} .home-round span{font-size:15px;padding:2px 12px}
+    .home-tag{font-size:20px} .sheet.home .home-modes button{font-size:21px;padding:11px 24px} .sheet.home button.home-start{font-size:46px;padding:20px 110px 24px}
+    #homeArt{width:min(700px,58vw,calc((100dvh - var(--ad))*.9))} .home-av .av{width:78px} .home-title{font-size:46px!important} .home-foot{font-size:15px} .sheet.home .home-foot button{font-size:15px}
+    .stat .label{font-size:14px} .stat{font-size:21px} #score{font-size:52px} .nextbox .label{font-size:13px} #next{width:76px;height:76px}
+    #stageCard .sc-name{font-size:23px} #stageCard .sc-pts{font-size:17px} #stageCard .sc-next{font-size:15px} #stageCard .sc-fx{font-size:15px} #stageCard .sc-prog{height:9px} #status{font-size:12.5px}
+    #pauseBtn{width:56px;height:56px}
+  }
+  @media (min-width:1150px) and (min-height:780px){ .sheet:not(.home){zoom:1.38} }
 </style>
 </head>
 <body>
