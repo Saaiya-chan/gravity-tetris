@@ -3313,7 +3313,7 @@ function showShop(back){
     const it=SHOP.find(x=>x.k===b.dataset.k);
     if(coins<it.price) return;
     coins-=it.price; carry[it.k]=(carry[it.k]||0)+1; saveShop(); sfx("get");
-    showShop(back); say(`${it.name}を買いました！`);
+    keep(()=>showShop(back)); say(`${it.name}を買いました！`);   // 買っても一覧の位置はそのまま
   };
   const keep=fn=>{ const y=overlay.scrollTop; fn(); overlay.scrollTop=y; };          // 買う・つけるで一覧の位置が飛ばないように
   const setUse=(kind,k)=>{ if(kind==="a") profile.avatar=k; else if(kind==="f") profile.frame=k; else profile.deco[DECOS.find(x=>x.k===k).s]=k; saveProfile(); };
