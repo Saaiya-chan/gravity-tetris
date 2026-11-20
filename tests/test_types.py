@@ -1,12 +1,12 @@
 """裏設定のタイプの決まり（docs/TYPES.md）。ゲームへの反映はこれからなので、ここでは表そのものの形だけを確かめる。"""
-from types_data import TYPES, GOGYO, NICHIGETSU, beats
+from types_data import TYPES, GOGYO, NICHIGETSU, BOSS_SEAT, ITEM_SEAT, beats, effect
 
 ALL = [t for e in TYPES for t in TYPES[e]]
 RING = {"五行": [t for e in GOGYO for t in TYPES[e]], "日月": [t for e in NICHIGETSU for t in TYPES[e]]}
 
 
 def test_type_count():
-    """[TYPE-01] 七曜 × 天地人 で21タイプ。名前はかぶらない。"""
+    """[TYPE-01] 七曜 × じゃんけん で21タイプ。名前はかぶらない。"""
     assert len(ALL) == 21 == len(set(ALL))
     assert len(RING["五行"]) == 15 and len(RING["日月"]) == 6
 
@@ -49,3 +49,17 @@ def test_no_mutual_wins():
         for x in [sp] + strong:
             xs, xstrong = beats(x)
             assert t not in [xs] + xstrong, (t, x)
+
+
+def test_plan_every_boss_can_be_sealed_and_cracked():
+    """[TYPE-06] 割りふり案: どのボスにも「封じられる道具」があり、宇宙のほかは「特効の道具」が1つ以上ある。"""
+    for boss in BOSS_SEAT:
+        got = {item: effect(item, boss) for item in ITEM_SEAT}
+        assert any(v in ("封印", "特効") for v in got.values()), boss
+        if boss != "宇宙":
+            assert "特効" in got.values(), boss
+
+
+def test_plan_starter_item_is_useful():
+    """[TYPE-07] 割りふり案: 最初から持っているブースターで、草原のボスの妨害を封じられる。"""
+    assert effect("ブースター", "草原") == "封印"
