@@ -177,3 +177,13 @@ def test_counter_cleanup(game):
     assert game.js("[emberFx, boss.emberLeft, balls.length]") == [None, 0, 4]
     game.wait(1500)
     assert game.js("balls.filter(o=>!o.live).length") == 4               # ぷには、とかされない
+
+
+def test_can_no_crown_damage(game):
+    """[ITEM-15][EN-14] ボス戦でエネルギー缶を使っても、王冠にダメージを与えず、妨害も封じない（エネルギーは満タンになる）。"""
+    game.js("carry.can=1"); game.boss(1)
+    crown, hp = game.js("[boss.crown, boss.hp]")
+    game.js("energy=10; useCan()")
+    assert game.js("[energy, carry.can, canUsed]") == [100, 0, True]
+    assert game.js("[boss.crown, boss.hp, weakFound]") == [crown, hp, []]
+    assert not (game.js("boss.sealUntil") or 0) > game.js("performance.now()")

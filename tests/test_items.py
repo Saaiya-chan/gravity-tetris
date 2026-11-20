@@ -297,7 +297,7 @@ def test_slots(game):
     game.js("gems={meadow:5, fire:5, popcorn:5, flower:5, magma:5}")
     assert game.js("SLOT_DEF.length") == 8
     game.js("develop('broom'); develop('fire')")
-    assert game.js("[slots.L0, slots.L2]") == ["broom", "fire"]            # 空いている場所へ
+    assert game.js("[slots.L0, slots.L2, slots.L1]") == ["can", "broom", "fire"]   # 空いている場所へ（左手1はエネルギー缶。左手2は、まだ使えない魔法の手の場所をゆずる）
     game.js("develop('pop')")
     used = game.js("Object.values(slots)")
     assert "pop" in used and "hand" not in used                           # まだ使えない魔法の手の場所をゆずる
@@ -307,9 +307,51 @@ def test_slots(game):
     assert len(shown) <= 8 and "itemBroom" in shown and "itemWater" not in shown
     game.js("slots.L0=''; layoutItems(); openSlotPick('L0', document.querySelector('.slotEmpty'))")
     picks = game.page.locator("#slotPick button[data-k]").all_inner_texts()
-    assert len(picks) == 4 and any("じょうろ" in t for t in picks)        # 置いていない・開発ずみのものから選べる
+    assert len(picks) == 5 and any("じょうろ" in t for t in picks)        # 置いていない・開発ずみのもの（とエネルギー缶）から選べる
     game.page.locator("#slotPick button[data-k='water']").click(); game.wait(200)
     assert game.js("slots.L0") == "water" and game.page.locator("#itemWater").is_visible()
     game.js("layoutKey='tiles'; layoutItems()")                            # タイルのレイアウトでも、スロットのものだけ
     shown = game.js("[...document.querySelectorAll('.item')].filter(e=>getComputedStyle(e).display!=='none').map(e=>e.id)")
     assert len(shown) == 8
+
+
+def test_can_slot(game):
+    """[ITEM-15] エネルギー缶は開発なしでスロットに置ける。はじめは空きスロット（左手1）に自動で置かれ、外しても「アイテム配置」の候補に出る。レベル・強化・研究所の対象ではない。"""
+    assert game.js("[slots.L0, itemOpen('can'), store.get('canSlotted',false)]") == ["can", True, True]
+    game.js("carry.can=3")
+    game.start()
+    assert game.js("getComputedStyle(document.getElementById('itemCan')).display") != "none"
+    assert game.js("document.getElementById('itemCan').dataset.slot") == "L0"
+    for lay in ("tiles", "ring", "ringL"):                               # 3種類のレイアウトのどれでも、盤面の外に見えている
+        game.js(f"layoutKey='{lay}'; layoutItems(); updateHud()")
+        box = game.page.locator("#itemCan").bounding_box()
+        assert box and box["width"] > 20 and box["height"] > 20, lay
+        assert box["x"] >= 0 and box["y"] >= 0 and box["x"] + box["width"] <= 1133 and box["y"] + box["height"] <= 744, lay
+    game.js("slots.L0=''; layoutItems(); openSlotPick('L0', document.querySelector('.slotEmpty'))")   # 外すと、候補に本数つきで出る
+    pick = game.page.locator("#slotPick button[data-k='can']")
+    assert "エネルギー缶" in pick.inner_text() and "×3" in pick.inner_text()
+    pick.click(); game.wait(200)
+    assert game.js("slots.L0") == "can" and game.page.locator("#itemCan").is_visible()
+    game.js("paused=true; enterSlotEdit('pause')"); game.wait(200)         # スロット編集画面でも、置いたボタンとして出る
+    assert game.page.locator("#itemCan[data-slot='L0'] .rm").is_visible()
+    game.js("removeFromSlot('L0')"); game.wait(100)
+    assert game.page.locator("#slotBar .tray-item[data-k='can']").count() == 1
+    game.js("exitSlotEdit(); hideOverlay(); paused=false")
+    game.js("showMenu('skills')"); game.wait(300)                          # 研究所には出ない・強化もできない
+    assert "エネルギー缶" not in game.page.locator("#overlay").inner_text()
+    assert game.js("[canUpgrade('can'), canDevelop('can'), 'can' in EN_COST, 'can' in ITEM_BTN]") == [False, False, False, False]
+
+
+def test_can_slot_migration(game):
+    """[ITEM-15] 前のセーブデータ: 空きスロットがあればエネルギー缶を一度だけ置き、空きがなければ置かない。外したあとは、勝手に置き直さない。"""
+    def reopen(slots, dev):
+        game.js(f"localStorage.clear(); store.set('slots',{slots}); store.set('devItems',{dev}); store.set('handSlotted',true)")
+        game.page.reload(); game.wait(600)
+    full = "{R0:'stop',R1:'mag',R2:'shuf',R3:'boost',R4:'jump',L0:'broom',L1:'hand',L2:'fire'}"
+    reopen(full, "['stop','mag','shuf','jump','hand','broom','fire']")
+    assert "can" not in game.js("Object.values(slots)")                   # 8か所とも使えるアイテムで埋まっている
+    reopen("{R0:'stop',R1:'mag',R2:'shuf',R3:'boost',R4:'jump',L0:'broom',L1:'hand',L2:''}", "['stop','mag','shuf','jump','hand','broom']")
+    assert game.js("slots.L2") == "can"                                   # 空いている場所へ
+    game.js("slots.L2=''; store.set('slots',slots)")
+    game.page.reload(); game.wait(600)
+    assert "can" not in game.js("Object.values(slots)")                   # 自分で外したら、そのまま

@@ -4,10 +4,12 @@ import pytest
 WORLDS = ["meadow", "desert", "ice", "fire", "bouncy", "space", "sticky", "popcorn", "flower", "magma"]
 
 
-def clear(game, world=2, crown=False, can=0):
-    """ワールド world のボスを倒して、クリア画面が出るまで待つ。crown なら王冠をこわしてから倒す。can は持っている缶の数。"""
+def clear(game, world=2, crown=False, can=0, use=False):
+    """ワールド world のボスを倒して、クリア画面が出るまで待つ。crown なら王冠をこわしてから倒す。can は持っている缶の数。use ならプレイ中に缶を1本使う。"""
     game.js(f"carry.can={can}")
     game.boss(world)
+    if use:
+        game.js("useCan()")
     if crown:
         game.js("crownHit(99999, performance.now())")
     game.js("chain=1; hitBoss(99999, performance.now())")
@@ -30,11 +32,17 @@ def test_star_crown(game):
 
 
 def test_star_not_with_can(game):
-    """[STAR-03] エネルギー缶を使って始めたプレイでは、3つ目のスターはもらえない。"""
-    clear(game, 2, crown=True, can=1)
-    assert game.js("[canUsed, carry.can, starsOf('ice'), starTotal()]") == [True, 0, [1, 1, 0], 2]
-    game.js("goHome(); start('world',2)"); game.wait(600)        # 次のプレイは缶がないので、缶なしにもどる
-    assert game.js("canUsed") is False
+    """[STAR-03] プレイ中にエネルギー缶を使ったプレイでは、3つ目のスターはもらえない。"""
+    clear(game, 2, crown=True, can=2, use=True)
+    assert game.js("[canUsed, carry.can, starsOf('ice'), starTotal()]") == [True, 1, [1, 1, 0], 2]
+    game.js("goHome(); start('world',2)"); game.wait(600)        # 次のプレイは、まだ缶を使っていないので、缶なしにもどる
+    assert game.js("[canUsed, carry.can]") == [False, 1]
+
+
+def test_star_with_unused_can(game):
+    """[STAR-03] エネルギー缶を持っていても、そのプレイ中に使わなければ、3つ目のスターがもらえる。"""
+    clear(game, 2, can=2)
+    assert game.js("[canUsed, carry.can, starsOf('ice'), lastStars.fresh]") == [False, 2, [1, 0, 1], [1, 0, 1]]
 
 
 def test_star_kept(game):
@@ -61,7 +69,7 @@ def test_star_total(game):
 
 @pytest.mark.parametrize("n,cap,first", [(0, 100, 40), (5, 110, 45), (30, 160, 70)])
 def test_star_energy(game, n, cap, first):
-    """[STAR-06][STAR-07][EN-01][EN-02][EN-04] 上限は 100+2×スター数、スタート時は 40+スター数。缶ありなら上限まで満タン。上限はこえない。"""
+    """[STAR-06][STAR-07][EN-01][EN-02][EN-04][EN-14] 上限は 100+2×スター数、スタート時は 40+スター数。缶を持っていてもスタート時は同じで、使うと上限まで満タン。上限はこえない。"""
     stars = {w: [1 if i * 3 + j < n else 0 for j in range(3)] for i, w in enumerate(WORLDS)}
     game.js(f"wstars={stars}")
     assert game.js("[starTotal(), enCap(), enStart()]") == [n, cap, first]
@@ -70,13 +78,15 @@ def test_star_energy(game, n, cap, first):
     game.js("addEnergy(999)")
     assert game.js("energy") == cap
     game.js("goHome(); carry.can=1; start('world',0)"); game.wait(600)
+    assert game.js("[energy, carry.can]") == [first, 1]
+    game.js("useCan()")
     assert game.js("[energy, carry.can]") == [cap, 0]
 
 
 def test_star_clear_screen(game):
     """[STAR-08] クリア画面: 3つのスターが説明つきで並び、取れたものは点灯、今回新しく取れたものに NEW、合計と効果も出る。"""
     game.js("wstars={ice:[1,0,0]}")
-    clear(game, 2, crown=True, can=1)                                # 1つ目は前から・2つ目は今回・3つ目は缶ありで取れない
+    clear(game, 2, crown=True, can=1, use=True)                      # 1つ目は前から・2つ目は今回・3つ目は缶を使ったので取れない
     cells = game.page.locator(".cl-stars .cl-star")
     assert [c.inner_text().split("\n")[0].strip() for c in cells.all()] == ["ボスをたおした", "王冠をこわした", "缶なしでクリア"]
     assert game.js("[...document.querySelectorAll('.cl-stars .cl-star')].map(e=>[e.classList.contains('on'), e.classList.contains('new')])") \

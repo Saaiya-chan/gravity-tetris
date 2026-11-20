@@ -11,11 +11,54 @@ def test_start_energy(game):
     assert game.js("[energy, enCap()]") == [40, 100]
 
 
-def test_can_starts_full(game):
-    """[EN-02] エネルギー缶を持って始めると、1本使って満タンで始まる。"""
+def test_can_not_used_at_start(game):
+    """[EN-02] エネルギー缶を持って始めても、缶はへらず、エネルギーはいつものスタート時の量。"""
     game.js("carry.can=2")
     game.start()
-    assert game.js("[energy, carry.can]") == [100, 1]
+    assert game.js("[energy, carry.can, canUsed]") == [40, 2, False]
+
+
+def test_can_fills_energy(game):
+    """[EN-14] プレイ中にエネルギー缶のボタンを押すと、1本へって（保存され）、エネルギーが上限まで満タンになり、canUsed が立つ。"""
+    game.js("carry.can=2; saveShop()")
+    game.start()
+    assert game.page.locator("#itemCan").is_visible()
+    game.page.click("#itemCan"); game.wait(200)
+    assert game.js("[energy, enCap(), carry.can, canUsed]") == [100, 100, 1, True]
+    assert game.js("store.get('carry',{}).can") == 1                 # 保存されている
+    assert game.js("performance.now()-enFlash") < 2000               # ゲージが光る演出
+    game.js("wstars={meadow:[1,1,1]}; energy=10; useCan()")          # 上限がふえていれば、その上限まで
+    assert game.js("[energy, carry.can]") == [106, 0]
+
+
+def test_can_not_usable(game):
+    """[EN-15] エネルギーが満タンのとき・缶が0本のときは使えず、何もへらない。"""
+    game.js("carry.can=2")
+    game.start()
+    game.js("energy=enCap(); useCan()")
+    assert game.js("[energy, carry.can, canUsed]") == [100, 2, False]   # 満タン
+    game.page.click("#itemCan", force=True); game.wait(200)
+    assert game.js("[energy, carry.can, canUsed]") == [100, 2, False]
+    game.js("carry.can=0; energy=30; useCan()")
+    assert game.js("[energy, carry.can, canUsed]") == [30, 0, False]    # 0本
+    game.js("delete carry.can; useCan()")
+    assert game.js("[energy, carry.can||0, canUsed]") == [30, 0, False]
+
+
+def test_can_badge(game):
+    """[EN-16] エネルギー缶のボタンのバッジは持っている本数（×2）。使えない間（0本・満タン）は「使えない見た目」になる。"""
+    game.js("carry.can=2")
+    game.start()
+    badge = game.page.locator("#itemCan .badge")
+    empty = lambda: game.js("document.getElementById('itemCan').classList.contains('empty')")
+    assert badge.inner_text().strip() == "×2" and empty() is False
+    assert game.js("getComputedStyle(document.querySelector('#itemCan .badge'),'::before').content") == "none"   # ⚡ はつかない
+    game.page.click("#itemCan"); game.wait(200)
+    assert badge.inner_text().strip() == "×1" and empty() is True     # 満タンなので使えない
+    game.js("energy=50; carry.can=0; updateHud()")
+    assert badge.inner_text().strip() == "×0" and empty() is True     # 0本
+    game.js("carry.can=1; updateHud()")
+    assert empty() is False
 
 
 def test_pop_gives_energy(game):
