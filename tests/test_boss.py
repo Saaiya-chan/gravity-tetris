@@ -235,3 +235,12 @@ def test_can_no_crown_damage(game):
     assert game.js("[energy, carry.can, canUsed]") == [100, 0, True]
     assert game.js("[boss.crown, boss.hp, weakFound]") == [crown, hp, []]
     assert not (game.js("boss.sealUntil") or 0) > game.js("performance.now()")
+
+
+def test_no_magma_in_pieces_during_boss(game):
+    """[BOSS-17] マグマワールドのボス戦の間は、落ちてくる組にマグマぷにがまざらない（ふだんのステージではまざる）。"""
+    game.start(9)
+    count = "(()=>{ let n=0; for(let i=0;i<300;i++) if(newPair().c.includes(MAGMA)) n++; return n; })()"
+    assert game.js(count) > 50
+    game.js("level=worldNo*5+5; startBoss(performance.now()); boss.nextAtk=performance.now()+1e9")
+    assert game.js(count) == 0

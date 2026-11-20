@@ -1525,7 +1525,7 @@ function newPair(){
   }
   if(TH.k==="sticky") for(let i=0;i<cols.length;i++) if(!fl[i] && cols[i]<5 && Math.random()<0.45) fl[i]="sticky";   // べたべたステージ: 半分近くがべたべたぷに
   if(TH.sp==="flower"){ for(let i=0;i<cols.length;i++) if(Math.random()<0.42){ cols[i]=FLOWER; fl[i]=null; } if(cols.includes(FLOWER)) zkMark("flower"); }
-  if(TH.sp==="magma" && Math.random()<0.45){ const i=Math.random()*cols.length|0; cols[i]=MAGMA; fl[i]=null; zkMark("magma"); }
+  if(TH.sp==="magma" && !boss && Math.random()<0.45){   /* ボス戦の間は、組にはまぜない（マグマぷには、ボスのマグマふらしだけ。封じれば止まる） */ const i=Math.random()*cols.length|0; cols[i]=MAGMA; fl[i]=null; zkMark("magma"); }
   if(cols.includes(GARBAGE)) zkMark("garbage");
   if(cols.includes(RAINBOW)) zkMark("rainbow");
   for(const f of fl) zkMark(f);
