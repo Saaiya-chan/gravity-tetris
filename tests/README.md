@@ -29,6 +29,7 @@ pytest tests -k weakness  # テスト名の一部で指定
 | `test_boss.py` | ボス・王冠・相性・宝石（BOSS / GEM） |
 | `test_star.py` | スター（STAR） |
 | `test_world.py` | ワールド・ぷに・ライフ・放置・ショップ（WORLD / PUNI / CHAIN / LIFE / IDLE / SHOP） |
+| `test_talk.py` | 実況ぷに・吹き出し・NEXT の非表示（TALK） |
 
 ## 仕様を変えるとき
 

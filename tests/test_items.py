@@ -220,7 +220,7 @@ def test_pop_upgrade(game):
 
 
 def test_weight(game):
-    """[ITEM-11][BOSS-16][EN-09] おもし: 効いている間は、ボスのおおゆれでもはね上げられない。壁でもはずまない。消費30。"""
+    """[ITEM-11][BOSS-16][EN-09][TALK-07] おもし: 効いている間は、ボスのおおゆれでもはね上げられない。壁でもはずまない。消費30。"""
     game.js("devItems=['weight']")
     game.boss(4); game.clear_board()                                     # トランポリン（ボヨンキング）
     game.put(4, 0); game.put(4, 1, row=1); game.wait(1200)
@@ -228,8 +228,8 @@ def test_weight(game):
     game.js("bossAbility(performance.now())")
     assert game.js(fastest) > 5                                           # ふだんは、全部はね上げられる
     assert game.js(f"(()=>{{ energy=100; useWeight(); return [energy, weightLeft>7500, {fastest}]; }})()") == [70, True, 0]   # 飛ばされている途中でも、その場で止まって落ちる
-    game.js("bossAbility(performance.now())")
-    assert game.js("abilFx.text") == "おもしで びくともしない！"
+    game.js("talkReset(); bossAbility(performance.now())")               # （相性のセリフが出ている間は、下の優先度のセリフは出ないので、いったん消しておく）
+    assert game.js("[talk.text, talk.mood, abilFx.text]") == ["おもしで\nびくともしない！", "happy", "おおゆれ！"]   # 実況ぷにが知らせる（TALK-07）。盤面には妨害の名前だけ
     assert game.js(fastest) < 2                                           # はね上げられない（重力で落ちる速さだけ）
     hit = "(()=>{ balls.forEach((o,i)=>{ o.x=1.2+i; o.y=R; o.vx=0; o.vy=-20; }); physicsStep(16); return Math.max(...balls.map(o=>o.vy)); })()"
     assert game.js(hit) < 2                                               # 天井にぶつけても、はね返らない

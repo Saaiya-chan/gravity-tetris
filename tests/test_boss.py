@@ -39,24 +39,24 @@ def test_pop_damage(game):
 
 
 def test_weakness(game):
-    """[BOSS-05][LAB-04] 弱点アイテム: 妨害を10秒封じ、王冠を15%けずり、弱点が記録される。"""
+    """[BOSS-05][LAB-04][TALK-05] 弱点アイテム: 妨害を10秒封じ、王冠を15%けずり、弱点が記録される。セリフは実況ぷにの吹き出しに出る。"""
     game.js(ALL); game.boss(1)                                       # 砂漠 ← マグネット
     game.js("energy=100; useMag()")
-    assert game.js("[boss.crown, abilFx.text, weakFound]") == [1700, "弱点を見破った！！", ["desert"]]
+    assert game.js("[boss.crown, talk.text, weakFound]") == [1700, "弱点を見破った！！", ["desert"]]
     left = game.js("boss.sealUntil-performance.now()")
     assert 9000 < left <= 10000
     game.js("magLeft=0; energy=100; useMag()")
-    assert game.js("[boss.crown, abilFx.text]") == [1400, "効果ばつぐん！！"]
+    assert game.js("[boss.crown, talk.text]") == [1400, "効果ばつぐん！！"]
 
 
 def test_neutral_and_resisted(game):
-    """[BOSS-06][BOSS-07] ふつうのアイテムは4%「効いてる！」、ボス自身の宝石から作るアイテムは1%「あまり効いてない…」。"""
+    """[BOSS-06][BOSS-07][TALK-05] ふつうのアイテムは4%「効いてる！」、ボス自身の宝石から作るアイテムは1%「あまり効いてない…」（実況ぷにの吹き出し）。"""
     game.js(ALL); game.boss(1)                                       # 砂漠の宝石 → シャッフル
     game.js("energy=100; useBoost()")
-    assert game.js("[boss.crown, abilFx.text]") == [1920, "効いてる！"]
+    assert game.js("[boss.crown, talk.text]") == [1920, "効いてる！"]
     game.clear_board(); game.put(3, 0); game.wait(500)
     game.js("energy=100; useShuffle()")
-    assert game.js("[boss.crown, abilFx.text]") == [1900, "あまり効いてない…"]
+    assert game.js("[boss.crown, talk.text]") == [1900, "あまり効いてない…"]
 
 
 def test_level_adds_crown_damage(game):
@@ -151,12 +151,12 @@ def test_new_weakness(game, item):
     game.put(2, 0); game.put(2, 1, row=1)
     assert game.js(f"weakKnown('{k}')") is False
     game.js(f"energy=100; {USE[item]}()")
-    assert game.js("[boss.crown, abilFx.text, weakFound]") == [1700, "弱点を見破った！！", [k]]
+    assert game.js("[boss.crown, talk.text, weakFound]") == [1700, "弱点を見破った！！", [k]]
     assert 9000 < game.js("boss.sealUntil-performance.now()") <= 10000
     game.wait(1200); game.clear_board(); game.put(2, 0); game.put(2, 1, row=1)
     game.js(f"weightLeft=0; energy=100; {USE[item]}()")
     sealed = 4 * 3 if item == "pop" else 0                             # はじけ玉で消した4個は、封印中なので王冠も個数×3けずる（BOSS-09）
-    assert game.js("[boss.crown, abilFx.text]") == [1400 - sealed, "効果ばつぐん！！"]
+    assert game.js("[boss.crown, talk.text]") == [1400 - sealed, "効果ばつぐん！！"]
     game.js("paused=true; showMenu('skills')"); game.wait(300)        # 研究所にも相手の名前が出る
     name = game.js(f"THEMES.find(t=>t.k==='{k}').name")
     assert f"{name}のボスにきく" in game.page.locator("#overlay").inner_text()
@@ -169,7 +169,7 @@ def test_new_resisted(game, item):
     game.js(ALL); game.boss(WORLDS.index(k)); game.clear_board()
     game.put(2, 0)
     game.js(f"energy=100; {USE[item]}()")
-    assert game.js("[boss.crown, abilFx.text]") == [1980, "あまり効いてない…"]
+    assert game.js("[boss.crown, talk.text]") == [1980, "あまり効いてない…"]
 
 
 def test_counter_cleanup(game):
@@ -187,7 +187,7 @@ def test_counter_cleanup(game):
     game.js("bossAbility(performance.now())")
     assert game.js("!!petalFx") is True
     game.js("energy=100; useBroom()")
-    assert game.js("[petalFx, abilFx.text]") == [None, "弱点を見破った！！"]
+    assert game.js("[petalFx, talk.text]") == [None, "弱点を見破った！！"]
     game.js("goHome()")
     game.boss(3); game.clear_board()                                     # ファイアキング: 飛んでいる火の粉が消える
     game.put(4, 0)
@@ -204,7 +204,7 @@ def test_stop_cools_magma(game):
     game.js(ALL); game.boss(9); game.clear_board()
     game.js("for(let i=0;i<3;i++) balls.push(newBall(1.5+i*4*R, N-R-0.01, MAGMA)); dirty=true")
     game.js("energy=100; stopLeft=0; useStop()")
-    assert game.js("[balls.filter(o=>o.c===MAGMA).length, balls.filter(o=>o.c===GARBAGE).length, abilFx.text]") == [0, 3, "弱点を見破った！！"]
+    assert game.js("[balls.filter(o=>o.c===MAGMA).length, balls.filter(o=>o.c===GARBAGE).length, talk.text]") == [0, 3, "弱点を見破った！！"]
 
 
 def test_shuffle_shakes_off_honey(game):
@@ -214,7 +214,7 @@ def test_shuffle_shakes_off_honey(game):
     game.js("for(const o of balls) o.sticky=true; makeBonds()")
     assert game.js("bonds.some(([a,b])=>a.c!==b.c)") is True              # べたべたで、違う色がかたまりになっている
     game.js("energy=100; useShuffle()")
-    assert game.js("abilFx.text") == "弱点を見破った！！"
+    assert game.js("talk.text") == "弱点を見破った！！"
     assert game.js("[shuffle.to.length, shuffle.to.filter(b=>b.sticky).length, bonds.length]") == [5, 0, 0]   # Lv1 は8個の6割 = 5個を巻きこむ
     assert game.js("balls.filter(o=>!o.live).map(o=>!!o.sticky)") == [True] * 3                               # 巻きこまれなかった3個は、そのまま
     game.wait(2600)
