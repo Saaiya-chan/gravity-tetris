@@ -2,8 +2,11 @@
 import pytest
 
 WORLDS = ["meadow", "desert", "ice", "fire", "bouncy", "space", "sticky", "popcorn", "flower", "magma"]
-COUNTER = {"popcorn": "hand", "desert": "mag", "space": "jump", "magma": "stop", "flower": "shuf",
-           "meadow": "pop", "sticky": "broom", "bouncy": "weight", "ice": "fire", "fire": "water"}
+# 相性の階段（docs/SPEC.md の相性表）。段の中の順は、ワールドをえらぶ画面の順
+TIERS = [["meadow", "desert", "ice"], ["flower", "sticky", "magma"], ["fire", "popcorn", "bouncy", "space"]]
+COUNTER = {"meadow": "pop", "desert": "mag", "ice": "fire",
+           "flower": "broom", "sticky": "shuf", "magma": "stop",
+           "fire": "water", "popcorn": "hand", "bouncy": "weight", "space": "jump"}
 USE = {"pop": "usePop", "broom": "useBroom", "weight": "useWeight", "fire": "useFire", "water": "useWater"}
 ALL = "devItems=['stop','mag','shuf','jump','hand','broom','pop','weight','fire','water']; "
 
@@ -71,6 +74,17 @@ def test_counter_table(game, boss_k, item):
     assert game.js(f"COUNTER['{boss_k}']") == item
     assert len(COUNTER) == 10 and sorted(game.js("Object.keys(COUNTER)")) == sorted(WORLDS)
     assert game.js(f"GEM_ITEM['{boss_k}']") != item                    # 自分の宝石から作るアイテムは、弱点にならない
+
+
+def test_counter_stairs(game):
+    """[BOSS-08] 相性の階段: 2段目・3段目のボスの弱点は、ひとつ前の段の宝石で作れるアイテム。1段目のボスの弱点は、3段目の宝石で作れるアイテム。"""
+    assert game.js("TIER") == {k: n + 1 for n, ks in enumerate(TIERS) for k in ks}
+    made = [sorted(game.js(f"GEM_ITEM['{k}']") for k in ks) for ks in TIERS]         # その段の宝石で作れるアイテム
+    weak = [[COUNTER[k] for k in ks] for ks in TIERS]
+    assert sorted(weak[1]) == made[0]                                 # 2段目の弱点 = 1段目の道具（3つとも）
+    assert sorted(weak[2][:3]) == made[1]                             # 3段目（炎・ポップコーン・トランポリン）の弱点 = 2段目の道具
+    assert weak[2][3] == game.js("GEM_ITEM.bouncy")                   # 宇宙の弱点は、同じ3段目のトランポリンの道具（ジャンプ）
+    assert set(weak[0]) <= set(made[2])                               # 1段目の弱点は、3段目の道具
 
 
 def test_crown_from_pops(game):
@@ -159,16 +173,22 @@ def test_new_resisted(game, item):
 
 
 def test_counter_cleanup(game):
-    """[BOSS-16] 弱点アイテムは、そのボスの妨害の後始末もする（べたべた・氷・火の粉）。"""
+    """[BOSS-16] 弱点アイテムは、ふだんの効果で、そのボスの妨害の後始末もする（氷・花びら・火の粉）。"""
     game.js(ALL)
-    for w, flag, fn in ((6, "sticky", "useBroom"), (2, "frozen", "useFire")):
-        game.boss(w); game.clear_board()
-        game.put(4, 0); game.put(4, 1, row=1)
-        game.js("bossAbility(performance.now())")
-        assert game.js(f"balls.filter(o=>o.{flag}).length") >= 3
-        game.js(f"energy=100; {fn}()")
-        assert game.js(f"balls.filter(o=>o.{flag}).length") == 0
-        game.js("goHome()")
+    game.boss(2); game.clear_board()                                     # アイスキング: 氷がとける
+    game.put(4, 0); game.put(4, 1, row=1)
+    game.js("bossAbility(performance.now())")
+    assert game.js("balls.filter(o=>o.frozen).length") >= 3
+    game.js("energy=100; useFire()")
+    assert game.js("balls.filter(o=>o.frozen).length") == 0
+    game.js("goHome()")
+    game.boss(8); game.clear_board()                                     # フラワークイーン: 舞っている花びらが消える
+    game.put(2, 0)
+    game.js("bossAbility(performance.now())")
+    assert game.js("!!petalFx") is True
+    game.js("energy=100; useBroom()")
+    assert game.js("[petalFx, abilFx.text]") == [None, "弱点を見破った！！"]
+    game.js("goHome()")
     game.boss(3); game.clear_board()                                     # ファイアキング: 飛んでいる火の粉が消える
     game.put(4, 0)
     game.js("boss.lv=3; bossAbility(performance.now())")
@@ -177,6 +197,34 @@ def test_counter_cleanup(game):
     assert game.js("[emberFx, boss.emberLeft, balls.length]") == [None, 0, 4]
     game.wait(1500)
     assert game.js("balls.filter(o=>!o.live).length") == 4               # ぷには、とかされない
+
+
+def test_stop_cools_magma(game):
+    """[BOSS-15] マグマキングにストップが効くと、盤面のマグマぷにがお邪魔ぷにに変わる。"""
+    game.js(ALL); game.boss(9); game.clear_board()
+    game.js("for(let i=0;i<3;i++) balls.push(newBall(1.5+i*4*R, N-R-0.01, MAGMA)); dirty=true")
+    game.js("energy=100; stopLeft=0; useStop()")
+    assert game.js("[balls.filter(o=>o.c===MAGMA).length, balls.filter(o=>o.c===GARBAGE).length, abilFx.text]") == [0, 3, "弱点を見破った！！"]
+
+
+def test_shuffle_shakes_off_honey(game):
+    """[BOSS-15][ITEM-06] ハニーキングにシャッフルが効くと、巻きこんだぷにのべたべたが取れ、かたまりがばらける。残ったぷにと、ほかの相手のときは、べたべたのまま。"""
+    game.js(ALL); game.boss(6); game.clear_board()
+    game.put(4, 0); game.put(4, 1, row=1); game.wait(500)
+    game.js("for(const o of balls) o.sticky=true; makeBonds()")
+    assert game.js("bonds.some(([a,b])=>a.c!==b.c)") is True              # べたべたで、違う色がかたまりになっている
+    game.js("energy=100; useShuffle()")
+    assert game.js("abilFx.text") == "弱点を見破った！！"
+    assert game.js("[shuffle.to.length, shuffle.to.filter(b=>b.sticky).length, bonds.length]") == [5, 0, 0]   # Lv1 は8個の6割 = 5個を巻きこむ
+    assert game.js("balls.filter(o=>!o.live).map(o=>!!o.sticky)") == [True] * 3                               # 巻きこまれなかった3個は、そのまま
+    game.wait(2600)
+    assert game.js("[shuffle, balls.length, balls.filter(o=>o.sticky).length]") == [None, 8, 3]
+    game.js("goHome()")
+    game.boss(1); game.clear_board()                                     # サンドキングには弱点ではない: べたべたは取れない
+    game.put(4, 0); game.put(4, 1, row=1); game.wait(500)
+    game.js("for(const o of balls) o.sticky=true")
+    game.js("energy=100; useShuffle()")
+    assert game.js("shuffle.to.filter(b=>b.sticky).length") == 5
 
 
 def test_can_no_crown_damage(game):

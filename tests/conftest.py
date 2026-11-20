@@ -43,11 +43,22 @@ class Game:
 
     def clear_board(self):
         """盤面を空にして、新しい組が出ないようにする（消え方を調べる下ごしらえ）。"""
-        self.js("spawn=function(){}; stopLeft=600000; piece=null; balls=[]; bonds=[]; chain=0; cascade=false; idleT=-1e9;")
+        # はじめの数秒のあいだに自然に消えたぶん（フラワーでは、はなぷに3個の組が落ちただけで消える）は、数えなかったことにする
+        self.js("spawn=function(){}; stopLeft=600000; piece=null; balls=[]; bonds=[]; chain=0; cascade=false; idleT=-1e9;"
+                " popping=null; petalFx=null; popped=0; stagePop=0; score=0;")
 
     def put(self, n, color, row=0):
         """床の上に、同じ色のぷにを n 個ならべて置く。"""
         self.js(f"(()=>{{ for(let i=0;i<{n};i++) balls.push(newBall(1.5+i*2*R, N-R-0.01-{row}*2*R, {color})); dirty=true; }})()")
+
+    def reopen(self, wait=600):
+        """ゲームを開き直す（セーブデータは残す）。
+        テスト用のブラウザは、負荷が高いと、読みこみ直しのときに localStorage をまるごと落とすことがある
+        （ゲームのコードがない空のページでも起きる）。保存された中身をひかえておき、開き直したページへ入れ直す。"""
+        saved = self.js("JSON.stringify(Object.fromEntries(Object.entries(localStorage)))")
+        self.page.add_init_script(f"(()=>{{ const s={saved}; localStorage.clear(); for(const k in s) localStorage.setItem(k,s[k]); }})()")
+        self.page.reload()
+        self.wait(wait)
 
     def boss(self, world=0, quiet=True):
         """ワールド world のボス戦にする。quiet なら妨害をしばらく止めておく。"""

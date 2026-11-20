@@ -14,7 +14,7 @@ Chrome が入っていればそのまま動きます。別の場所にある場�
 ## 実行
 
 ```
-pytest tests              # 全部（9分ほど）
+pytest tests              # 全部（10分ほど）
 pytest tests -k energy    # エネルギーだけ
 pytest tests -k weakness  # テスト名の一部で指定
 ```

@@ -10,8 +10,45 @@ def test_all_worlds_open(game, w):
 
 
 def test_world_select_shows_ten(game):
-    """[WORLD-01] ワールドをえらぶ画面に10個ならぶ。"""
+    """[WORLD-01] ワールドをえらぶ画面に10個ならぶ。どれも、えらべる。"""
     assert game.js("THEMES.length") == 10
+    game.js("showMenu('worlds')"); game.wait(300)
+    cards = game.page.locator(".wl[data-w]:not([data-w='-1'])")
+    assert cards.count() == 10 and all(c.is_enabled() for c in cards.all())
+
+
+def world_select(game):
+    """ワールドをえらぶ画面の中身を、上から順に: 見出しは ["段", 名前, ひとこと]、カードは ワールドのキー（ランダムは "random"）。"""
+    game.js("showMenu('worlds')"); game.wait(300)
+    return game.js("""[...document.querySelectorAll('#sheet .tier-h, #sheet .wl')].map(e=>e.classList.contains('wl')
+        ? (+e.dataset.w<0 ? 'random' : THEMES[+e.dataset.w].k)
+        : ['段', e.querySelector('b').textContent, e.querySelector('small').textContent])""")
+
+
+def test_world_select_tiers(game):
+    """[WORLD-07][WORLD-08] ワールドをえらぶ画面: 「1段目」「2段目」「3段目」の見出しの下に、相性の階段の順でならぶ。ランダムは最後。"""
+    assert world_select(game) == [
+        ["段", "1段目", "まずはここから"], "meadow", "desert", "ice",
+        ["段", "2段目", "1段目の道具が効く"], "flower", "sticky", "magma",
+        ["段", "3段目", "2段目の道具が効く"], "fire", "popcorn", "bouncy", "space",
+        "random"]
+    tops = game.js("[...document.querySelectorAll('#sheet .tier-h, #sheet .wl')].map(e=>Math.round(e.getBoundingClientRect().top))")
+    assert tops == sorted(tops)                                       # 画面の上でも、この順に上から下へならんでいる
+    assert game.js("[...document.querySelectorAll('#sheet .tier-h')].every(h=>{ const r=h.getBoundingClientRect(), s=sheet.getBoundingClientRect(); return r.left>=s.left && r.right<=s.right && r.height>0; })")
+    game.js("THEMES.forEach(t=>worldClears[t.k]=1); weakFound=['flower']")   # 全部クリアしても、弱点を見破っても、順番は同じ
+    got = world_select(game)
+    assert [x for x in got if isinstance(x, str)] == ["meadow", "desert", "ice", "flower", "sticky", "magma", "fire", "popcorn", "bouncy", "space", "random"]
+    assert game.page.locator(".wl[data-w='-1']").is_enabled()
+    assert game.page.locator(".wl[data-w='8'] .wl-vs").inner_text() == "弱点: ほうき"
+    assert game.page.locator(".wl[data-w='6'] .wl-vs").inner_text() == "弱点: ？？？"
+
+
+def test_world_numbers_unchanged(game):
+    """[WORLD-09] ならび順を変えても、ワールドの番号は変わらない: カードを押すと、そのワールドが始まり、ステージの表示も元の番号のまま。"""
+    assert game.js("THEMES.map(t=>t.k)") == ["meadow", "desert", "ice", "fire", "bouncy", "space", "sticky", "popcorn", "flower", "magma"]
+    assert world_select(game)[5] == "flower"                          # 画面では4番目のカード
+    game.page.locator("#sheet .wl").nth(3).click(); game.wait(1200)
+    assert game.js("[running, mode, theme().k, worldNo, level, stageLabel()]") == [True, "world", "flower", 8, 41, "9-1"]
 
 
 def test_stage_need(game):
@@ -46,7 +83,7 @@ def test_flower(game):
     """[PUNI-03][PUNI-04] はなぷには3個で消え、花びらが舞う。ふつうのぷにとはつながらない。"""
     game.start(8); game.clear_board()
     game.put(2, 7); game.put(3, 0, row=1); game.wait(2000)
-    assert game.js("popped") == 0, game.js("JSON.stringify([level, mode, theme().k, balls.map(o=>[o.c,+o.x.toFixed(1),+o.y.toFixed(1),!!o.live]), rec.maxPop, score])")
+    assert game.js("popped") == 0
     game.js("balls=[]; bonds=[]"); game.put(3, 7); game.wait(2500)
     assert game.js("[popped, !!petalFx]") == [3, True]
 

@@ -54,7 +54,8 @@ def test_star_kept(game):
     assert game.js("starsOf('ice')") == [1, 1, 1]
     game.js("awardStars('desert', false, true); awardStars('desert', false, false)")   # あとから足りないぶんだけ取れる
     assert game.js("[starsOf('desert'), lastStars.fresh]") == [[1, 0, 1], [0, 0, 1]]
-    game.page.reload(); game.wait(600)
+    assert game.js("store.get('wstars')") == {"ice": [1, 1, 1], "desert": [1, 0, 1]}   # 保存されている
+    game.reopen()
     assert game.js("[starsOf('ice'), starsOf('desert'), starTotal()]") == [[1, 1, 1], [1, 0, 1], 5]
 
 

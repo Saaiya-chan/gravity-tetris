@@ -163,13 +163,14 @@ def test_lab_all_items(game):
 
 
 def test_broom(game):
-    """[ITEM-09][EN-09] ほうき: 止まっているぷにの べたべた・感染・時限をはらい落とす。Lv1 ではお邪魔ぷには減らない。消費25。"""
+    """[ITEM-09][EN-09] ほうき: 止まっているぷにの べたべた・感染・時限をはらい落とし、舞っている花びらを消す。Lv1 ではお邪魔ぷには減らない。消費25。"""
     game.js("devItems=['broom']")
     game.start(); game.clear_board()
     game.put(3, 0); game.put(3, 1, row=1); game.put(2, "GARBAGE", row=2)
     game.js("balls[0].sticky=true; balls[3].sticky=true; balls[1].virus=true; balls[1].vLeft=3; balls[4].timer=20000; makeBonds()")
     assert game.js("bonds.some(([a,b])=>a.c!==b.c)") is True              # べたべたで、違う色がくっついている
-    game.js("energy=100; useBroom()")
+    game.js("petalFx={t:performance.now(), seed:1}; energy=100; useBroom()")
+    assert game.js("petalFx") is None                                     # 舞っている花びらも、はき出す
     assert count(game, "o.sticky||o.virus||o.timer!=null") == 0
     assert game.js("bonds.some(([a,b])=>a.c!==b.c)") is False             # 違う色どうしは、はなれる
     assert game.js("[balls.length, popped, energy]") == [8, 0, 75]
@@ -346,12 +347,12 @@ def test_can_slot_migration(game):
     """[ITEM-15] 前のセーブデータ: 空きスロットがあればエネルギー缶を一度だけ置き、空きがなければ置かない。外したあとは、勝手に置き直さない。"""
     def reopen(slots, dev):
         game.js(f"localStorage.clear(); store.set('slots',{slots}); store.set('devItems',{dev}); store.set('handSlotted',true)")
-        game.page.reload(); game.wait(600)
+        game.reopen()
     full = "{R0:'stop',R1:'mag',R2:'shuf',R3:'boost',R4:'jump',L0:'broom',L1:'hand',L2:'fire'}"
     reopen(full, "['stop','mag','shuf','jump','hand','broom','fire']")
     assert "can" not in game.js("Object.values(slots)")                   # 8か所とも使えるアイテムで埋まっている
     reopen("{R0:'stop',R1:'mag',R2:'shuf',R3:'boost',R4:'jump',L0:'broom',L1:'hand',L2:''}", "['stop','mag','shuf','jump','hand','broom']")
     assert game.js("slots.L2") == "can"                                   # 空いている場所へ
     game.js("slots.L2=''; store.set('slots',slots)")
-    game.page.reload(); game.wait(600)
+    game.reopen()
     assert "can" not in game.js("Object.values(slots)")                   # 自分で外したら、そのまま
