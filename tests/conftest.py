@@ -63,7 +63,7 @@ def game(browser):
     """製品版（開発用の機能なし）・セーブデータなしの状態で開いたゲーム。"""
     ctx = browser.new_context(viewport={"width": 1133, "height": 744})
     page = ctx.new_page()
-    page.add_init_script("if(!sessionStorage.__t){ localStorage.clear(); sessionStorage.__t=1; } window.__appRelease=true;")
+    page.add_init_script("if(window.name!==\"gp-test\"){ localStorage.clear(); window.name=\"gp-test\"; } window.__appRelease=true;")
     page.goto(URL)
     page.wait_for_timeout(600)
     g = Game(page)

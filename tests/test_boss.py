@@ -2,8 +2,10 @@
 import pytest
 
 WORLDS = ["meadow", "desert", "ice", "fire", "bouncy", "space", "sticky", "popcorn", "flower", "magma"]
-COUNTER = {"popcorn": "hand", "desert": "mag", "space": "jump", "magma": "stop", "flower": "shuf"}
-ALL = "devItems=['stop','mag','shuf','jump','hand']; "
+COUNTER = {"popcorn": "hand", "desert": "mag", "space": "jump", "magma": "stop", "flower": "shuf",
+           "meadow": "pop", "sticky": "broom", "bouncy": "weight", "ice": "fire", "fire": "water"}
+USE = {"pop": "usePop", "broom": "useBroom", "weight": "useWeight", "fire": "useFire", "water": "useWater"}
+ALL = "devItems=['stop','mag','shuf','jump','hand','broom','pop','weight','fire','water']; "
 
 
 @pytest.mark.parametrize("w", range(10))
@@ -65,8 +67,10 @@ def test_level_adds_crown_damage(game):
 
 @pytest.mark.parametrize("boss_k,item", COUNTER.items())
 def test_counter_table(game, boss_k, item):
-    """[BOSS-08] 相性表のとおりに弱点が決まっている。"""
+    """[BOSS-08] 相性表のとおりに弱点が決まっている（全10ボス）。"""
     assert game.js(f"COUNTER['{boss_k}']") == item
+    assert len(COUNTER) == 10 and sorted(game.js("Object.keys(COUNTER)")) == sorted(WORLDS)
+    assert game.js(f"GEM_ITEM['{boss_k}']") != item                    # 自分の宝石から作るアイテムは、弱点にならない
 
 
 def test_crown_from_pops(game):
@@ -123,3 +127,53 @@ def test_storm_blocks_bonds(game):
     assert game.js("!!boss.storm") is True
     game.put(5, 0); game.wait(1200)
     assert game.js("[popped, bonds.length]") == [0, 0]
+
+
+@pytest.mark.parametrize("item", ["pop", "broom", "weight", "fire", "water"])
+def test_new_weakness(game, item):
+    """[BOSS-05][BOSS-08][LAB-04] 新しい5種も弱点として効く: 妨害を10秒封じ、王冠を15%けずり、弱点が記録されて表示される。"""
+    k = next(b for b, i in COUNTER.items() if i == item)
+    game.js(ALL); game.boss(WORLDS.index(k)); game.clear_board()
+    game.put(2, 0); game.put(2, 1, row=1)
+    assert game.js(f"weakKnown('{k}')") is False
+    game.js(f"energy=100; {USE[item]}()")
+    assert game.js("[boss.crown, abilFx.text, weakFound]") == [1700, "弱点を見破った！！", [k]]
+    assert 9000 < game.js("boss.sealUntil-performance.now()") <= 10000
+    game.wait(1200); game.clear_board(); game.put(2, 0); game.put(2, 1, row=1)
+    game.js(f"weightLeft=0; energy=100; {USE[item]}()")
+    sealed = 4 * 3 if item == "pop" else 0                             # はじけ玉で消した4個は、封印中なので王冠も個数×3けずる（BOSS-09）
+    assert game.js("[boss.crown, abilFx.text]") == [1400 - sealed, "効果ばつぐん！！"]
+    game.js("paused=true; showMenu('skills')"); game.wait(300)        # 研究所にも相手の名前が出る
+    name = game.js(f"THEMES.find(t=>t.k==='{k}').name")
+    assert f"{name}のボスにきく" in game.page.locator("#overlay").inner_text()
+
+
+@pytest.mark.parametrize("item", ["pop", "broom", "weight", "fire", "water"])
+def test_new_resisted(game, item):
+    """[BOSS-07] 新しい5種も、自分の宝石のボスには1%「あまり効いてない…」。"""
+    k = game.js(f"gemOf('{item}')")
+    game.js(ALL); game.boss(WORLDS.index(k)); game.clear_board()
+    game.put(2, 0)
+    game.js(f"energy=100; {USE[item]}()")
+    assert game.js("[boss.crown, abilFx.text]") == [1980, "あまり効いてない…"]
+
+
+def test_counter_cleanup(game):
+    """[BOSS-16] 弱点アイテムは、そのボスの妨害の後始末もする（べたべた・氷・火の粉）。"""
+    game.js(ALL)
+    for w, flag, fn in ((6, "sticky", "useBroom"), (2, "frozen", "useFire")):
+        game.boss(w); game.clear_board()
+        game.put(4, 0); game.put(4, 1, row=1)
+        game.js("bossAbility(performance.now())")
+        assert game.js(f"balls.filter(o=>o.{flag}).length") >= 3
+        game.js(f"energy=100; {fn}()")
+        assert game.js(f"balls.filter(o=>o.{flag}).length") == 0
+        game.js("goHome()")
+    game.boss(3); game.clear_board()                                     # ファイアキング: 飛んでいる火の粉が消える
+    game.put(4, 0)
+    game.js("boss.lv=3; bossAbility(performance.now())")
+    assert game.js("[!!emberFx, boss.emberLeft]") == [True, 2]              # 1つ飛んでいて、あと2つ出る
+    game.js("energy=100; useWater()")
+    assert game.js("[emberFx, boss.emberLeft, balls.length]") == [None, 0, 4]
+    game.wait(1500)
+    assert game.js("balls.filter(o=>!o.live).length") == 4               # ぷには、とかされない

@@ -1,7 +1,8 @@
 """エネルギー（EN）"""
 import pytest
 
-COST = {"stop": 30, "jump": 20, "shuf": 35, "mag": 40, "boost": 30, "hand": 40}
+COST = {"stop": 30, "jump": 20, "shuf": 35, "mag": 40, "boost": 30, "hand": 40,
+        "broom": 25, "pop": 35, "weight": 30, "fire": 35, "water": 30}
 
 
 def test_start_energy(game):
@@ -71,4 +72,17 @@ def test_use_spends_energy(game):
 def test_badge_shows_cost(game):
     """[EN-10] アイテムのボタンには消費エネルギーが出る。"""
     game.start()
+    assert game.page.locator("#itemBoost .badge").inner_text().strip() == "30"
+
+
+def test_badge_not_hidden(game):
+    """[EN-13] 消費エネルギーのバッジは、となりのアイテムのボタンに隠れない（ブースターのバッジがジャンプに隠れていた）。"""
+    game.js("devItems=['stop','mag','shuf','jump','hand','broom','water']")
+    game.js("slots.L0='broom'; slots.L2='water'; layoutItems()")
+    game.start()
+    shown = game.js("""[...document.querySelectorAll('.item')].filter(e=>getComputedStyle(e).display!=='none').map(e=>{
+        const r=e.querySelector('.badge').getBoundingClientRect(), pts=[[.5,.5],[.15,.5],[.85,.5],[.5,.15],[.5,.85]];
+        return [e.id, pts.every(([u,v])=>e.contains(document.elementFromPoint(r.left+r.width*u, r.top+r.height*v)))]; })""")
+    assert len(shown) == 8
+    assert [i for i, ok in shown if not ok] == []
     assert game.page.locator("#itemBoost .badge").inner_text().strip() == "30"
