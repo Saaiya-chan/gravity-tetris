@@ -27,6 +27,7 @@ pytest tests -k weakness  # テスト名の一部で指定
 | `test_energy.py` | エネルギー（EN） |
 | `test_items.py` | アイテム・強化・研究所（ITEM / UP / LAB） |
 | `test_boss.py` | ボス・王冠・相性・宝石（BOSS / GEM） |
+| `test_star.py` | スター（STAR） |
 | `test_world.py` | ワールド・ぷに・ライフ・放置・ショップ（WORLD / PUNI / CHAIN / LIFE / IDLE / SHOP） |
 
 ## 仕様を変えるとき

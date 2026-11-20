@@ -5,9 +5,9 @@ COST = {"stop": 30, "jump": 20, "shuf": 35, "mag": 40, "boost": 30, "hand": 40}
 
 
 def test_start_energy(game):
-    """[EN-01] プレイ開始時のエネルギーは40。最大は100。"""
+    """[EN-01] スターが0なら、プレイ開始時のエネルギーは40。上限は100。"""
     game.start()
-    assert game.js("[energy, EN_MAX]") == [40, 100]
+    assert game.js("[energy, enCap()]") == [40, 100]
 
 
 def test_can_starts_full(game):
@@ -45,7 +45,7 @@ def test_cost_lv1(game, item, cost):
     assert game.js(f"enCost('{item}')") == cost
 
 
-@pytest.mark.parametrize("lv,k", [(2, 1.1), (3, 1.2)])
+@pytest.mark.parametrize("lv,k", [(2, 1.1), (3, 1.2), (4, 1.3), (5, 1.4)])
 def test_cost_grows_with_level(game, lv, k):
     """[EN-07] 消費エネルギーは、レベルが1上がるごとに元の1割ふえる（四捨五入）。"""
     for item, cost in COST.items():

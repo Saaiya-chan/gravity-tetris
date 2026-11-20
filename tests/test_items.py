@@ -37,11 +37,13 @@ def test_stop_extends_others(game):
 
 
 def test_level_extends_duration(game):
-    """[UP-03] 時間で効くアイテムは、レベルが1上がるごとに効果時間が2割のびる。"""
+    """[UP-03] 時間で効くアイテムは、レベルが1上がるごとに効果時間が2割のびる（Lv5で1.8倍）。"""
     game.js("devItems=['mag']; itemLv.mag=2")
     game.start()
     game.js("energy=100; useMag()")
     assert game.js("itemTot.mag") == pytest.approx(6000 * 1.4)
+    game.js("magLeft=0; itemLv.mag=4; energy=100; useMag()")
+    assert game.js("itemTot.mag") == pytest.approx(6000 * 1.8)
 
 
 def test_jump_power(game):
@@ -73,13 +75,30 @@ def test_gem_item_table(game):
 
 
 def test_upgrade(game):
-    """[UP-01][UP-02] 強化は宝石3個（虹で代用可）、ブースターは虹1個。Lv3まで。"""
+    """[UP-01][UP-02] 強化は宝石3個（虹で代用可）、ブースターは虹1個。Lv5まで。"""
     game.js("devItems=['mag']; gems={space:5, rainbow:2}")
     assert game.js("[upgrade('mag'), lvOf('mag'), gems.space]") == [True, 2, 2]
     assert game.js("[upgrade('mag'), lvOf('mag'), gems.space, gems.rainbow]") == [True, 3, 0, 1]
-    assert game.js("canUpgrade('mag')") is False                  # Lv3 が上限
+    assert game.js("canUpgrade('mag')") is False                  # 宝石がたりない（2個+虹1個が要る）
     assert game.js("[upgrade('boost'), lvOf('boost'), gems.rainbow]") == [True, 2, 0]
     assert game.js("canUpgrade('boost')") is False                # 虹の宝石がない
+    game.js("gems={space:99, rainbow:99}")
+    assert game.js("[upgrade('mag'), upgrade('mag'), lvOf('mag')]") == [True, True, 5]
+    assert game.js("[UP_MAX, canUpgrade('mag'), upgrade('mag'), lvOf('mag'), gems.space]") == [5, False, False, 5, 93]   # Lv5 が上限
+
+
+def test_lab_max(game):
+    """[UP-02][LAB-03] 研究所: Lv5 まで強化ボタンで上げられ、Lv5 になると強化ボタンが消えて「MAX」と出る。"""
+    game.js("devItems=['mag']; gems={space:99}; showMenu('skills')"); game.wait(300)
+    card = game.page.locator(".lab.own", has_text="マグネット")
+    for lv in range(1, 5):
+        assert card.locator(".lab-lv").inner_text() == f"Lv{lv}"
+        card.locator("button[data-up='mag']").click(); game.wait(200)
+    assert card.locator(".lab-lv").inner_text() == "Lv5"
+    assert card.locator("button[data-up]").count() == 0 and card.locator(".lab-max").inner_text() == "MAX"
+    assert game.js("[lvOf('mag'), gems.space, enCost('mag')]") == [5, 87, 56]
+    boost = game.page.locator(".lab.own", has_text="ブースター")       # 宝石がたりないアイテムは、ボタンが押せない
+    assert boost.locator("button[data-up='boost']").is_disabled()
 
 
 def test_lab_screen(game):
@@ -91,11 +110,12 @@ def test_lab_screen(game):
     assert "砂漠のボスにきく" in game.page.locator("#overlay").inner_text()
 
 
-@pytest.mark.parametrize("lv,rate", [(1, 0.6), (2, 0.8), (3, 1.0)])
+@pytest.mark.parametrize("lv,rate", [(1, 0.6), (2, 0.7), (3, 0.8), (4, 0.9), (5, 1.0)])
 def test_shuffle_rate(game, lv, rate):
     """[ITEM-06][UP-06] シャッフルが巻きこむのは Lv1 で6割。レベルごとにふえて、最大レベルで全部。残りはその場に残る。"""
     game.js(f"devItems=['shuf']; itemLv.shuf={lv - 1}")
     assert game.js("shufRate()") == pytest.approx(rate)
+    assert game.js("UP_TEXT.shuf") == "巻きこむ割合 +10%"
     game.start(); game.clear_board()
     for row, c in enumerate((0, 1, 2, 3, 0)):
         game.put(4, c, row=row)
