@@ -30,7 +30,7 @@ pytest tests -k weakness  # テスト名の一部で指定
 | `test_star.py` | スター（STAR） |
 | `test_world.py` | ワールド・ぷに・ライフ・放置・ショップ（WORLD / PUNI / CHAIN / LIFE / IDLE / SHOP） |
 | `test_talk.py` | 実況ぷに・吹き出し・NEXT の非表示（TALK） |
-| `test_types.py` | 裏設定のタイプと相性表の食いちがい（TYPE。`docs/TYPES.md`） |
+| `test_types.py` | 裏設定のタイプの決まり（TYPE。`docs/TYPES.md`） |
 
 ## 仕様を変えるとき
 

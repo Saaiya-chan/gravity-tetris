@@ -1,19 +1,51 @@
-"""裏設定のタイプと、ゲームの相性表が食いちがっていないか（docs/TYPES.md の決まり）"""
-from types_data import WORLD_TYPE, STRONG
+"""裏設定のタイプの決まり（docs/TYPES.md）。ゲームへの反映はこれからなので、ここでは表そのものの形だけを確かめる。"""
+from types_data import TYPES, GOGYO, NICHIGETSU, beats
+
+ALL = [t for e in TYPES for t in TYPES[e]]
+RING = {"五行": [t for e in GOGYO for t in TYPES[e]], "日月": [t for e in NICHIGETSU for t in TYPES[e]]}
 
 
-def test_every_world_has_own_type(game):
-    """[TYPE-01][TYPE-04] どのワールドにもタイプがあり、同じタイプは2つない。"""
-    worlds = game.js("THEMES.map(t=>t.k)")
-    assert sorted(worlds) == sorted(WORLD_TYPE)
-    assert len(set(WORLD_TYPE.values())) == len(WORLD_TYPE)
+def test_type_count():
+    """[TYPE-01] 七曜 × 天地人 で21タイプ。名前はかぶらない。"""
+    assert len(ALL) == 21 == len(set(ALL))
+    assert len(RING["五行"]) == 15 and len(RING["日月"]) == 6
 
 
-def test_weakness_is_super_effective(game):
-    """[TYPE-02][TYPE-03] ボスの弱点の道具は、そのボスのタイプに「ばつぐん」なタイプ（道具のタイプ＝作る宝石のボスのタイプ）。"""
-    counter, gem_item = game.js("COUNTER"), game.js("GEM_ITEM")
-    item_type = {item: WORLD_TYPE[w] for w, item in gem_item.items()}
-    assert sorted(counter) == sorted(WORLD_TYPE), "弱点のないボスがいる"
-    for boss, item in counter.items():
-        assert item in item_type, f"{item} を作る宝石がない"
-        assert WORLD_TYPE[boss] in STRONG[item_type[item]], f"{boss}（{WORLD_TYPE[boss]}）に {item}（{item_type[item]}）は ばつぐん ではない"
+def test_strong_and_weak_counts():
+    """[TYPE-02] 五行の輪は3つに強く3つに弱い。日と月の輪は2つに強く2つに弱い。"""
+    lose = {t: 0 for t in ALL}
+    for t in ALL:
+        sp, strong = beats(t)
+        targets = [sp] + strong
+        assert len(set(targets)) == len(targets) == (3 if t in RING["五行"] else 2)
+        for x in targets:
+            lose[x] += 1
+    for t in ALL:
+        assert lose[t] == (3 if t in RING["五行"] else 2), t
+
+
+def test_rings_do_not_cross():
+    """[TYPE-03] ふたつの輪のあいだに勝ち負けはない。"""
+    for name, members in RING.items():
+        for t in members:
+            sp, strong = beats(t)
+            assert all(x in members for x in [sp] + strong), t
+
+
+def test_super_effective_makes_one_loop():
+    """[TYPE-04] 特効をたどると、それぞれの輪がひとめぐりする（15 と 6）。"""
+    for members in RING.values():
+        seen, t = [], members[0]
+        while t not in seen:
+            seen.append(t)
+            t = beats(t)[0]
+        assert t == members[0] and sorted(seen) == sorted(members)
+
+
+def test_no_mutual_wins():
+    """[TYPE-05] おたがいに勝ち合う組はない。"""
+    for t in ALL:
+        sp, strong = beats(t)
+        for x in [sp] + strong:
+            xs, xstrong = beats(x)
+            assert t not in [xs] + xstrong, (t, x)
