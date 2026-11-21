@@ -110,7 +110,7 @@ def test_lab_max(game):
 
 
 def test_lab_screen(game):
-    """[LAB-03][LAB-04][LAB-05] 研究所: 開発ずみは消費エネルギーつきで並び、特効になる相手は見破るまで「？？？」。どのカードにも、道具の席（属性と手）が出る。"""
+    """[LAB-03][LAB-04][LAB-05] 研究所: 開発ずみは消費エネルギーつきで並び、特効になる相手は見破るまで「？？？」。カードに、道具の席（属性と手）の札は出さない。"""
     game.js("devItems=['mag','stop','pop']; showMenu('skills')"); game.wait(300)
     text = game.page.locator("#overlay").inner_text()
     assert "消費エネルギー" in text and "？？？" in text
@@ -121,11 +121,10 @@ def test_lab_screen(game):
     game.js("weakFound=['meadow','magma']; showMenu('skills')"); game.wait(300)
     assert "草原のボスにきく" in card("マグネット").inner_text() and "？？？" not in card("マグネット").inner_text()
     assert "マグマのボスにきく" in card("ストップ").inner_text() and card("ストップ").inner_text().count("？？？のボスにきく") == 1
-    seat = lambda name: card(name).locator("h3 .seat")
-    assert [seat(n).get_attribute("aria-label") for n in ["ブースター", "マグネット", "ストップ", "はじけ玉"]] == ["日のグー", "金のパー", "水のパー", "火のグー"]
-    assert seat("ストップ").inner_text().replace("\n", "") == "水🖐️" and seat("ストップ").is_visible()
-    assert game.page.locator(".lab.todo h3 .seat").count() == 7                 # これから開発する道具にも、席が出る（宝石で何を作るか、えらぶ手がかり）
-    assert game.page.locator(".lab h3 .seat").count() == 11
+    assert game.page.locator(".seat").count() == 0                              # 席（属性と手）の札は、開発ずみにも、これから開発にも出さない
+    assert game.page.locator(".lab.todo h3").count() == 7 and game.page.locator(".lab h3").count() == 11
+    for word in ["属性", "じゃんけん", "グー", "チョキ", "パー", "✊", "✌", "🖐"]:
+        assert word not in game.page.locator("#overlay").inner_text(), word
     for name in ["たいよう", "じしゃく", "うみ", "ようがん"]:                   # タイプの名前は出さない
         assert name not in game.page.locator("#overlay").inner_text()
 
@@ -164,7 +163,7 @@ def test_develop_new(game, gem, item):
 def test_lab_all_items(game):
     """[LAB-03] 研究所: 11種すべてが「つかえるアイテム」か「これから開発」のどちらかに名前つきで並ぶ（じゅんび中は無い）。"""
     game.js("devItems=['mag','broom','fire']; showMenu('skills')"); game.wait(300)
-    own = [t.split("\n")[0] for t in game.page.locator(".lab.own h3").all_inner_texts()]       # （名前のあとに、席の札がつく。LAB-05）
+    own = [t.split("\n")[0] for t in game.page.locator(".lab.own h3").all_inner_texts()]       # 
     todo = [t.split("\n")[0] for t in game.page.locator(".lab.todo h3").all_inner_texts()]
     assert own == ["ブースター", "マグネット", "ほうき", "ひのたま"]
     assert sorted(own + todo) == sorted(NAMES.values()) and len(todo) == 7

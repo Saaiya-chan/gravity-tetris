@@ -107,7 +107,9 @@ def test_no_avatar_word(game):
     assert game.page.locator("#pfDress").inner_text() == "ぷに妖精・フレームをかえる"
     game.js("showMenu('help')"); game.wait(250)
     help_ = game.page.locator("ul.help").inner_text()
-    assert "じゃんけんで勝つと、妨害をしばらく封じる" in help_ and "王冠を大きくけずる" in help_ and "いじわる光線" not in help_     # [BOSS-23] あそびかたに、じゃんけんと属性の説明がある
+    assert "道具によって、ボスへの効き方がちがう" in help_ and "弱点を見つけよう" in help_ and "いじわる光線" not in help_
+    for word in ["属性", "じゃんけん", "グー", "チョキ", "パー", "✊", "✌", "🖐"]:
+        assert word not in help_, word     # [BOSS-23] あそびかたは、やさしい1行だけ。属性・じゃんけんの言葉は出さない
 
 
 def test_bubble(game):

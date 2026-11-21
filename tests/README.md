@@ -30,6 +30,7 @@ pytest tests -k weakness  # テスト名の一部で指定
 | `test_star.py` | スター（STAR） |
 | `test_world.py` | ワールド・ぷに・ライフ・放置・ショップ（WORLD / PUNI / CHAIN / LIFE / IDLE / SHOP） |
 | `test_talk.py` | ぷに妖精の実況・吹き出し・NEXT の非表示（TALK） |
+| `test_low.py` | 低い画面（iPhone の横向き。844x390 など）のプレイ画面のレイアウト（LOW）。`game_at(幅, 高さ)` で画面の大きさをえらんで開く |
 | `test_types.py` | 裏設定のタイプの決まり（TYPE。`docs/TYPES.md`） |
 | `types_data.py` | 裏設定のタイプの表と、相性の参考実装 `effect()`（テストではなく、データ） |
 

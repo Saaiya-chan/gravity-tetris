@@ -10,7 +10,6 @@ ITEM_KEY = {"ブースター": "boost", "ほうき": "broom", "シャッフル":
             "おもし": "weight", "ひのたま": "fire", "はじけ玉": "pop", "ジャンプ": "jump", "マグネット": "mag"}
 KIND = {"特効": "sp", "封印": "seal", "王冠": "crown", "ふつう": "normal", "同じ": "same"}      # effect() の答え → ゲームの aisho() の答え
 PAIRS = {kind: [(ITEM_KEY[i], BOSS_KEY[b]) for b in BOSS_SEAT for i in ITEM_SEAT if effect(i, b) == kind] for kind in KIND}   # 判定 → [(道具, ボス)…]
-HAND_IC = {"グー": "✊", "チョキ": "✌️", "パー": "🖐️"}
 USE = {"boost": "useBoost", "stop": "useStop", "mag": "useMag", "shuf": "useShuffle", "jump": "useJump", "hand": "useHand",
        "pop": "usePop", "broom": "useBroom", "weight": "useWeight", "fire": "useFire", "water": "useWater"}
 # 道具を使える状態にして（盤面にぷにを少し置き、効果中のものを切って）、1回使う
@@ -252,41 +251,50 @@ def test_puni_king_no_beam(game):
     game.js("beamDev=false")
 
 
-def test_seat_shown_on_boss(game):
-    """[BOSS-22] ボス戦の画面: ボスの体力バーのそばに、ボスの席（属性と手）を出す。タイプの名前（たいぼく など）は出さない。"""
-    game.js("window.__seats=[]; const ds=drawSeat; drawSeat=function(g,seat,x,y,r){ window.__seats.push([seat,x,y,r]); return ds(g,seat,x,y,r); }")
-    game.boss(6); game.wait(300)                                             # ハニーキング: 水のパー
-    seat, x, y, r = game.js("window.__seats.at(-1)")
-    assert seat == ["水", "パー"] == BOSS_SEAT["べたべた"]
-    w = game.js("document.getElementById('board').width")
-    assert r >= 6 and 0 <= x - r * 4.5 and x < w * 0.25 and 0 < y - r * 1.25 and y < w * 0.15    # 盤面の左上、体力バーの左に、おさまっている
-    px = game.js(f"[...document.getElementById('board').getContext('2d').getImageData({x}-{r}*4.5+{r}*1.25-{r}*0.75|0, {y}|0, 1, 1).data].slice(0,3)")
-    assert px == [0x2f, 0x7f, 0xe8]                                          # 属性の丸は、水の色
+HIDDEN = ["属性", "じゃんけん", "グー", "チョキ", "パー", "✊", "✌", "🖐"]      # 裏設定（タイプ・席）の言葉と絵。画面に出さない
+
+
+def test_seat_not_shown_on_boss(game):
+    """[BOSS-22] ボス戦の画面に、ボスの席（属性と手）の札を出さない。タイプの名前（たいぼく など）も出さない。"""
+    assert game.js("typeof drawSeat") == "undefined" and game.js("typeof seatHtml") == "undefined"
+    game.js("window.__txt=[]; for(const fn of ['fillText','strokeText']){ const f=CanvasRenderingContext2D.prototype[fn];"
+            " CanvasRenderingContext2D.prototype[fn]=function(t,...a){ window.__txt.push(String(t)); return f.call(this,t,...a); }; } void 0")
+    game.boss(6); game.wait(500)                                             # ハニーキング（裏設定では、水のパー）
+    drawn = "\n".join(game.js("window.__txt"))
+    assert "ハニーキング" in drawn                                            # 盤面の文字を、ちゃんと拾えている
+    seen = drawn + game.page.locator("body").inner_text()
+    for word in HIDDEN:
+        assert word not in seen, word
+    assert game.page.locator(".seat").count() == 0
     src = game.js("document.documentElement.outerHTML")
     for name in ["たいぼく", "いばら", "けっしょう", "てっきゅう", "ようがん", "じしゃく", "ながれぼし"]:
         assert name not in src                                               # タイプの名前は、裏設定のまま
 
 
-def test_seat_shown_on_items(game):
-    """[ITEM-16] プレイ中の道具ボタンに、席（属性と手）の小さな札を出す。エネルギー缶には出さない。札は、消費エネルギーのバッジと重ならない。"""
+def test_seat_not_shown_on_items(game):
+    """[ITEM-16] プレイ中の道具ボタン（3つの配置すべて）と、配置の編集画面（トレー・候補）に、席（属性と手）の札を出さない。"""
     game.js(ALL)
-    box = "(q=>{ const r=document.querySelector(q).getBoundingClientRect(); return [r.left,r.top,r.right,r.bottom]; })"
     for lay in ["ringL", "tiles", "ring"]:
         game.js(f"layoutKey='{lay}'; layoutItems()")
         game.start(); game.wait(200)
         shown = game.js("Object.keys(ITEM_EL).filter(k=>document.getElementById(ITEM_EL[k]).offsetWidth>0)")
         assert len(shown) >= 6
-        for k in shown:
-            el = game.page.locator(f"#{game.js(f'ITEM_EL.{k}')} .seat")
-            if k == "can":
-                assert el.count() == 0
-                continue
-            e, h = next(s for n, s in ITEM_SEAT.items() if ITEM_KEY[n] == k)
-            assert el.is_visible() and el.inner_text().replace("\n", "") == e + HAND_IC[h] and el.get_attribute("aria-label") == f"{e}の{h}"
-            s, b = game.js(f"{box}('#'+ITEM_EL.{k}+' .seat')"), game.js(f"{box}('#'+ITEM_EL.{k}+' .badge')")
-            assert s[2] <= b[0] or b[2] <= s[0] or s[3] <= b[1] or b[3] <= s[1], f"{lay}: {k} の席の札が、バッジと重なっている"
-            assert s[3] - s[1] <= 34 and s[2] - s[0] <= 40                   # じゃまにならない小ささ
+        assert game.page.locator(".seat").count() == 0
+        text = game.page.locator("body").inner_text() + " ".join(game.js("[...document.querySelectorAll('.item')].map(e=>e.getAttribute('aria-label')||'')"))
+        for word in HIDDEN:
+            assert word not in text, f"{lay}: {word}"
         game.js("goHome()")
+    game.js("layoutKey='ringL'; layoutItems()")
+    game.start(); game.wait(200)
+    game.js("slots.L2=''; slots.R4=''; layoutItems(); openSlotPick('L2', document.querySelector('.slotEmpty'))"); game.wait(150)
+    pick = game.page.locator("#slotPick").inner_text()
+    game.js("closeSlotPick(); paused=true; enterSlotEdit('pause')"); game.wait(200)
+    tray = game.page.locator("#slotBar").inner_text()
+    assert "ジャンプ" in pick and "ジャンプ" in tray
+    for word in HIDDEN:
+        assert word not in pick + tray, word
+    assert game.page.locator(".seat").count() == 0
+    game.js("exitSlotEdit(); hideOverlay(); paused=false")
 
 
 def test_counter_cleanup(game):

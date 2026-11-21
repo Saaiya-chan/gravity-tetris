@@ -69,10 +69,9 @@ class Game:
         self.wait(200)
 
 
-@pytest.fixture
-def game(browser):
-    """製品版（開発用の機能なし）・セーブデータなしの状態で開いたゲーム。"""
-    ctx = browser.new_context(viewport={"width": 1133, "height": 744})
+def open_game(browser, width=1133, height=744):
+    """製品版・セーブデータなしでゲームを開く。(Game, context) を返す。"""
+    ctx = browser.new_context(viewport={"width": width, "height": height})
     page = ctx.new_page()
     page.add_init_script("if(window.name!==\"gp-test\"){ localStorage.clear(); window.name=\"gp-test\"; } window.__appRelease=true;")
     page.goto(URL)
@@ -82,6 +81,28 @@ def game(browser):
     if page.locator(".x-close").count():                       # デイリーのお知らせを閉じる
         page.locator(".x-close").first.click()
         page.wait_for_timeout(200)
+    return g, ctx
+
+
+@pytest.fixture
+def game(browser):
+    """製品版（開発用の機能なし）・セーブデータなしの状態で開いたゲーム（iPad くらいの大きさ 1133x744）。"""
+    g, ctx = open_game(browser)
     yield g
     assert g.errors == [], f"JavaScript のエラー: {g.errors}"
     ctx.close()
+
+
+@pytest.fixture
+def game_at(browser):
+    """画面の大きさをえらんで開く: game_at(844, 390) → Game。低い画面（iPhone の横向き）のテスト用。"""
+    opened = []
+
+    def make(width, height):
+        g, ctx = open_game(browser, width, height)
+        opened.append((g, ctx))
+        return g
+    yield make
+    for g, ctx in opened:
+        assert g.errors == [], f"JavaScript のエラー: {g.errors}"
+        ctx.close()
