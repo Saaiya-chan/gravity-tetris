@@ -149,7 +149,7 @@ def test_aisho_lines(game):
     game.js(ALL); game.boss(1)                                           # 砂漠（土のパー）: 特効はほうき、封印だけはじょうろ、同じ席はシャッフル
     said = lambda: game.js("[talk.text, talk.mood, talk.prio, abilFx && abilFx.text]")
     game.js("energy=100; useBroom()")
-    assert said() == ["弱点を見破った！！", "happy", 2, None]
+    assert said()[0].startswith("弱点を見破った！！\n弱点は") and said()[0].endswith("だ！") and said()[1:] == ["happy", 2, None]
     game.js("energy=100; useBroom()")
     assert said() == ["効果ばつぐん！！", "happy", 2, None]
     game.js("energy=100; useWater()")
@@ -203,7 +203,7 @@ def test_seal_line_after_aisho(game):
     """[TALK-07][TALK-10] 封じる道具（特効・封印だけ）のあとの「いまのうちだ！」は、相性のセリフをじゃませず、それが消えてから出る。"""
     game.js(ALL); game.boss(1)
     game.js(QUIET + "energy=100; useBroom()"); game.wait(600)
-    assert game.js("talk.text") == "弱点を見破った！！"
+    assert game.js("talk.text.split('\\n')[0]") == "弱点を見破った！！"
     game.wait(game.js("TALK_MS"))
     assert game.js("talk.text") == "いまのうちだ！"
     game.js("goHome()")
@@ -251,7 +251,7 @@ def test_priority(game):
     assert game.js("say('出口があぶない！', 'worry', 0, 'danger')") is False
     assert game.js("say('妨害がくるぞ！', 'worry', 1, 'warn')") is False
     game.js("energy=0; useBoost(); chain=3")                             # エネルギー不足（ふだん）でも上書きしない
-    assert game.js("[talk.text, talk.mood]") == ["弱点を見破った！！", "happy"]
+    assert game.js("[talk.text.split('\\n')[0], talk.mood]") == ["弱点を見破った！！", "happy"]
     game.js("boss.sealUntil=0; talkReset(); say('出口があぶない！', 'worry', 0, 'danger')")     # （封印をといて、「いまのうちだ！」が割りこまないようにしておく）
     assert game.js("say('うごかして！', 'worry', 0, 'idle')") is True      # 同じ優先度は、新しいほうに置きかえる
     assert game.js("say('妨害がくるぞ！', 'worry', 1, 'warn')") is True    # 上の優先度は、下を置きかえる

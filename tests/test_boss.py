@@ -58,7 +58,7 @@ def test_weakness(game):
     game.js(ALL); game.boss(1)                                       # 砂漠（土のパー）← ほうき（木のチョキ）
     assert game.js("aisho('broom','desert')") == "sp"
     game.js("energy=100; useBroom()")
-    assert game.js("[boss.crown, talk.text, weakFound]") == [1700, "弱点を見破った！！", ["desert"]]
+    assert game.js("[boss.crown, talk.text, weakFound]") == [1700, "弱点を見破った！！\n弱点はほうきだ！", ["desert"]]
     left = game.js("boss.sealUntil-performance.now()")
     assert 9000 < left <= 10000
     game.js("energy=100; useBroom()")
@@ -116,7 +116,7 @@ def test_aisho_matrix(game):
 
 # 判定ごとに1組: (判定, 道具, ボスのワールド番号, 王冠%, 封印の秒, セリフ, 表情)
 FIVE = [("sp", "broom", 1, 15, 10, "弱点を見破った！！", "happy"),      # ほうき（木のチョキ）→ 砂漠（土のパー）
-        ("seal", "water", 1, 4, 6, "王冠を封じた！\nいまのうちに攻撃する！", "happy"),               # じょうろ（水のチョキ）→ 砂漠（土のパー）
+        ("seal", "water", 1, 4, 6, "王冠を封じた！", "happy"),               # じょうろ（水のチョキ）→ 砂漠（土のパー）
         ("crown", "hand", 0, 10, 0, "王冠に効いてる！", "normal"),      # 魔法の手（金のチョキ）→ 草原（木のグー）
         ("normal", "boost", 1, 4, 0, "効いてる！", "normal"),           # ブースター（日のグー）→ 砂漠（土のパー）
         ("same", "weight", 4, 1, 0, "あまり効いてない…", "worry")]      # おもし（金のグー）→ トランポリン（金のグー）
@@ -128,7 +128,7 @@ def test_five_results(game, kind, item, w, pct, seal, line, mood):
     game.js(ALL); game.boss(w)
     assert game.js(f"aisho('{item}', boss.k)") == kind and (item, WORLDS[w]) in PAIRS[next(k for k, v in KIND.items() if v == kind)]
     game.js(READY + USE[item] + "()")
-    assert game.js("[boss.crown, talk.text, talk.mood, talk.prio, abilFx && abilFx.text]") == [2000 - 20 * pct, line, mood, 2, None]
+    assert game.js("[boss.crown, talk.text.split('\\n')[0], talk.mood, talk.prio, abilFx && abilFx.text]") == [2000 - 20 * pct, line, mood, 2, None]
     left = game.js("boss.sealUntil-performance.now()")
     assert (seal * 1000 - 1000 < left <= seal * 1000) if seal else left < 0
     assert game.js("weakFound") == ([WORLDS[w]] if kind == "sp" else [])            # 見破った記録がつくのは、特効だけ
@@ -212,7 +212,7 @@ def test_every_weakness(game, item, k):
     game.js(ALL); game.boss(WORLDS.index(k))
     assert game.js(f"weakKnown('{k}')") is False
     use(game, item)
-    assert game.js("[boss.crown, talk.text, weakFound]") == [1700, "弱点を見破った！！", [k]]
+    assert game.js("[boss.crown, talk.text.split('\\n')[0], weakFound]") == [1700, "弱点を見破った！！", [k]]
     assert 9000 < game.js("boss.sealUntil-performance.now()") <= 10000
     name = game.js(f"THEMES.find(t=>t.k==='{k}').name")
     assert game.js(f"weakText('{k}')") == "弱点: " + game.js(f"ITEM_NAME['{item}']")
@@ -321,7 +321,7 @@ def test_stop_cools_magma(game):
     game.js(ALL); game.boss(9); game.clear_board()
     game.js("for(let i=0;i<3;i++) balls.push(newBall(1.5+i*4*R, N-R-0.01, MAGMA)); dirty=true")
     game.js("energy=100; stopLeft=0; useStop()")
-    assert game.js("[balls.filter(o=>o.c===MAGMA).length, balls.filter(o=>o.c===GARBAGE).length, talk.text]") == [0, 3, "弱点を見破った！！"]
+    assert game.js("[balls.filter(o=>o.c===MAGMA).length, balls.filter(o=>o.c===GARBAGE).length, talk.text]") == [0, 3, "弱点を見破った！！\n弱点はストップだ！"]
     game.js("goHome()")
     game.boss(6); game.clear_board()
     game.js("for(let i=0;i<3;i++) balls.push(newBall(1.5+i*4*R, N-R-0.01, MAGMA)); dirty=true")
