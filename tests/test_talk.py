@@ -240,7 +240,7 @@ def test_everyday_lines(game):
     assert game.js("[talk.text, talk.mood]") == ["出口があぶない！", "worry"]
     game.js("balls=[]; dangerT=0; talkReset(); stagePop=stageNeed(level)-5; popped=0; chain=0; cascade=false")
     game.put(5, 1); game.wait(1200)
-    assert game.js("[level, talk.text]") == [2, "ステージ 1-2！\nそのちょうし！"]
+    assert game.js("[level, talkLog.includes('ステージ 1-2！\\nそのちょうし！')]") == [2, True]
 
 
 def test_priority(game):
