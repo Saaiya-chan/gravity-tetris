@@ -116,7 +116,7 @@ def test_aisho_matrix(game):
 
 # 判定ごとに1組: (判定, 道具, ボスのワールド番号, 王冠%, 封印の秒, セリフ, 表情)
 FIVE = [("sp", "broom", 1, 15, 10, "弱点を見破った！！", "happy"),      # ほうき（木のチョキ）→ 砂漠（土のパー）
-        ("seal", "water", 1, 4, 6, "封じた！", "happy"),               # じょうろ（水のチョキ）→ 砂漠（土のパー）
+        ("seal", "water", 1, 4, 6, "王冠を封じた！\nいまのうちに攻撃する！", "happy"),               # じょうろ（水のチョキ）→ 砂漠（土のパー）
         ("crown", "hand", 0, 10, 0, "王冠に効いてる！", "normal"),      # 魔法の手（金のチョキ）→ 草原（木のグー）
         ("normal", "boost", 1, 4, 0, "効いてる！", "normal"),           # ブースター（日のグー）→ 砂漠（土のパー）
         ("same", "weight", 4, 1, 0, "あまり効いてない…", "worry")]      # おもし（金のグー）→ トランポリン（金のグー）
@@ -147,7 +147,7 @@ def test_seal_not_shortened(game):
     ten = game.js("boss.sealUntil")
     assert 3900 < ten - six <= 4100
     game.js("energy=100; useWater()")                                # もう一度 6秒: 短くならない
-    assert game.js("[boss.sealUntil, talk.text]") == [ten, "封じた！"]
+    assert game.js("[boss.sealUntil, talk.text]") == [ten, "王冠を封じた！\nいまのうちに攻撃する！"]
 
 
 def test_crown_from_pops(game):
@@ -297,14 +297,14 @@ def test_counter_cleanup(game):
     game.js("bossAbility(performance.now())")
     assert game.js("balls.filter(o=>o.frozen).length") >= 3
     game.js("energy=100; useFire()")
-    assert game.js("[balls.filter(o=>o.frozen).length, talk.text]") == [0, "封じた！"]    # ひのたま（火のパー）は、アイスキング（水のグー）を封じる。王冠は大きくけずれない
+    assert game.js("[balls.filter(o=>o.frozen).length, talk.text]") == [0, "王冠を封じた！\nいまのうちに攻撃する！"]    # ひのたま（火のパー）は、アイスキング（水のグー）を封じる。王冠は大きくけずれない
     game.js("goHome()")
     game.boss(8); game.clear_board()                                     # フラワークイーン: 舞っている花びらが消える
     game.put(2, 0)
     game.js("bossAbility(performance.now())")
     assert game.js("!!petalFx") is True
     game.js("energy=100; useBroom()")
-    assert game.js("[petalFx, talk.text]") == [None, "封じた！"]                # ほうき（木のチョキ）は、フラワークイーン（木のパー）を封じる
+    assert game.js("[petalFx, talk.text]") == [None, "王冠を封じた！\nいまのうちに攻撃する！"]                # ほうき（木のチョキ）は、フラワークイーン（木のパー）を封じる
     game.js("goHome()")
     game.boss(3); game.clear_board()                                     # ファイアキング: 飛んでいる火の粉が消える
     game.put(4, 0)

@@ -153,7 +153,7 @@ def test_aisho_lines(game):
     game.js("energy=100; useBroom()")
     assert said() == ["効果ばつぐん！！", "happy", 2, None]
     game.js("energy=100; useWater()")
-    assert said() == ["封じた！", "happy", 2, None]
+    assert said() == ["王冠を封じた！\nいまのうちに攻撃する！", "happy", 2, None]
     game.js("energy=100; useBoost()")
     assert said() == ["効いてる！", "normal", 2, None]
     game.clear_board(); game.put(3, 0); game.wait(500)
@@ -209,7 +209,7 @@ def test_seal_line_after_aisho(game):
     game.js("goHome()")
     game.boss(1)
     game.js(QUIET + "energy=100; useWater()"); game.wait(600)             # 封印だけ（6秒）でも同じ
-    assert game.js("talk.text") == "封じた！"
+    assert game.js("talk.text") == "王冠を封じた！\nいまのうちに攻撃する！"
     game.wait(game.js("TALK_MS"))
     assert game.js("talk.text") == "いまのうちだ！"
 
@@ -290,4 +290,5 @@ def test_fairy_tic(game):
     game.start()
     game.js("talkReset(); say('封じた！','happy',3,'t',0)"); game.wait(200)
     assert game.page.locator("#talkBub").inner_text() == "封じたぷに！"
+    assert game.js("fairyTalk('王冠を封じた！\\nいまのうちに攻撃する！')") == "王冠を封じたぷに！\nいまのうちに攻撃するぷに！"
     assert game.js("talk.text") == "封じた！"
