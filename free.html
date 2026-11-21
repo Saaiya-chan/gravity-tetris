@@ -863,6 +863,7 @@ function stWhere(st){ return `ステージ ${Math.ceil(st/5)}-${(st-1)%5+1}`; }
 function stageNeed(lv){ return mode==="world" ? Math.min(90, 45+6*Math.min(8,(worldClears[theme().k]||0))) : Math.min(150, 60+15*((lv||1)-1)); }   // ワールドは1ステージ40個から（先のワールドほど多い）
 let lockTimer, dirty, popping, popT, chain, running, paused, over;
 let quietT=0, cascade=false, chainUntil=0, chainWinLen=1, lastPopG=null;
+let stageDisp=0;                                            // 次のステージまでのゲージの、いまの表示（なめらかに動かす）
 let particles=[], chainFx=null, shake=0;
 const MAG_MS = 6000;          // マグネットの効いている時間
 const MAG_RANGE = 7*2*0.48;   // 引き合う距離（粒7個ぶん）
@@ -3081,13 +3082,13 @@ function draw(now){
   for(const p of particles){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=PALETTE[p.c].hi; ctx.beginPath(); ctx.arc(p.x*s,p.y*s,p.r*s*p.life+1,0,Math.PI*2); ctx.fill(); }
   ctx.globalAlpha=1;
   // 連鎖表示
-  if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間（残りを盤面の上のバーで見せる）
-    const k=(chainUntil-now)/chainWinLen, bw=W*0.5, bh=Math.max(4,u*0.14), bx=(W-bw)/2, by=boss ? u*1.55 : u*0.35;   // ボス戦中はHPバーの下に
+  if(cascade && !popping && chainUntil>now && chainUntil<Infinity){   // 連鎖の受付時間: 盤面の左のふちに、たてのバーで残りを見せる（右のエネルギーのゲージと対）
+    const k=Math.max(0,Math.min(1,(chainUntil-now)/chainWinLen)), bh=W*0.42, bw=Math.max(8,u*0.26), bx=u*0.3, by=(W-bh)/2, hh=bh*k;
     ctx.save();
-    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
-    ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; ctx.beginPath(); ctx.roundRect(bx,by,bw*k,bh,bh/2); ctx.fill();
-    ctx.font=`800 ${u*0.42}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
-    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.fillText(`${chain}連鎖中`, W/2, by+bh+4);
+    ctx.fillStyle="rgba(0,0,30,.72)"; ctx.beginPath(); ctx.roundRect(bx-3,by-3,bw+6,bh+6,bw); ctx.fill();
+    ctx.fillStyle = k>0.3 ? "#ffcf5a" : "#ff7a5a"; if(hh>1){ ctx.beginPath(); ctx.roundRect(bx,by+bh-hh,bw,hh,Math.min(bw/2,hh/2)); ctx.fill(); }
+    ctx.font=`900 ${u*0.4}px "GP",-apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.lineJoin="round"; ctx.lineWidth=u*0.1; ctx.strokeStyle="rgba(0,0,30,.85)"; ctx.fillStyle="#ffe27a";
+    ctx.textBaseline="bottom"; ctx.strokeText(`${chain}連鎖`,bx-2,by-u*0.14); ctx.fillText(`${chain}連鎖`,bx-2,by-u*0.14);
     ctx.restore();
   }
   if(chainFx){
@@ -3108,6 +3109,17 @@ function draw(now){
       }
       ctx.restore();
     }
+  }
+  if(!boss && running && !over && !(mode==="world" && level%WORLD_STAGES===0)){    // 次のステージまでのゲージ: ボスの体力ゲージと同じ形で、盤面の上に
+    const need=stageNeed(level), k=Math.min(1,stagePop/need), bw=W*0.62, bh=Math.max(8,u*0.3), bx=(W-bw)/2, by=u*0.45;
+    stageDisp += (k-stageDisp)*0.2; if(k<stageDisp) stageDisp=k;
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,.55)"; ctx.beginPath(); ctx.roundRect(bx-2,by-2,bw+4,bh+4,bh); ctx.fill();
+    if(stageDisp>0.004){ ctx.fillStyle="#ffcf5a"; ctx.beginPath(); ctx.roundRect(bx,by,Math.max(bh,bw*stageDisp),bh,bh/2); ctx.fill(); }
+    ctx.font=`800 ${u*0.4}px -apple-system,"Hiragino Sans",sans-serif`; ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillStyle="#fff"; ctx.fillText(`ステージ ${stageLabel()}  ${Math.min(stagePop,need)}/${need}`, bx+4, by+bh+4);
+    ctx.textAlign="right"; ctx.fillStyle="#ffcf5a"; ctx.fillText(`あと${Math.max(0,need-stagePop)}個`, bx+bw, by+bh+4);
+    ctx.restore();
   }
   if(boss){                                                     // ボス: 出口の印と、上のHPバー
     const bases=spawnBases(), wk = boss.warn ? Math.min(1,(now-boss.warn)/1100) : 0;
