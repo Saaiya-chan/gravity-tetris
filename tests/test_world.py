@@ -26,12 +26,13 @@ def world_select(game):
 
 
 def test_world_select_tiers(game):
-    """[WORLD-07][WORLD-08] ワールドをえらぶ画面: 「1段目」「2段目」「3段目」の見出しの下に、相性の階段の順でならぶ。ランダムは最後。"""
+    """[WORLD-07][WORLD-08][LAB-04] ワールドをえらぶ画面: 見出しは「1段目」「2段目」の2つだけ。1段目に草原・砂漠・氷、2段目にそれ以外の7つがならぶ。ランダムは最後。"""
     assert world_select(game) == [
         ["段", "1段目", "まずはここから"], "meadow", "desert", "ice",
-        ["段", "2段目", "1段目の道具が効く"], "flower", "sticky", "magma",
-        ["段", "3段目", "2段目の道具が効く"], "fire", "popcorn", "bouncy", "space",
+        ["段", "2段目", "道具をあつめて いどもう"], "flower", "sticky", "magma", "fire", "popcorn", "bouncy", "space",
         "random"]
+    assert game.page.locator("#sheet .tier-h").count() == 2 and "3段目" not in game.page.locator("#sheet").inner_text()
+    assert game.js("[TIER_NOTE.length, Object.values(TIER).filter(n=>n===1).length, Object.values(TIER).filter(n=>n===2).length]") == [2, 3, 7]
     tops = game.js("[...document.querySelectorAll('#sheet .tier-h, #sheet .wl')].map(e=>Math.round(e.getBoundingClientRect().top))")
     assert tops == sorted(tops)                                       # 画面の上でも、この順に上から下へならんでいる
     assert game.js("[...document.querySelectorAll('#sheet .tier-h')].every(h=>{ const r=h.getBoundingClientRect(), s=sheet.getBoundingClientRect(); return r.left>=s.left && r.right<=s.right && r.height>0; })")
@@ -39,8 +40,14 @@ def test_world_select_tiers(game):
     got = world_select(game)
     assert [x for x in got if isinstance(x, str)] == ["meadow", "desert", "ice", "flower", "sticky", "magma", "fire", "popcorn", "bouncy", "space", "random"]
     assert game.page.locator(".wl[data-w='-1']").is_enabled()
-    assert game.page.locator(".wl[data-w='8'] .wl-vs").inner_text() == "弱点: ほうき"
+    assert game.page.locator(".wl[data-w='8'] .wl-vs").inner_text() == "弱点: 魔法の手"       # 見破ったフラワー（木のパー）: 特効は魔法の手（金のチョキ）
     assert game.page.locator(".wl[data-w='6'] .wl-vs").inner_text() == "弱点: ？？？"
+    assert game.page.locator(".wl[data-w='5'] .wl-vs").count() == 0                            # 宇宙には、まだ特効の道具がないので、何も出さない
+    game.js("goHome(); worldClears={}")
+    game.start(0); game.js("level=5; startBoss(performance.now())")                            # 段がちがっても、ボスの体力は同じ（差をつけない）
+    hp1 = game.js("boss.maxHp")
+    game.js("goHome()"); game.start(5); game.js("level=worldNo*5+5; startBoss(performance.now())")
+    assert game.js("boss.maxHp") == hp1 == 1600
 
 
 def test_world_numbers_unchanged(game):

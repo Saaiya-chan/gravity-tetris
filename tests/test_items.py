@@ -79,7 +79,7 @@ def test_gem_item_table(game):
     """[LAB-02] 宝石とアイテムの対応。"""
     assert game.js("GEM_ITEM") == GEM_ITEM
     assert sorted(GEM_ITEM) == sorted(game.js("THEMES.map(t=>t.k)"))      # 全10ワールドの宝石に、作れるアイテムがある
-    assert game.js("[Object.keys(GEM_SOON).length, Object.keys(COUNTER_SOON).length]") == [0, 0]   # 準備中は、もう無い
+    assert game.js("[typeof GEM_SOON, typeof COUNTER_SOON]") == ["undefined", "undefined"]            # 準備中の表は、もう無い
 
 
 def test_upgrade(game):
@@ -110,12 +110,24 @@ def test_lab_max(game):
 
 
 def test_lab_screen(game):
-    """[LAB-03][LAB-04] 研究所: 開発ずみは消費エネルギーつきで並び、弱点の相手は見破るまで「？？？」。"""
-    game.js("devItems=['mag']; showMenu('skills')"); game.wait(300)
+    """[LAB-03][LAB-04][LAB-05] 研究所: 開発ずみは消費エネルギーつきで並び、特効になる相手は見破るまで「？？？」。どのカードにも、道具の席（属性と手）が出る。"""
+    game.js("devItems=['mag','stop','pop']; showMenu('skills')"); game.wait(300)
     text = game.page.locator("#overlay").inner_text()
     assert "消費エネルギー" in text and "？？？" in text
-    game.js("weakFound=['desert']; showMenu('skills')"); game.wait(300)
-    assert "砂漠のボスにきく" in game.page.locator("#overlay").inner_text()
+    card = lambda name: game.page.locator(".lab", has_text=name)
+    assert card("マグネット").inner_text().count("？？？のボスにきく") == 1      # マグネットが特効になるのは、草原のボス
+    assert card("ストップ").inner_text().count("？？？のボスにきく") == 2        # ストップは、マグマとポップコーンの2体
+    assert "のボスにきく" not in card("はじけ玉").inner_text() and "のボスにきく" not in card("ブースター").inner_text()   # 特効の相手がまだいない道具には、出さない
+    game.js("weakFound=['meadow','magma']; showMenu('skills')"); game.wait(300)
+    assert "草原のボスにきく" in card("マグネット").inner_text() and "？？？" not in card("マグネット").inner_text()
+    assert "マグマのボスにきく" in card("ストップ").inner_text() and card("ストップ").inner_text().count("？？？のボスにきく") == 1
+    seat = lambda name: card(name).locator("h3 .seat")
+    assert [seat(n).get_attribute("aria-label") for n in ["ブースター", "マグネット", "ストップ", "はじけ玉"]] == ["日のグー", "金のパー", "水のパー", "火のグー"]
+    assert seat("ストップ").inner_text().replace("\n", "") == "水🖐️" and seat("ストップ").is_visible()
+    assert game.page.locator(".lab.todo h3 .seat").count() == 7                 # これから開発する道具にも、席が出る（宝石で何を作るか、えらぶ手がかり）
+    assert game.page.locator(".lab h3 .seat").count() == 11
+    for name in ["たいよう", "じしゃく", "うみ", "ようがん"]:                   # タイプの名前は出さない
+        assert name not in game.page.locator("#overlay").inner_text()
 
 
 @pytest.mark.parametrize("lv,rate", [(1, 0.6), (2, 0.7), (3, 0.8), (4, 0.9), (5, 1.0)])
@@ -152,8 +164,8 @@ def test_develop_new(game, gem, item):
 def test_lab_all_items(game):
     """[LAB-03] 研究所: 11種すべてが「つかえるアイテム」か「これから開発」のどちらかに名前つきで並ぶ（じゅんび中は無い）。"""
     game.js("devItems=['mag','broom','fire']; showMenu('skills')"); game.wait(300)
-    own = game.page.locator(".lab.own h3").all_inner_texts()
-    todo = game.page.locator(".lab.todo h3").all_inner_texts()
+    own = [t.split("\n")[0] for t in game.page.locator(".lab.own h3").all_inner_texts()]       # （名前のあとに、席の札がつく。LAB-05）
+    todo = [t.split("\n")[0] for t in game.page.locator(".lab.todo h3").all_inner_texts()]
     assert own == ["ブースター", "マグネット", "ほうき", "ひのたま"]
     assert sorted(own + todo) == sorted(NAMES.values()) and len(todo) == 7
     text = game.page.locator("#overlay").inner_text()
@@ -190,7 +202,7 @@ def test_broom_upgrade(game):
 def test_pop_item(game):
     """[ITEM-10][EN-09] はじけ玉: まわりのぷにを、お邪魔ぷにごと消す。消した数・スコア・エネルギー・ボスへのダメージに数える。消費35。"""
     game.js("devItems=['pop']")
-    game.boss(5); game.clear_board()                                     # 宇宙のボス（はじけ玉は弱点でも苦手でもない）
+    game.boss(5); game.clear_board()                                     # 宇宙のボス（月のグー。はじけ玉は「ふつう」）
     game.js("energy=100; usePop()")
     assert game.js("energy") == 100                                      # ぷにが無ければ使えない
     game.put(2, 0); game.put(2, 1, row=1); game.put(2, "GARBAGE", row=2)
@@ -229,7 +241,7 @@ def test_weight(game):
     assert game.js(fastest) > 5                                           # ふだんは、全部はね上げられる
     assert game.js(f"(()=>{{ energy=100; useWeight(); return [energy, weightLeft>7500, {fastest}]; }})()") == [70, True, 0]   # 飛ばされている途中でも、その場で止まって落ちる
     game.js("talkReset(); bossAbility(performance.now())")               # （相性のセリフが出ている間は、下の優先度のセリフは出ないので、いったん消しておく）
-    assert game.js("[talk.text, talk.mood, abilFx.text]") == ["おもしで\nびくともしない！", "happy", "おおゆれ！"]   # 実況ぷにが知らせる（TALK-07）。盤面には妨害の名前だけ
+    assert game.js("[talk.text, talk.mood, abilFx.text]") == ["おもしで\nびくともしない！", "happy", "おおゆれ！"]   # ぷに妖精が知らせる（TALK-07）。盤面には妨害の名前だけ
     assert game.js(fastest) < 2                                           # はね上げられない（重力で落ちる速さだけ）
     hit = "(()=>{ balls.forEach((o,i)=>{ o.x=1.2+i; o.y=R; o.vx=0; o.vy=-20; }); physicsStep(16); return Math.max(...balls.map(o=>o.vy)); })()"
     assert game.js(hit) < 2                                               # 天井にぶつけても、はね返らない

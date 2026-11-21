@@ -1,4 +1,4 @@
-"""裏設定のタイプの決まり（docs/TYPES.md）。ゲームへの反映はこれからなので、ここでは表そのものの形だけを確かめる。"""
+"""裏設定のタイプの決まり（docs/TYPES.md）。表そのものの形を確かめる（ゲーム側との一致は test_boss.py が見る）。"""
 from types_data import TYPES, GOGYO, NICHIGETSU, BOSS_SEAT, ITEM_SEAT, beats, effect
 
 ALL = [t for e in TYPES for t in TYPES[e]]
@@ -52,7 +52,7 @@ def test_no_mutual_wins():
 
 
 def test_plan_every_boss_can_be_sealed_and_cracked():
-    """[TYPE-06] 割りふり案: どのボスにも「封じられる道具」があり、宇宙のほかは「特効の道具」が1つ以上ある。"""
+    """[TYPE-06] 割りふり: どのボスにも「封じられる道具」があり、宇宙のほかは「特効の道具」が1つ以上ある。"""
     for boss in BOSS_SEAT:
         got = {item: effect(item, boss) for item in ITEM_SEAT}
         assert any(v in ("封印", "特効") for v in got.values()), boss

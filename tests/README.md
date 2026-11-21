@@ -26,11 +26,12 @@ pytest tests -k weakness  # テスト名の一部で指定
 | `conftest.py` | ゲームを開く下ごしらえ（製品版・セーブデータなし） |
 | `test_energy.py` | エネルギー（EN） |
 | `test_items.py` | アイテム・強化・研究所（ITEM / UP / LAB） |
-| `test_boss.py` | ボス・王冠・相性・宝石（BOSS / GEM） |
+| `test_boss.py` | ボス・王冠・相性（属性 × じゃんけん）・宝石（BOSS / GEM）。ゲームの相性が `types_data.py` と同じかも、ここで見はる |
 | `test_star.py` | スター（STAR） |
 | `test_world.py` | ワールド・ぷに・ライフ・放置・ショップ（WORLD / PUNI / CHAIN / LIFE / IDLE / SHOP） |
-| `test_talk.py` | 実況ぷに・吹き出し・NEXT の非表示（TALK） |
+| `test_talk.py` | ぷに妖精の実況・吹き出し・NEXT の非表示（TALK） |
 | `test_types.py` | 裏設定のタイプの決まり（TYPE。`docs/TYPES.md`） |
+| `types_data.py` | 裏設定のタイプの表と、相性の参考実装 `effect()`（テストではなく、データ） |
 
 ## 仕様を変えるとき
 
