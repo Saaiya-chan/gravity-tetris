@@ -614,7 +614,7 @@
   <div class="stat"><span class="label">SCORE</span></div>
   <div id="score">0</div>
   <div class="stat" style="margin-top:4px"><span class="label">最大連鎖</span><span id="lines">0</span><span class="label" style="margin-left:10px">ステージ</span><span id="stageN">1</span></div>
-  <div id="stageCard"><div class="sc-name" id="scName">🌿 草原</div><ul class="sc-pts" id="scPts"></ul><div class="sc-prog"><i id="scBar"></i></div><div class="sc-next" id="scNext"></div><div class="sc-fx" id="scFx"></div></div>
+  <div id="stageCard"><div class="sc-name" id="scName">🌿 草原</div><ul class="sc-pts" id="scPts"></ul><div class="sc-next" id="scNext"></div><div class="sc-fx" id="scFx"></div></div>
   <div id="status">傾きセンサー: なし</div>
 </div>
 
@@ -3358,7 +3358,6 @@ function updateHud(){
     const fx=[]; if(boss) fx.push(`👑 ボス戦: ${boss.name}`); if(boostLeft>0) fx.push("🚀 ブースター中"); if(handLeft>0) fx.push("🖐 魔法の手"); if(magLeft>0) fx.push("🧲 マグネット中"); if(weightLeft>0) fx.push("⚓ おもし中"); if(stopLeft>0) fx.push("⏳ ストップ中");
     document.getElementById("scFx").textContent=fx.join("　");
     const need=stageNeed(level), left=Math.max(0,need-stagePop);
-    document.getElementById("scBar").style.width=(boss?100:Math.min(100,stagePop/need*100))+"%";
     document.getElementById("scNext").textContent = mode==="world" && (level%WORLD_STAGES===0) ? "ボスを倒すとワールドクリア" : boss ? "ボス戦中" : `次のステージまで あと${left}個`;
     document.getElementById("stageCard").dataset.theme=th.k; fitHud(); fitHudSoon(); }
   const st=document.getElementById("itemStop"), sh=document.getElementById("itemShuf");
