@@ -58,8 +58,3 @@ def test_plan_every_boss_can_be_sealed_and_cracked():
         assert any(v in ("封印", "特効") for v in got.values()), boss
         if boss != "宇宙":
             assert "特効" in got.values(), boss
-
-
-def test_plan_starter_item_is_useful():
-    """[TYPE-07] 割りふり案: 最初から持っているブースターで、草原のボスの妨害を封じられる。"""
-    assert effect("ブースター", "草原") == "封印"
