@@ -22,6 +22,7 @@ def use(game, item, settle=True):
     if settle:
         game.wait(500)                                                # （シャッフル・ジャンプは、止まっているぷにが要る）
     game.js(READY + USE[item] + "()")
+AISHO_WAIT = 2000
 ALL = "devItems=['stop','mag','shuf','jump','hand','broom','pop','weight','fire','water']; "
 
 
@@ -365,3 +366,38 @@ def test_no_magma_in_pieces_during_boss(game):
     assert game.js(count) > 50
     game.js("level=worldNo*5+5; startBoss(performance.now()); boss.nextAtk=performance.now()+1e9")
     assert game.js(count) == 0
+
+
+def test_black_hole(game):
+    """[BOSS-24] ブラックホール: ランダムに5個を出口へ吸いこむ。つながりが外れ、しばらくくっつかない。"""
+    game.boss(5); game.clear_board()
+    for row in range(3):
+        game.put(4, row, row=row)                                          # 4個ずつ（消えない数）
+    game.wait(900)
+    assert game.js("bonds.length") >= 6
+    y0 = game.js("Math.min(...balls.map(o=>o.y))")
+    game.js("stopLeft=0; bossAbility(performance.now())"); game.wait(700)
+    assert game.js("[!!boss.hole, boss.hole.set.size, balls.filter(o=>o.noBond>performance.now()).length]") == [True, 5, 5]
+    assert game.js("Math.min(...balls.map(o=>o.y))") < y0 - 1.5            # 山から引きはがされて、上がっている
+    assert game.js("[...boss.hole.set].every(o=>!bonds.some(b=>b.a===o||b.b===o))") is True
+    game.wait(1300)
+    assert game.js("boss.hole") is None
+
+
+def test_black_hole_sealed(game):
+    """[BOSS-24][BOSS-10] 封印すると、吸いこみはその場で止まる。"""
+    game.js("devItems=['stop']"); game.boss(5); game.clear_board(); game.put(9, 0); game.wait(600)
+    game.js("stopLeft=0; bossAbility(performance.now())"); game.wait(200)
+    assert game.js("!!boss.hole") is True
+    game.js("energy=100; useStop()"); game.wait(200)
+    assert game.js("boss.hole") is None
+
+
+def test_aisho_banner(game):
+    """[BOSS-25] 道具を使うと、相性の結果が盤面に大きく出る。"""
+    game.js("devItems=['stop','broom','shuf']"); game.boss(1)                # 砂漠（土のパー）
+    for fn, kind in (("useBroom", "sp"), ("useBoost", "normal")):
+        game.js(f"aishoFx=null; energy=100; boostLeft=0; {fn}()".format(fn=fn)); game.wait(300)
+        assert game.js("aishoFx && aishoFx.kind") == kind
+    game.wait(AISHO_WAIT)
+    assert game.js("aishoFx") is None
