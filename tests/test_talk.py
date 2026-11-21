@@ -223,7 +223,8 @@ def test_everyday_lines(game):
     game.clear_board()
     game.js("talkReset(); chain=2; cascade=true; chainUntil=performance.now()+60000")
     game.put(5, 0); game.wait(1200)
-    assert game.js("[chain, talking()]") == [3, False]                     # 連鎖の数は、もう言わない
+    assert game.js("[chain, talkLog.includes('3連鎖！')]") == [3, False]    # 連鎖の数だけのセリフは、もう言わない
+    game.js("localStorage.removeItem('gp_chainToday'); talkReset()")
     assert game.js("[chainRecord(3), talk.text, talk.mood]") == [True, "3連鎖！\n今日の最高記録！", "happy"]   # 連鎖が終わったとき、今日の記録なら言う
     game.js("talkReset()")
     assert game.js("[chainRecord(3), chainRecord(2), talking()]") == [False, False, False]                  # 同じ数・少ない数では言わない
@@ -248,7 +249,7 @@ def test_priority(game):
     game.js("energy=100; useBroom()")                                    # 優先度2
     assert game.js("say('出口があぶない！', 'worry', 0, 'danger')") is False
     assert game.js("say('妨害がくるぞ！', 'worry', 1, 'warn')") is False
-    game.js("energy=0; useBoost(); chain=3")                             # エネルギー不足（ふだん）でも上書きしない
+    game.js("energy=0; useBoost()")                             # エネルギー不足（ふだん）でも上書きしない
     assert game.js("[talk.text.split('\\n')[0], talk.mood]") == ["弱点を見破った！！", "happy"]
     game.js("boss.sealUntil=0; talkReset(); say('出口があぶない！', 'worry', 0, 'danger')")     # （封印をといて、「いまのうちだ！」が割りこまないようにしておく）
     assert game.js("say('うごかして！', 'worry', 0, 'idle')") is True      # 同じ優先度は、新しいほうに置きかえる
@@ -290,3 +291,11 @@ def test_fairy_tic(game):
     assert game.page.locator("#talkBub").inner_text() == "封じたぷに！"
     assert game.js("fairyTalk('王冠を封じた！\\nいまのうちに攻撃する！')") == "王冠を封じたぷに！\nいまのうちに攻撃するぷに！"
     assert game.js("talk.text") == "封じた！"
+
+
+def test_fairy_cheers(game):
+    """[TALK-16] 盤面にほめことば（大量消し！など）が出るとき、ぷに妖精もいっしょによろこぶ。"""
+    game.start(); game.clear_board(); game.js("talkReset(); praise('大量消し！','9個いっぺんに')")
+    assert game.js("[talk.text, talk.mood]") == ["すごい！\nたくさん消えた！", "happy"]
+    game.js("talkReset(); praise('3色同時消し！')")
+    assert game.js("talk.text") == "3色同時消し！"
