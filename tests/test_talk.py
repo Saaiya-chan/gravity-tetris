@@ -217,13 +217,19 @@ def test_energy_short(game):
 
 
 def test_everyday_lines(game):
-    """[TALK-08] ふだんのセリフ: 3連鎖以上「○連鎖！」、エネルギー缶「エネルギー満タン！」、放置「うごかして！」、出口があぶない、ステージアップ。"""
+    """[TALK-08] ふだんのセリフ: 連鎖で今日の記録をぬりかえたとき「○連鎖！ 今日の最高記録！」、エネルギー缶「エネルギー満タン！」、放置「うごかして！」、出口があぶない、ステージアップ。"""
     game.start()
     assert game.js("talkLog[0]") == "がんばろう！"
     game.clear_board()
     game.js("talkReset(); chain=2; cascade=true; chainUntil=performance.now()+60000")
     game.put(5, 0); game.wait(1200)
-    assert game.js("[chain, talk.text, talk.mood]") == [3, "3連鎖！", "happy"]
+    assert game.js("[chain, talking()]") == [3, False]                     # 連鎖の数は、もう言わない
+    assert game.js("[chainRecord(3), talk.text, talk.mood]") == [True, "3連鎖！\n今日の最高記録！", "happy"]   # 連鎖が終わったとき、今日の記録なら言う
+    game.js("talkReset()")
+    assert game.js("[chainRecord(3), chainRecord(2), talking()]") == [False, False, False]                  # 同じ数・少ない数では言わない
+    assert game.js("chainRecord(4)") is True
+    game.js("store.set('chainToday',{d:'2000-1-1', n:9}); talkReset()")
+    assert game.js("chainRecord(3)") is True                              # 日がかわれば、また3連鎖から
     game.js("talkReset(); carry.can=1; energy=10; useCan()")
     assert game.js("[talk.text, talk.mood]") == ["エネルギー満タン！", "happy"]
     game.wait(900)                                                        # （消える演出の間は、放置を数えない）
