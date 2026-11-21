@@ -79,7 +79,8 @@ def open_game(browser, width=1133, height=744):
     g = Game(page)
     g.js("introSeen={has:()=>true,add(){},size:0}")          # ワールドの紹介画面は出さない
     if page.locator(".x-close").count():                       # デイリーのお知らせを閉じる
-        page.locator(".x-close").first.click()
+        close = page.locator(".x-close").first
+        close.click() if width >= height else close.dispatch_event("click")   # 縦向きでは「横向きにしてね」の案内が上にかぶさるので、直接押す
         page.wait_for_timeout(200)
     return g, ctx
 
@@ -95,7 +96,7 @@ def game(browser):
 
 @pytest.fixture
 def game_at(browser):
-    """画面の大きさをえらんで開く: game_at(844, 390) → Game。低い画面（iPhone の横向き）のテスト用。"""
+    """画面の大きさをえらんで開く: game_at(844, 390) → Game。いろいろな画面（iPhone の横向き・iPad）のテスト用。"""
     opened = []
 
     def make(width, height):

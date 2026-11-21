@@ -301,3 +301,12 @@ def test_fairy_cheers(game):
     assert game.js("[talk.text, talk.mood]") == ["すごい！\nたくさん消えた！", "happy"]
     game.js("talkReset(); praise('3色同時消し！')")
     assert game.js("talk.text") == "3色同時消し！"
+
+
+def test_weak_icon(game):
+    """[TALK-18] 弱点を見破ったとき、吹き出しの道具の名前の前に、道具のボタンと同じ絵が出る。"""
+    game.js("devItems=['broom']"); game.boss(1); game.js("boss.nextAtk=boss.nextBeam=performance.now()+1e9; talkReset(); energy=100; useBroom()"); game.wait(300)
+    assert game.page.locator("#talkBub .bub-ic svg").count() == 1
+    assert game.page.locator("#talkBub").inner_text().replace("\n", "") == "弱点を見破ったぷに！！弱点はほうきぷに！"
+    game.js("talkReset(); say('がんばろう！','normal',0,'z',0)"); game.wait(100)
+    assert game.page.locator("#talkBub .bub-ic").count() == 0

@@ -113,9 +113,12 @@ def test_use_spends_energy(game):
 
 
 def test_badge_shows_cost(game):
-    """[EN-10] アイテムのボタンには消費エネルギーが出る。"""
+    """[EN-10] アイテムのボタンには、消費エネルギーを出さない（缶の本数だけ出す）。足りないときは、使えない見た目になる。"""
     game.start()
-    assert game.page.locator("#itemBoost .badge").inner_text().strip() == "30"
+    assert game.page.locator("#itemBoost .badge").is_hidden()
+    assert game.page.locator("#itemCan .badge").is_visible()
+    game.js("energy=10; updateHud()")
+    assert game.js("document.getElementById('itemBoost').classList.contains('empty')") is True
 
 
 def test_badge_not_hidden(game):
@@ -123,9 +126,9 @@ def test_badge_not_hidden(game):
     game.js("devItems=['stop','mag','shuf','jump','hand','broom','water']")
     game.js("slots.L0='broom'; slots.L2='water'; layoutItems()")
     game.start()
-    shown = game.js("""[...document.querySelectorAll('.item')].filter(e=>getComputedStyle(e).display!=='none').map(e=>{
+    shown = game.js("""[...document.querySelectorAll('#itemCan')].filter(e=>getComputedStyle(e).display!=='none').map(e=>{
         const r=e.querySelector('.badge').getBoundingClientRect(), pts=[[.5,.5],[.15,.5],[.85,.5],[.5,.15],[.5,.85]];
         return [e.id, pts.every(([u,v])=>e.contains(document.elementFromPoint(r.left+r.width*u, r.top+r.height*v)))]; })""")
-    assert len(shown) == 8
+    assert len(shown) <= 1                                                # 出るバッジは、缶の本数だけ
+    assert game.js("[...document.querySelectorAll('.item:not(#itemCan) .badge')].every(b=>getComputedStyle(b).display==='none')") is True
     assert [i for i, ok in shown if not ok] == []
-    assert game.page.locator("#itemBoost .badge").inner_text().strip() == "30"
