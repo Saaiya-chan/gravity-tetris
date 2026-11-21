@@ -187,9 +187,7 @@ def test_boss_lines(game):
     assert game.js("[!!boss.warn, talk.text, talk.mood, talk.prio]") == [True, "妨害がくるぞ！", "worry", 1]
     game.wait(1200)
     game.js("talkReset(); boss.nextAtk=performance.now()+1e9; boss.sealUntil=performance.now()+60000"); game.wait(250)
-    assert game.js("[talk.text, talk.prio]") == ["いまのうちだ！", 1]
-    game.js("talkReset()"); game.wait(250)
-    assert game.js("talking()") is False                                  # 封印1回につき1度だけ
+    assert game.js("talking()") is False                                  # 封印しているだけでは、しゃべらない（封じた瞬間のセリフにまとめた）
     game.js("chain=1; hitBoss(boss.maxHp*0.5, performance.now())")
     assert game.js("talking()") is False                                  # 残り5割では言わない
     game.js("hitBoss(boss.maxHp*0.35, performance.now())")
@@ -199,19 +197,13 @@ def test_boss_lines(game):
     assert game.js("talkLog.filter(t=>t==='あと少し！').length") == 1
 
 
-def test_seal_line_after_aisho(game):
-    """[TALK-07][TALK-10] 封じる道具（特効・封印だけ）のあとの「いまのうちだ！」は、相性のセリフをじゃませず、それが消えてから出る。"""
-    game.js(ALL); game.boss(1)
-    game.js(QUIET + "energy=100; useBroom()"); game.wait(600)
-    assert game.js("talk.text.split('\\n')[0]") == "弱点を見破った！！"
-    game.wait(game.js("TALK_MS"))
-    assert game.js("talk.text") == "いまのうちだ！"
-    game.js("goHome()")
-    game.boss(1)
-    game.js(QUIET + "energy=100; useWater()"); game.wait(600)             # 封印だけ（6秒）でも同じ
-    assert game.js("talk.text") == "王冠を封じた！\nいまのうちに攻撃する！"
-    game.wait(game.js("TALK_MS"))
-    assert game.js("talk.text") == "いまのうちだ！"
+def test_fairy_wording(game):
+    """[TALK-15] 語尾「ぷに」は行ごとにつき、不自然になる言い回しは言いかえる。"""
+    for a, b in [("妨害がくるぞ！", "妨害がくるぷに！"), ("サンドキングだ！\\n王冠をねらえ！", "サンドキングぷに！\n王冠をねらうぷに！"),
+                 ("王冠にひびが！", "王冠にひびが入ったぷに！"), ("弱点を見破った！！\\n弱点はほうきだ！", "弱点を見破ったぷに！！\n弱点はほうきぷに！"),
+                 ("ステージ 1-2！\\nそのちょうし！", "ステージ 1-2！\nそのちょうしぷに！"), ("いよいよボスだ！", "いよいよボスぷに！"),
+                 ("あまり効いてない…", "あまり効いてないぷに…"), ("うごかして！", "うごかしてぷに！")]:
+        assert game.js(f"fairyTalk('{a}')") == b
 
 
 def test_energy_short(game):
